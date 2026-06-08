@@ -10,6 +10,8 @@ export const ROUTES = {
   miCuentaEntradas: "/mi-cuenta/entradas",
   admin: "/admin",
   adminEventos: "/admin/eventos",
+  adminEventosCrear: "/admin/eventos/crear",
+  adminEvento: (id: string) => `/admin/eventos/${id}`,
   adminComunidad: "/admin/comunidad",
   adminProductos: "/admin/productos",
   adminVentas: "/admin/ventas",

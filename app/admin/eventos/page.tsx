@@ -1,21 +1,99 @@
 import type { Metadata } from "next";
-import { AdminPlaceholderPage } from "@/components/pages/AdminPlaceholderPage";
+import Link from "next/link";
+import { AdminHeader } from "@/components/layout/AdminHeader";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import {
+  EVENT_STATUS_LABELS,
+  TICKET_SALE_MODE_LABELS,
+} from "@/lib/constants/event-status";
 import { ROUTES } from "@/lib/constants/routes";
+import { getAllEventsForAdmin } from "@/lib/events/queries";
+import { formatEventDate } from "@/lib/events/utils";
 
 export const metadata: Metadata = {
   title: "Admin · Eventos",
 };
 
-export default function AdminEventosPage() {
+export default async function AdminEventosPage() {
+  const events = await getAllEventsForAdmin();
+
   return (
-    <AdminPlaceholderPage
-      title="Eventos"
-      description="Creación y edición de eventos, flyers, fechas, capacidad y publicación."
-      backHref={ROUTES.admin}
-      backLabel="Volver al panel"
-      links={[
-        { href: ROUTES.eventos, label: "Ver sitio público", variant: "outline" },
-      ]}
-    />
+    <>
+      <AdminHeader
+        title="Eventos"
+        description="Creación y edición de eventos, flyers, fechas, capacidad y publicación."
+      />
+
+      <div className="px-4 py-8 sm:px-8">
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-zinc-400">
+            {events.length} evento{events.length === 1 ? "" : "s"} en total
+          </p>
+          <Button href={ROUTES.adminEventosCrear}>Crear evento</Button>
+        </div>
+
+        {events.length === 0 ? (
+          <Card padding="lg" className="text-center">
+            <h2 className="text-xl font-bold text-white">Sin eventos todavía</h2>
+            <p className="mt-2 text-zinc-400">
+              Creá el primer evento para publicarlo en la web.
+            </p>
+            <Button href={ROUTES.adminEventosCrear} className="mt-6">
+              Crear evento
+            </Button>
+          </Card>
+        ) : (
+          <div className="space-y-4">
+            {events.map((event) => (
+              <Card
+                key={event.id}
+                className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="text-lg font-bold text-white">{event.name}</h2>
+                    {event.is_featured ? (
+                      <span className="rounded-full bg-purple-500/20 px-3 py-1 text-xs text-purple-200">
+                        Destacado
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className="mt-1 text-sm text-zinc-400">
+                    {formatEventDate(event.event_date)}
+                    {event.location_name ? ` · ${event.location_name}` : ""}
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                    <span className="rounded-full bg-white/10 px-3 py-1 text-zinc-300">
+                      {EVENT_STATUS_LABELS[event.status]}
+                    </span>
+                    <span className="rounded-full bg-white/10 px-3 py-1 text-zinc-300">
+                      {TICKET_SALE_MODE_LABELS[event.ticket_sale_mode]}
+                    </span>
+                    <span className="rounded-full bg-white/10 px-3 py-1 text-zinc-400">
+                      /{event.slug}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Button href={ROUTES.adminEvento(event.id)} variant="outline">
+                    Editar
+                  </Button>
+                  {event.status === "published" ? (
+                    <Link
+                      href={ROUTES.evento(event.slug)}
+                      className="inline-flex items-center justify-center rounded-2xl px-6 py-3 text-sm font-semibold text-purple-300 transition hover:bg-white/5"
+                    >
+                      Ver público
+                    </Link>
+                  ) : null}
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+    </>
   );
 }

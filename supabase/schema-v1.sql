@@ -111,6 +111,11 @@ CREATE TABLE ticket_types (
   sort_order integer NOT NULL DEFAULT 0,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT ticket_types_public_price_check CHECK (public_price >= 0),
+  CONSTRAINT ticket_types_community_price_check CHECK (community_price >= 0),
+  CONSTRAINT ticket_types_stock_total_check CHECK (
+    stock_total IS NULL OR stock_total >= 0
+  ),
   CONSTRAINT ticket_types_stock_sold_check CHECK (stock_sold >= 0),
   CONSTRAINT ticket_types_max_per_order_check CHECK (max_per_order > 0)
 );
@@ -158,7 +163,10 @@ CREATE TABLE tickets (
   ),
   CONSTRAINT tickets_sales_channel_check CHECK (
     sales_channel IN ('web', 'admin_manual', 'door', 'external', 'courtesy')
-  )
+  ),
+  CONSTRAINT tickets_price_paid_check CHECK (price_paid >= 0),
+  CONSTRAINT tickets_original_price_check CHECK (original_price >= 0),
+  CONSTRAINT tickets_discount_amount_check CHECK (discount_amount >= 0)
 );
 
 COMMENT ON TABLE tickets IS 'Entradas vendidas o reservadas con QR único';
@@ -189,7 +197,16 @@ CREATE TABLE event_products (
   is_active boolean NOT NULL DEFAULT true,
   sort_order integer NOT NULL DEFAULT 0,
   created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now()
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT event_products_event_product_unique UNIQUE (event_id, product_id),
+  CONSTRAINT event_products_public_price_check CHECK (public_price >= 0),
+  CONSTRAINT event_products_community_price_check CHECK (community_price >= 0),
+  CONSTRAINT event_products_stock_initial_check CHECK (
+    stock_initial IS NULL OR stock_initial >= 0
+  ),
+  CONSTRAINT event_products_stock_current_check CHECK (
+    stock_current IS NULL OR stock_current >= 0
+  )
 );
 
 COMMENT ON TABLE event_products IS 'Productos habilitados por evento con precio y stock';
@@ -226,7 +243,11 @@ CREATE TABLE kiosk_orders (
   ),
   CONSTRAINT kiosk_orders_payment_status_check CHECK (
     payment_status IN ('pending', 'confirmed', 'rejected', 'refunded', 'cancelled')
-  )
+  ),
+  CONSTRAINT kiosk_orders_event_order_number_unique UNIQUE (event_id, order_number),
+  CONSTRAINT kiosk_orders_subtotal_check CHECK (subtotal >= 0),
+  CONSTRAINT kiosk_orders_discount_total_check CHECK (discount_total >= 0),
+  CONSTRAINT kiosk_orders_total_check CHECK (total >= 0)
 );
 
 COMMENT ON TABLE kiosk_orders IS 'Pedidos de kiosco/cocina/barra por evento';
@@ -243,7 +264,13 @@ CREATE TABLE kiosk_order_items (
   discount_amount numeric(12, 2) NOT NULL DEFAULT 0,
   subtotal numeric(12, 2) NOT NULL DEFAULT 0,
   created_at timestamptz NOT NULL DEFAULT now(),
-  CONSTRAINT kiosk_order_items_quantity_check CHECK (quantity > 0)
+  CONSTRAINT kiosk_order_items_quantity_check CHECK (quantity > 0),
+  CONSTRAINT kiosk_order_items_unit_price_check CHECK (unit_price >= 0),
+  CONSTRAINT kiosk_order_items_original_unit_price_check CHECK (
+    original_unit_price >= 0
+  ),
+  CONSTRAINT kiosk_order_items_discount_amount_check CHECK (discount_amount >= 0),
+  CONSTRAINT kiosk_order_items_subtotal_check CHECK (subtotal >= 0)
 );
 
 COMMENT ON TABLE kiosk_order_items IS 'Ítems de cada pedido de kiosco';

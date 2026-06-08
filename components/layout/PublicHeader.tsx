@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { PUBLIC_NAV_LINKS, ROUTES } from "@/lib/constants/routes";
+import { PublicAuthNav } from "@/components/layout/PublicAuthNav";
+import { ROUTES } from "@/lib/constants/routes";
 
 export function PublicHeader() {
   return (
@@ -15,15 +16,7 @@ export function PublicHeader() {
         </Link>
 
         <nav className="flex items-center gap-2 sm:gap-4">
-          {PUBLIC_NAV_LINKS.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="rounded-xl px-3 py-2 text-sm text-zinc-300 transition hover:bg-white/5 hover:text-white sm:px-4"
-            >
-              {link.label}
-            </Link>
-          ))}
+          <PublicAuthNav />
         </nav>
       </div>
     </header>

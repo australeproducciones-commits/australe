@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import { PlaceholderPage } from "@/components/pages/PlaceholderPage";
-import { ROUTES } from "@/lib/constants/routes";
+import { LoginForm } from "@/components/auth/LoginForm";
 
 export const metadata: Metadata = {
   title: "Ingresar",
@@ -8,15 +7,8 @@ export const metadata: Metadata = {
 
 export default function LoginPage() {
   return (
-    <PlaceholderPage
-      title="Ingresar"
-      description="Acceso al sistema para usuarios, comunidad y personal operativo. La autenticación se implementará en una etapa posterior."
-      backHref={ROUTES.home}
-      backLabel="Volver al inicio"
-      links={[
-        { href: ROUTES.miCuenta, label: "Mi cuenta", variant: "outline" },
-        { href: ROUTES.admin, label: "Panel admin" },
-      ]}
-    />
+    <div className="mx-auto max-w-md px-4 py-10 sm:px-6 sm:py-16">
+      <LoginForm />
+    </div>
   );
 }

@@ -11,11 +11,38 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[];
 
+export type ProfileRow = {
+  id: string;
+  full_name: string | null;
+  whatsapp: string | null;
+  role: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
 export type Database = {
   public: {
-    Tables: Record<string, never>;
-    Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Tables: {
+      profiles: {
+        Row: ProfileRow;
+        Insert: Partial<ProfileRow> & { id: string };
+        Update: Partial<ProfileRow>;
+        Relationships: [];
+      };
+    };
+    Views: {
+      [_ in never]: never;
+    };
+    Functions: {
+      ensure_profile: {
+        Args: {
+          p_full_name: string | null;
+          p_whatsapp: string | null;
+        };
+        Returns: ProfileRow;
+      };
+    };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };

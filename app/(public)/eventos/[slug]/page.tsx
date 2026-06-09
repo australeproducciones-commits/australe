@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { EventFlyer } from "@/components/events/EventFlyer";
+import { EventFlyer, EventPoster } from "@/components/events/EventFlyer";
 import {
   EventPriceListLink,
   EventTicketActions,
@@ -43,7 +43,7 @@ export default async function EventoPage({ params }: EventoPageProps) {
         ← Volver a eventos
       </Button>
 
-      <EventFlyer event={event} variant="hero" className="mb-8" />
+      <EventFlyer event={event} purpose="hero" className="mb-8" />
 
       <Card padding="lg">
         <p className="text-sm uppercase tracking-[0.3em] text-purple-300">
@@ -53,6 +53,8 @@ export default async function EventoPage({ params }: EventoPageProps) {
           {event.name}
         </h1>
         <p className="mt-4 text-lg text-purple-200">{dateTimeLabel}</p>
+
+        <EventPoster event={event} className="mt-8" />
 
         <div className="mt-6 grid gap-3 text-sm">
           {event.location_name ? (

@@ -66,7 +66,7 @@ export default async function Home() {
             <div className="rounded-[1.5rem] border border-white/10 bg-black/50 p-4 sm:p-6">
               {featuredEvent ? (
                 <>
-                  <EventFlyer event={featuredEvent} variant="hero" className="mb-6" />
+                  <EventFlyer event={featuredEvent} purpose="hero" className="mb-6" />
                   <p className="text-sm uppercase tracking-[0.4em] text-purple-300">
                     Evento destacado
                   </p>

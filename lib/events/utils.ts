@@ -4,7 +4,32 @@ import {
   type EventStatus,
   type TicketSaleMode,
 } from "@/lib/constants/event-status";
-import type { EventFormInput } from "@/lib/events/types";
+import type { EventFormInput, Event } from "@/lib/events/types";
+
+export type EventImageFields = Pick<Event, "flyer_url" | "banner_url">;
+
+/** Cards y listados: flyer primero, banner como respaldo. */
+export function getEventCardImageUrl(event: EventImageFields): string | null {
+  return event.flyer_url || event.banner_url || null;
+}
+
+/** Portada y destacado: banner primero, flyer como respaldo. */
+export function getEventHeroImageUrl(event: EventImageFields): string | null {
+  return event.banner_url || event.flyer_url || null;
+}
+
+/** Afiche en detalle: solo si hay flyer y no duplica la portada (solo-flyer). */
+export function getEventDetailPosterUrl(event: EventImageFields): string | null {
+  if (!event.flyer_url) {
+    return null;
+  }
+
+  if (event.banner_url) {
+    return event.flyer_url;
+  }
+
+  return null;
+}
 
 export function slugifyName(name: string): string {
   return name

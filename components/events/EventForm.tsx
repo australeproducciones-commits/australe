@@ -114,7 +114,11 @@ export function EventForm({
         </Field>
 
         <div className="grid gap-5 md:grid-cols-2">
-          <Field label="Flyer URL">
+          <Field
+            label="Flyer URL"
+            hint="recomendado 1080 × 1350 px · se usa en cards y afiche del evento"
+            help="Ideal para el listado de eventos y redes sociales."
+          >
             <input
               name="flyer_url"
               type="url"
@@ -126,7 +130,11 @@ export function EventForm({
             />
           </Field>
 
-          <Field label="Banner URL">
+          <Field
+            label="Banner URL"
+            hint="recomendado 1920 × 800 px · se usa en portada y evento destacado"
+            help="Ideal para la portada del evento y el destacado de la home."
+          >
             <input
               name="banner_url"
               type="url"
@@ -296,15 +304,27 @@ export function EventForm({
 
 function Field({
   label,
+  hint,
+  help,
   children,
 }: {
   label: string;
+  hint?: string;
+  help?: string;
   children: React.ReactNode;
 }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-sm text-zinc-400">{label}</span>
+      <span className="mb-1 block text-sm text-zinc-300">{label}</span>
+      {hint ? (
+        <span className="mb-2 block text-xs leading-5 text-purple-300/80">
+          {hint}
+        </span>
+      ) : null}
       {children}
+      {help ? (
+        <span className="mt-2 block text-xs leading-5 text-zinc-500">{help}</span>
+      ) : null}
     </label>
   );
 }

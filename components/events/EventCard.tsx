@@ -17,7 +17,7 @@ export function EventCard({ event, showFullDateTime = false }: EventCardProps) {
 
   return (
     <Card className="transition hover:-translate-y-1 hover:bg-white/[0.07]">
-      <EventFlyer event={event} />
+      <EventFlyer event={event} purpose="card" />
       <p className="mt-4 text-sm text-purple-300">{dateLabel}</p>
       <h3 className="mt-2 text-2xl font-bold">{event.name}</h3>
       <p className="mt-2 text-zinc-400">

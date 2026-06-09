@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { AdminCreateEventView } from "@/components/events/AdminCreateEventView";
 import { AdminHeader } from "@/components/layout/AdminHeader";
 import { EventForm } from "@/components/events/EventForm";
 import { Button } from "@/components/ui/Button";
 import { ROUTES } from "@/lib/constants/routes";
 import { updateEventFormAction } from "@/lib/events/actions";
+import { isReservedEventAdminSegment, isUuid } from "@/lib/events/adminRoutes";
 import { getEventByIdForAdmin } from "@/lib/events/queries";
 import { eventToFormInput } from "@/lib/events/utils";
 
@@ -16,6 +18,11 @@ export async function generateMetadata({
   params,
 }: AdminEditEventoPageProps): Promise<Metadata> {
   const { id } = await params;
+
+  if (isReservedEventAdminSegment(id)) {
+    return { title: "Admin · Crear evento" };
+  }
+
   const event = await getEventByIdForAdmin(id);
   return { title: event ? `Admin · ${event.name}` : "Admin · Evento" };
 }
@@ -24,6 +31,15 @@ export default async function AdminEditEventoPage({
   params,
 }: AdminEditEventoPageProps) {
   const { id } = await params;
+
+  if (isReservedEventAdminSegment(id)) {
+    return <AdminCreateEventView />;
+  }
+
+  if (!isUuid(id)) {
+    notFound();
+  }
+
   const event = await getEventByIdForAdmin(id);
 
   if (!event) {

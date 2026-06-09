@@ -10,6 +10,11 @@ import {
 import { ROUTES } from "@/lib/constants/routes";
 import { getPublishedEventBySlug } from "@/lib/events/queries";
 import { formatEventDateTime } from "@/lib/events/utils";
+import { getActiveTicketTypesForPublishedEvent } from "@/lib/tickets/queries";
+import {
+  formatTicketPrice,
+  getMinPublicPrice,
+} from "@/lib/tickets/utils";
 
 type EventoPageProps = {
   params: Promise<{ slug: string }>;
@@ -36,6 +41,12 @@ export default async function EventoPage({ params }: EventoPageProps) {
     event.start_time,
     event.end_time,
   );
+
+  const activeTicketTypes = await getActiveTicketTypesForPublishedEvent(
+    event.id,
+    event.status,
+  );
+  const minPrice = getMinPublicPrice(activeTicketTypes);
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 sm:py-16">
@@ -80,6 +91,12 @@ export default async function EventoPage({ params }: EventoPageProps) {
         {event.description ? (
           <p className="mt-8 whitespace-pre-line leading-7 text-zinc-300">
             {event.description}
+          </p>
+        ) : null}
+
+        {minPrice != null ? (
+          <p className="mt-4 rounded-2xl border border-purple-400/20 bg-purple-400/10 px-4 py-3 text-sm text-purple-200">
+            Entradas disponibles desde {formatTicketPrice(minPrice)}
           </p>
         ) : null}
 

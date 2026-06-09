@@ -76,9 +76,12 @@ export default async function AdminEventosPage() {
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-2 sm:flex-row">
+                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                   <Button href={ROUTES.adminEvento(event.id)} variant="outline">
                     Editar
+                  </Button>
+                  <Button href={ROUTES.adminEventoEntradas(event.id)} variant="secondary">
+                    Entradas
                   </Button>
                   {event.status === "published" ? (
                     <Link

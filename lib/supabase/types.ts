@@ -43,6 +43,29 @@ export type EventRow = {
   updated_at: string;
 };
 
+export type TicketTypeRow = {
+  id: string;
+  event_id: string;
+  name: string;
+  description: string | null;
+  public_price: number;
+  community_price: number;
+  stock_total: number | null;
+  stock_sold: number;
+  max_per_order: number;
+  sale_start_at: string | null;
+  sale_end_at: string | null;
+  is_active: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type TicketRow = {
+  id: string;
+  ticket_type_id: string | null;
+};
+
 export type Database = {
   public: {
     Tables: {
@@ -60,6 +83,23 @@ export type Database = {
           updated_at?: string;
         };
         Update: Partial<EventRow>;
+        Relationships: [];
+      };
+      ticket_types: {
+        Row: TicketTypeRow;
+        Insert: Omit<TicketTypeRow, "id" | "created_at" | "updated_at" | "stock_sold"> & {
+          id?: string;
+          stock_sold?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<TicketTypeRow>;
+        Relationships: [];
+      };
+      tickets: {
+        Row: TicketRow;
+        Insert: Partial<TicketRow> & { id?: string };
+        Update: Partial<TicketRow>;
         Relationships: [];
       };
     };

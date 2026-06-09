@@ -11,9 +11,9 @@ Aplicá los scripts **en este orden** desde **SQL Editor** en el panel de Supaba
 | 1 | [`schema-v1.sql`](./schema-v1.sql) | Tablas, índices, RLS (sin policies), triggers `updated_at` |
 | 2 | [`schema-v1-profile-functions.sql`](./schema-v1-profile-functions.sql) | Función `ensure_profile()` para crear/completar perfil desde la app |
 | 3 | [`schema-v1-policies.sql`](./schema-v1-policies.sql) | Helpers de rol + policies RLS + GRANTs |
-| 4 | *(pendiente)* Frontend | Login que llama `ensure_profile` tras signup/login |
+| 4 | [`schema-v1-ticket-reservations.sql`](./schema-v1-ticket-reservations.sql) | Función `reserve_tickets()` para reserva atómica con control de stock |
 
-> Los scripts 2 y 3 son re-ejecutables (`CREATE OR REPLACE`, `DROP POLICY IF EXISTS`). El script 1 solo en proyecto limpio.
+> Los scripts 2, 3 y 4 son re-ejecutables (`CREATE OR REPLACE`, `DROP POLICY IF EXISTS`). El script 1 solo en proyecto limpio.
 
 ### Estrategia de perfiles en V1
 
@@ -134,11 +134,57 @@ Solo catálogo público:
 
 **No hay acceso público** a `profiles`, `tickets`, `kiosk_orders`, `cash_closures` ni `audit_logs`.
 
+## Ticket reservations V1 — `schema-v1-ticket-reservations.sql`
+
+Reserva web atómica con control de stock. Requiere scripts 1, 2 y 3 ejecutados.
+
+### Qué incluye
+
+| Incluido | Detalle |
+|----------|---------|
+| Función | `public.reserve_tickets(p_event_id, p_ticket_type_id, p_quantity, p_buyer_name, p_buyer_whatsapp, p_buyer_dni)` |
+| Retorno | `SETOF public.tickets` (array de filas creadas, ideal para `supabase.rpc`) |
+| Transacción | `SELECT ... FOR UPDATE` en `ticket_types`, incremento de `stock_sold` e inserts en `tickets` |
+| Anti-sobreventa | Bloqueo de fila + validación de stock antes de incrementar |
+| Seguridad | `SECURITY DEFINER`, `SET search_path = public` |
+| Auth | Requiere `auth.uid()`; sin `EXECUTE` para `anon` |
+| Validaciones | Evento publicado, venta interna, tipo activo, ventana de venta, máximo por compra, stock |
+
+### Uso desde la app (etapa posterior)
+
+Reemplaza la reserva manual desde server actions (insert directo en `tickets` + intento de `UPDATE` en `ticket_types`, que fallaba por RLS para clientes).
+
+```ts
+const { data, error } = await supabase.rpc("reserve_tickets", {
+  p_event_id: eventId,
+  p_ticket_type_id: ticketTypeId,
+  p_quantity: 2,
+  p_buyer_name: "Nombre Apellido",
+  p_buyer_whatsapp: "+54...",
+  p_buyer_dni: "12345678",
+});
+// data: Ticket[] con las filas creadas
+```
+
+### Errores esperados (`RAISE EXCEPTION`)
+
+| Mensaje | Causa |
+|---------|-------|
+| `usuario no autenticado` | Sin sesión |
+| `cantidad inválida` | `p_quantity <= 0` |
+| `comprador requerido` | `p_buyer_name` vacío |
+| `evento no disponible` | Evento inexistente o no `published` |
+| `venta interna no habilitada` | `ticket_sale_mode` no es `internal` ni `both` |
+| `tipo de entrada no disponible` | Tipo inexistente, inactivo o de otro evento |
+| `venta fuera de fecha` | Fuera de `sale_start_at` / `sale_end_at` |
+| `supera máximo por compra` | Cantidad mayor a `max_per_order` |
+| `stock insuficiente` | Sin cupo en `stock_total - stock_sold` |
+
 ### Advertencias de seguridad (reforzar en server actions/backend)
 
 Las policies RLS son la primera línea de defensa. En V1, estas operaciones **deben validarse también en server actions** o funciones `SECURITY DEFINER`:
 
-1. **Tickets customer INSERT** — RLS exige `sales_channel=web`, `payment_status=pending`, `ticket_status=reserved`, pero no valida stock, precios ni `qr_token` único.
+1. **Tickets customer INSERT** — usar `reserve_tickets()` en lugar de insert directo; la policy RLS sigue aplicando si se inserta manualmente, pero no valida stock ni precios.
 2. **Tickets customer SELECT** — solo vía `community_member_id` ligado al profile; entradas sin membresía no serán visibles hasta ampliar la policy o usar RPC.
 3. **Tickets door UPDATE** — solo transición `valid → used`; validar `qr_token` y evento en backend.
 4. **Tickets cashier** — policies amplias; validar montos, métodos de pago y stock en server actions.

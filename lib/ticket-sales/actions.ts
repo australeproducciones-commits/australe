@@ -4,10 +4,8 @@ import { getProfile } from "@/lib/auth/getProfile";
 import { ROLES } from "@/lib/constants/roles";
 import { ROUTES } from "@/lib/constants/routes";
 import type { TicketType } from "@/lib/tickets/types";
-import { getStockAvailable } from "@/lib/tickets/utils";
 import {
   assertPublishedEventForReservation,
-  getCommunityMemberIdForProfile,
   getPublishedEventReservationContext,
   getTicketByIdForAdmin,
   getTicketTypeForReservation,
@@ -17,17 +15,15 @@ import type {
   TicketAdminActionResult,
 } from "@/lib/ticket-sales/types";
 import {
-  SALES_CHANNEL,
-  TICKET_PAYMENT_METHOD,
   TICKET_PAYMENT_STATUS,
   TICKET_STATUS,
 } from "@/lib/ticket-sales/types";
 import {
   canMarkTicketExpired,
-  generateQrToken,
   getReservationExpiresAt,
   isInternalSaleEnabled,
   isTicketTypeOnSale,
+  mapReserveTicketsRpcError,
   parseReservationBuyer,
   parseReservationLines,
   validateReservationBuyer,
@@ -67,40 +63,6 @@ async function requireAdminAction() {
   }
 
   return { supabase, profile };
-}
-
-async function incrementStockSold(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  ticketType: TicketType,
-  quantity: number,
-): Promise<{ ok: true } | { ok: false; error: string }> {
-  const available = getStockAvailable(ticketType);
-
-  if (available !== null && quantity > available) {
-    return {
-      ok: false,
-      error: `Solo quedan ${available} entradas "${ticketType.name}" disponibles.`,
-    };
-  }
-
-  const newStockSold = ticketType.stock_sold + quantity;
-
-  const { data, error } = await supabase
-    .from("ticket_types")
-    .update({ stock_sold: newStockSold })
-    .eq("id", ticketType.id)
-    .eq("stock_sold", ticketType.stock_sold)
-    .select("id")
-    .maybeSingle();
-
-  if (error || !data) {
-    return {
-      ok: false,
-      error: `No se pudo actualizar el stock de "${ticketType.name}". Intentá de nuevo.`,
-    };
-  }
-
-  return { ok: true };
 }
 
 async function decrementStockSold(
@@ -191,86 +153,33 @@ export async function reserveTicketsAction(
     return { success: false, error: linesError };
   }
 
-  const communityMemberId = await getCommunityMemberIdForProfile(
-    auth.profile.id,
-  );
-  const reservationExpiresAt = getReservationExpiresAt();
-  const isAdmin = auth.profile.role === ROLES.ADMIN;
   let totalTickets = 0;
+  let reservationExpiresAt: string | undefined;
 
   for (const line of lines) {
-    const ticketType = freshTypes.get(line.ticketTypeId)!;
-
-    if (isAdmin) {
-      const stockResult = await incrementStockSold(
-        auth.supabase,
-        ticketType,
-        line.quantity,
-      );
-
-      if (!stockResult.ok) {
-        return { success: false, error: stockResult.error };
-      }
-
-      ticketType.stock_sold += line.quantity;
-    }
-
-    const inserts = Array.from({ length: line.quantity }, () => ({
-      event_id: event.id,
-      ticket_type_id: ticketType.id,
-      community_member_id: communityMemberId,
-      buyer_name: buyer.buyer_name,
-      buyer_whatsapp: buyer.buyer_whatsapp || null,
-      buyer_dni: buyer.buyer_dni || null,
-      qr_token: generateQrToken(),
-      price_paid: ticketType.public_price,
-      original_price: ticketType.public_price,
-      discount_amount: 0,
-      payment_method: TICKET_PAYMENT_METHOD.PENDING,
-      payment_status: TICKET_PAYMENT_STATUS.PENDING,
-      ticket_status: TICKET_STATUS.RESERVED,
-      sales_channel: SALES_CHANNEL.WEB,
-      reservation_expires_at: reservationExpiresAt,
-    }));
-
-    const { error } = await auth.supabase.from("tickets").insert(inserts);
+    const { data, error } = await auth.supabase.rpc("reserve_tickets", {
+      p_event_id: event.id,
+      p_ticket_type_id: line.ticketTypeId,
+      p_quantity: line.quantity,
+      p_buyer_name: buyer.buyer_name,
+      p_buyer_whatsapp: buyer.buyer_whatsapp || null,
+      p_buyer_dni: buyer.buyer_dni || null,
+    });
 
     if (error) {
-      console.error("reserveTicketsAction insert:", error.message);
-
-      if (isAdmin) {
-        await decrementStockSold(
-          auth.supabase,
-          ticketType.id,
-          line.quantity,
-        );
-      }
-
+      console.error("reserveTicketsAction rpc:", error.message);
       return {
         success: false,
-        error:
-          auth.profile.role === ROLES.CUSTOMER
-            ? "No se pudo crear la reserva. Verificá que tu cuenta sea de cliente."
-            : "No se pudo crear la reserva. Intentá de nuevo.",
+        error: mapReserveTicketsRpcError(error.message),
       };
     }
 
-    if (!isAdmin) {
-      const stockResult = await incrementStockSold(
-        auth.supabase,
-        ticketType,
-        line.quantity,
-      );
+    const tickets = data ?? [];
+    totalTickets += tickets.length;
 
-      if (!stockResult.ok) {
-        console.warn(
-          "reserveTicketsAction: stock_sold no actualizado (RLS).",
-          ticketType.id,
-        );
-      }
+    if (!reservationExpiresAt && tickets[0]?.reservation_expires_at) {
+      reservationExpiresAt = tickets[0].reservation_expires_at;
     }
-
-    totalTickets += line.quantity;
   }
 
   revalidateReservationPaths(event.slug, event.id);
@@ -278,7 +187,7 @@ export async function reserveTicketsAction(
   return {
     success: true,
     ticketCount: totalTickets,
-    reservationExpiresAt,
+    reservationExpiresAt: reservationExpiresAt ?? getReservationExpiresAt(),
   };
 }
 

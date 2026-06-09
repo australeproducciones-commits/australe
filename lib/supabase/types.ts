@@ -167,6 +167,17 @@ export type Database = {
         };
         Returns: ProfileRow;
       };
+      reserve_tickets: {
+        Args: {
+          p_event_id: string;
+          p_ticket_type_id: string;
+          p_quantity: number;
+          p_buyer_name: string;
+          p_buyer_whatsapp: string | null;
+          p_buyer_dni: string | null;
+        };
+        Returns: TicketRow[];
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

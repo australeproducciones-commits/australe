@@ -186,6 +186,40 @@ export function isReservationExpired(
   return new Date(reservationExpiresAt) < now;
 }
 
+export function mapReserveTicketsRpcError(message: string): string {
+  const normalized = message.toLowerCase();
+
+  if (normalized.includes("usuario no autenticado")) {
+    return "Tenés que iniciar sesión para reservar entradas.";
+  }
+  if (normalized.includes("cantidad inválida")) {
+    return "La cantidad seleccionada no es válida.";
+  }
+  if (normalized.includes("comprador requerido")) {
+    return "Ingresá el nombre del comprador.";
+  }
+  if (normalized.includes("evento no disponible")) {
+    return "Este evento no está disponible para reservas.";
+  }
+  if (normalized.includes("venta interna no habilitada")) {
+    return "Este evento no tiene venta interna habilitada.";
+  }
+  if (normalized.includes("tipo de entrada no disponible")) {
+    return "Este tipo de entrada no está disponible.";
+  }
+  if (normalized.includes("venta fuera de fecha")) {
+    return "La venta de esta entrada está fuera de fecha.";
+  }
+  if (normalized.includes("supera máximo por compra")) {
+    return "La cantidad supera el máximo permitido por compra.";
+  }
+  if (normalized.includes("stock insuficiente")) {
+    return "No hay stock suficiente para esa cantidad.";
+  }
+
+  return "No se pudo crear la reserva. Intentá de nuevo.";
+}
+
 export function canMarkTicketExpired(ticket: {
   ticket_status: TicketStatus;
   payment_status: TicketPaymentStatus;

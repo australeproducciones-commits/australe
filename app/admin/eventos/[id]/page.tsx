@@ -67,6 +67,13 @@ export default async function AdminEditEventoPage({
           >
             Tipos de entradas
           </Button>
+          <Button
+            href={ROUTES.adminEventoVentas(event.id)}
+            variant="outline"
+            size="sm"
+          >
+            Ventas / reservas
+          </Button>
           {event.status === "published" ? (
             <Button href={ROUTES.evento(event.slug)} variant="outline" size="sm">
               Ver público

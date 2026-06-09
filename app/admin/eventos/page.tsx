@@ -83,6 +83,9 @@ export default async function AdminEventosPage() {
                   <Button href={ROUTES.adminEventoEntradas(event.id)} variant="secondary">
                     Entradas
                   </Button>
+                  <Button href={ROUTES.adminEventoVentas(event.id)} variant="outline">
+                    Ventas
+                  </Button>
                   {event.status === "published" ? (
                     <Link
                       href={ROUTES.evento(event.slug)}

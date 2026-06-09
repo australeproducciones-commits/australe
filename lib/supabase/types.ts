@@ -61,9 +61,45 @@ export type TicketTypeRow = {
   updated_at: string;
 };
 
+export type CommunityMemberRow = {
+  id: string;
+  profile_id: string | null;
+  full_name: string;
+  whatsapp: string;
+  dni: string;
+  birth_date: string;
+  status: string;
+  community_code: string;
+  created_at: string;
+  updated_at: string;
+};
+
 export type TicketRow = {
   id: string;
+  event_id: string;
   ticket_type_id: string | null;
+  community_member_id: string | null;
+  buyer_name: string;
+  buyer_whatsapp: string | null;
+  buyer_dni: string | null;
+  qr_token: string;
+  qr_image_url: string | null;
+  price_paid: number;
+  original_price: number;
+  discount_amount: number;
+  payment_method: string;
+  payment_status: string;
+  ticket_status: string;
+  sales_channel: string;
+  reservation_expires_at: string | null;
+  used_at: string | null;
+  used_by: string | null;
+  sold_by: string | null;
+  cancelled_at: string | null;
+  cancelled_by: string | null;
+  cancel_reason: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 export type Database = {
@@ -96,9 +132,26 @@ export type Database = {
         Update: Partial<TicketTypeRow>;
         Relationships: [];
       };
+      community_members: {
+        Row: CommunityMemberRow;
+        Insert: Omit<
+          CommunityMemberRow,
+          "id" | "created_at" | "updated_at"
+        > & {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<CommunityMemberRow>;
+        Relationships: [];
+      };
       tickets: {
         Row: TicketRow;
-        Insert: Partial<TicketRow> & { id?: string };
+        Insert: Partial<TicketRow> & {
+          event_id: string;
+          buyer_name: string;
+          qr_token: string;
+        };
         Update: Partial<TicketRow>;
         Relationships: [];
       };

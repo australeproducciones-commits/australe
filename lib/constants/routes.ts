@@ -13,6 +13,7 @@ export const ROUTES = {
   adminEventosCrear: "/admin/eventos/crear",
   adminEvento: (id: string) => `/admin/eventos/${id}`,
   adminEventoEntradas: (id: string) => `/admin/eventos/${id}/entradas`,
+  adminEventoVentas: (id: string) => `/admin/eventos/${id}/ventas`,
   adminComunidad: "/admin/comunidad",
   adminProductos: "/admin/productos",
   adminVentas: "/admin/ventas",

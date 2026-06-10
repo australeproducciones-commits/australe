@@ -12,8 +12,9 @@ Aplicá los scripts **en este orden** desde **SQL Editor** en el panel de Supaba
 | 2 | [`schema-v1-profile-functions.sql`](./schema-v1-profile-functions.sql) | Función `ensure_profile()` para crear/completar perfil desde la app |
 | 3 | [`schema-v1-policies.sql`](./schema-v1-policies.sql) | Helpers de rol + policies RLS + GRANTs |
 | 4 | [`schema-v1-ticket-reservations.sql`](./schema-v1-ticket-reservations.sql) | Función `reserve_tickets()` para reserva atómica con control de stock |
+| 5 | [`schema-v1-ticket-cancellations.sql`](./schema-v1-ticket-cancellations.sql) | Función `cancel_ticket()` para cancelación/vencimiento atómico con liberación de stock |
 
-> Los scripts 2, 3 y 4 son re-ejecutables (`CREATE OR REPLACE`, `DROP POLICY IF EXISTS`). El script 1 solo en proyecto limpio.
+> Los scripts 2, 3, 4 y 5 son re-ejecutables (`CREATE OR REPLACE`, `DROP POLICY IF EXISTS`). El script 1 solo en proyecto limpio.
 
 ### Estrategia de perfiles en V1
 
@@ -180,18 +181,70 @@ const { data, error } = await supabase.rpc("reserve_tickets", {
 | `supera máximo por compra` | Cantidad mayor a `max_per_order` |
 | `stock insuficiente` | Sin cupo en `stock_total - stock_sold` |
 
+## Ticket cancellations V1 — `schema-v1-ticket-cancellations.sql`
+
+Cancelación o vencimiento admin atómico con liberación de stock. Requiere scripts 1–4 ejecutados.
+
+### Qué incluye
+
+| Incluido | Detalle |
+|----------|---------|
+| Función | `public.cancel_ticket(p_ticket_id, p_cancel_reason, p_mark_as_expired)` |
+| Retorno | `public.tickets` (fila actualizada, ideal para `supabase.rpc`) |
+| Transacción | `SELECT ... FOR UPDATE` en `tickets` y `ticket_types`, decremento de `stock_sold` y update del ticket |
+| Anti-doble-liberación | Si el ticket ya está `cancelled` o `expired`, falla sin tocar stock |
+| Liberación de stock | Solo si el ticket estaba en `reserved` o `valid` |
+| Seguridad | `SECURITY DEFINER`, validación interna con `is_admin()` |
+| Auth | Requiere `auth.uid()`; sin `EXECUTE` para `anon` |
+
+### Uso desde la app
+
+Reemplaza cancelación manual (update en `tickets` + `decrementStockSold` desde server action).
+
+```ts
+// Cancelar
+await supabase.rpc("cancel_ticket", {
+  p_ticket_id: ticketId,
+  p_cancel_reason: "Motivo opcional",
+  p_mark_as_expired: false,
+});
+
+// Marcar vencida
+await supabase.rpc("cancel_ticket", {
+  p_ticket_id: ticketId,
+  p_cancel_reason: "Reserva vencida",
+  p_mark_as_expired: true,
+});
+```
+
+### Errores esperados (`RAISE EXCEPTION`)
+
+| Mensaje | Causa |
+|---------|-------|
+| `usuario no autenticado` | Sin sesión |
+| `solo administradores pueden cancelar entradas` | Usuario no admin |
+| `entrada no encontrada` | `p_ticket_id` inexistente |
+| `la entrada ya fue usada` | `ticket_status = used` |
+| `la entrada ya fue cancelada o vencida` | Evita doble liberación de stock |
+| `no se pudo liberar stock` | Fallo al actualizar `ticket_types` |
+
+### Nota sobre tipos de entrada eliminados
+
+Si `ticket_type_id` apunta a un tipo ya eliminado, la función **cancela el ticket igual** pero **no intenta descontar stock** (entrada huérfana). Esto evita bloquear operaciones admin.
+
 ### Advertencias de seguridad (reforzar en server actions/backend)
 
 Las policies RLS son la primera línea de defensa. En V1, estas operaciones **deben validarse también en server actions** o funciones `SECURITY DEFINER`:
 
 1. **Tickets customer INSERT** — usar `reserve_tickets()` en lugar de insert directo; la policy RLS sigue aplicando si se inserta manualmente, pero no valida stock ni precios.
-2. **Tickets customer SELECT** — solo vía `community_member_id` ligado al profile; entradas sin membresía no serán visibles hasta ampliar la policy o usar RPC.
-3. **Tickets door UPDATE** — solo transición `valid → used`; validar `qr_token` y evento en backend.
-4. **Tickets cashier** — policies amplias; validar montos, métodos de pago y stock en server actions.
-5. **Kiosk orders customer** — validar totales, items y stock en backend; RLS no recalcula precios.
-6. **Community_members INSERT** — `community_code` debe generarse server-side, no desde el cliente.
-7. **Cash_closures cashier INSERT** — totales deben calcularse server-side, no confiar en el cliente.
-8. **ensure_profile** — sigue siendo el único camino seguro para crear profiles en V1 (`SECURITY DEFINER`).
+2. **Tickets admin cancel** — usar `cancel_ticket()` en lugar de update manual + decremento de `stock_sold`; evita doble liberación de stock.
+3. **Tickets customer SELECT** — solo vía `community_member_id` ligado al profile; entradas sin membresía no serán visibles hasta ampliar la policy o usar RPC.
+4. **Tickets door UPDATE** — solo transición `valid → used`; validar `qr_token` y evento en backend.
+5. **Tickets cashier** — policies amplias; validar montos, métodos de pago y stock en server actions.
+6. **Kiosk orders customer** — validar totales, items y stock en backend; RLS no recalcula precios.
+7. **Community_members INSERT** — `community_code` debe generarse server-side, no desde el cliente.
+8. **Cash_closures cashier INSERT** — totales deben calcularse server-side, no confiar en el cliente.
+9. **ensure_profile** — sigue siendo el único camino seguro para crear profiles en V1 (`SECURITY DEFINER`).
 
 ## Auth V1 — `schema-v1-auth.sql` (no recomendado en hosted)
 

@@ -178,6 +178,14 @@ export type Database = {
         };
         Returns: TicketRow[];
       };
+      cancel_ticket: {
+        Args: {
+          p_ticket_id: string;
+          p_cancel_reason: string | null;
+          p_mark_as_expired: boolean;
+        };
+        Returns: TicketRow;
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

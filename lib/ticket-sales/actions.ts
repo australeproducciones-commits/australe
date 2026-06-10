@@ -23,6 +23,7 @@ import {
   getReservationExpiresAt,
   isInternalSaleEnabled,
   isTicketTypeOnSale,
+  mapCancelTicketRpcError,
   mapReserveTicketsRpcError,
   parseReservationBuyer,
   parseReservationLines,
@@ -63,29 +64,6 @@ async function requireAdminAction() {
   }
 
   return { supabase, profile };
-}
-
-async function decrementStockSold(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  ticketTypeId: string,
-  quantity: number,
-): Promise<void> {
-  const { data } = await supabase
-    .from("ticket_types")
-    .select("stock_sold")
-    .eq("id", ticketTypeId)
-    .maybeSingle();
-
-  if (!data) {
-    return;
-  }
-
-  const nextSold = Math.max(0, data.stock_sold - quantity);
-
-  await supabase
-    .from("ticket_types")
-    .update({ stock_sold: nextSold })
-    .eq("id", ticketTypeId);
 }
 
 function revalidateReservationPaths(eventSlug: string, eventId: string) {
@@ -255,53 +233,31 @@ export async function cancelTicketAction(
     return { success: false, error: auth.error };
   }
 
-  const ticket = await getTicketByIdForAdmin(ticketId);
+  const trimmedReason = reason.trim() || null;
 
-  if (!ticket) {
-    return { success: false, error: "Entrada no encontrada." };
-  }
+  const { data, error } = await auth.supabase.rpc("cancel_ticket", {
+    p_ticket_id: ticketId,
+    p_cancel_reason: trimmedReason,
+    p_mark_as_expired: false,
+  });
 
-  if (
-    ticket.ticket_status === TICKET_STATUS.CANCELLED ||
-    ticket.ticket_status === TICKET_STATUS.USED
-  ) {
+  if (error) {
+    console.error("cancelTicketAction rpc:", error.message);
     return {
       success: false,
-      error: "Esta entrada ya no se puede cancelar.",
+      error: mapCancelTicketRpcError(error.message),
     };
   }
 
-  const trimmedReason = reason.trim() || "Cancelada por administración";
-
-  const { error } = await auth.supabase
-    .from("tickets")
-    .update({
-      payment_status: TICKET_PAYMENT_STATUS.CANCELLED,
-      ticket_status: TICKET_STATUS.CANCELLED,
-      cancel_reason: trimmedReason,
-      cancelled_at: new Date().toISOString(),
-      cancelled_by: auth.profile.id,
-    })
-    .eq("id", ticketId);
-
-  if (error) {
-    return { success: false, error: "No se pudo cancelar la entrada." };
-  }
-
-  if (
-    ticket.ticket_status === TICKET_STATUS.RESERVED &&
-    ticket.ticket_type_id
-  ) {
-    await decrementStockSold(auth.supabase, ticket.ticket_type_id, 1);
-  }
-
-  const event = await assertPublishedEventForReservation(ticket.event_id);
-  if (event) {
-    revalidateReservationPaths(event.slug, ticket.event_id);
-  } else {
-    revalidatePath(ROUTES.adminEventoVentas(ticket.event_id));
-    revalidatePath(ROUTES.adminEventoEntradas(ticket.event_id));
-    revalidatePath(ROUTES.miCuentaEntradas);
+  if (data?.event_id) {
+    const event = await assertPublishedEventForReservation(data.event_id);
+    if (event) {
+      revalidateReservationPaths(event.slug, data.event_id);
+    } else {
+      revalidatePath(ROUTES.adminEventoVentas(data.event_id));
+      revalidatePath(ROUTES.adminEventoEntradas(data.event_id));
+      revalidatePath(ROUTES.miCuentaEntradas);
+    }
   }
 
   return { success: true };
@@ -328,31 +284,28 @@ export async function markTicketExpiredAction(
     };
   }
 
-  const { error } = await auth.supabase
-    .from("tickets")
-    .update({
-      ticket_status: TICKET_STATUS.EXPIRED,
-      payment_status: TICKET_PAYMENT_STATUS.CANCELLED,
-      cancel_reason: "Reserva vencida (24 h)",
-      cancelled_at: new Date().toISOString(),
-      cancelled_by: auth.profile.id,
-    })
-    .eq("id", ticketId);
+  const { data, error } = await auth.supabase.rpc("cancel_ticket", {
+    p_ticket_id: ticketId,
+    p_cancel_reason: "Reserva vencida",
+    p_mark_as_expired: true,
+  });
 
   if (error) {
-    return { success: false, error: "No se pudo marcar como vencida." };
+    console.error("markTicketExpiredAction rpc:", error.message);
+    return {
+      success: false,
+      error: mapCancelTicketRpcError(error.message),
+    };
   }
 
-  if (ticket.ticket_type_id) {
-    await decrementStockSold(auth.supabase, ticket.ticket_type_id, 1);
-  }
-
-  const event = await assertPublishedEventForReservation(ticket.event_id);
-  if (event) {
-    revalidateReservationPaths(event.slug, ticket.event_id);
-  } else {
-    revalidatePath(ROUTES.adminEventoVentas(ticket.event_id));
-    revalidatePath(ROUTES.adminEventoEntradas(ticket.event_id));
+  if (data?.event_id) {
+    const event = await assertPublishedEventForReservation(data.event_id);
+    if (event) {
+      revalidateReservationPaths(event.slug, data.event_id);
+    } else {
+      revalidatePath(ROUTES.adminEventoVentas(data.event_id));
+      revalidatePath(ROUTES.adminEventoEntradas(data.event_id));
+    }
   }
 
   return { success: true };

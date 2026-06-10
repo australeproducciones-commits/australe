@@ -186,6 +186,31 @@ export function isReservationExpired(
   return new Date(reservationExpiresAt) < now;
 }
 
+export function mapCancelTicketRpcError(message: string): string {
+  const normalized = message.toLowerCase();
+
+  if (normalized.includes("usuario no autenticado")) {
+    return "Tenés que iniciar sesión para realizar esta acción.";
+  }
+  if (normalized.includes("solo administradores pueden cancelar")) {
+    return "Solo los administradores pueden cancelar entradas.";
+  }
+  if (normalized.includes("entrada no encontrada")) {
+    return "Entrada no encontrada.";
+  }
+  if (normalized.includes("la entrada ya fue usada")) {
+    return "Esta entrada ya fue usada y no se puede cancelar.";
+  }
+  if (normalized.includes("la entrada ya fue cancelada o vencida")) {
+    return "Esta entrada ya fue cancelada o vencida.";
+  }
+  if (normalized.includes("no se pudo liberar stock")) {
+    return "No se pudo liberar el stock de la entrada.";
+  }
+
+  return "No se pudo cancelar la entrada. Intentá de nuevo.";
+}
+
 export function mapReserveTicketsRpcError(message: string): string {
   const normalized = message.toLowerCase();
 

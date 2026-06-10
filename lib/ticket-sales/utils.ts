@@ -3,6 +3,7 @@ import { TICKET_SALE_MODE } from "@/lib/constants/event-status";
 import type { TicketType } from "@/lib/tickets/types";
 import { getStockAvailable } from "@/lib/tickets/utils";
 import type {
+  CustomerTicket,
   ReservationBuyerInput,
   ReservationLineInput,
   TicketPaymentStatus,
@@ -24,6 +25,52 @@ export const TICKET_PAYMENT_STATUS_LABELS: Record<TicketPaymentStatus, string> =
   [TICKET_PAYMENT_STATUS.REFUNDED]: "Reembolsado",
   [TICKET_PAYMENT_STATUS.CANCELLED]: "Cancelado",
 };
+
+export const CUSTOMER_TICKET_SECTIONS: {
+  status: TicketStatus;
+  label: string;
+  description: string;
+}[] = [
+  {
+    status: TICKET_STATUS.VALID,
+    label: "Entradas válidas",
+    description: "Confirmadas y listas para presentar en puerta.",
+  },
+  {
+    status: TICKET_STATUS.RESERVED,
+    label: "Reservas pendientes",
+    description: "Aguardando confirmación de pago.",
+  },
+  {
+    status: TICKET_STATUS.USED,
+    label: "Entradas usadas",
+    description: "Ya ingresaste con esta entrada.",
+  },
+  {
+    status: TICKET_STATUS.CANCELLED,
+    label: "Canceladas",
+    description: "Reservas o entradas canceladas.",
+  },
+  {
+    status: TICKET_STATUS.EXPIRED,
+    label: "Vencidas",
+    description: "La reserva expiró sin confirmación de pago.",
+  },
+];
+
+export function groupCustomerTicketsByStatus(tickets: CustomerTicket[]) {
+  return CUSTOMER_TICKET_SECTIONS.map((section) => ({
+    ...section,
+    tickets: tickets.filter((ticket) => ticket.ticket_status === section.status),
+  })).filter((section) => section.tickets.length > 0);
+}
+
+export function shouldShowTicketQr(ticketStatus: TicketStatus): boolean {
+  return (
+    ticketStatus === TICKET_STATUS.VALID ||
+    ticketStatus === TICKET_STATUS.RESERVED
+  );
+}
 
 export const TICKET_STATUS_LABELS: Record<TicketStatus, string> = {
   [TICKET_STATUS.RESERVED]: "Reservada",

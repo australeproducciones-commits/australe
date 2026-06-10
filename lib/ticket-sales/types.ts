@@ -49,6 +49,7 @@ export type Ticket = {
   id: string;
   event_id: string;
   ticket_type_id: string | null;
+  user_id: string | null;
   community_member_id: string | null;
   buyer_name: string;
   buyer_whatsapp: string | null;

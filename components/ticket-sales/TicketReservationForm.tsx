@@ -63,9 +63,8 @@ export function TicketReservationForm({
           .
         </p>
         <p className="mt-6 text-sm leading-6 text-zinc-400">
-          Si iniciaste sesión con tu cuenta, las entradas aparecerán en Mi
-          Cuenta cuando estén vinculadas a tu perfil de comunidad. Si no, más
-          adelante podrás buscarlas por WhatsApp o DNI.
+          Las entradas aparecerán en Mi Cuenta con su código QR para presentar
+          en puerta una vez confirmado el pago.
         </p>
         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
           <Button href={ROUTES.miCuentaEntradas}>Ir a mis entradas</Button>

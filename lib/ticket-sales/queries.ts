@@ -14,7 +14,7 @@ import { filterTicketTypesOnSale } from "@/lib/ticket-sales/utils";
 import { createClient } from "@/lib/supabase/server";
 
 const TICKET_COLUMNS =
-  "id, event_id, ticket_type_id, community_member_id, buyer_name, buyer_whatsapp, buyer_dni, qr_token, qr_image_url, price_paid, original_price, discount_amount, payment_method, payment_status, ticket_status, sales_channel, reservation_expires_at, used_at, used_by, sold_by, cancelled_at, cancelled_by, cancel_reason, created_at, updated_at";
+  "id, event_id, ticket_type_id, user_id, community_member_id, buyer_name, buyer_whatsapp, buyer_dni, qr_token, qr_image_url, price_paid, original_price, discount_amount, payment_method, payment_status, ticket_status, sales_channel, reservation_expires_at, used_at, used_by, sold_by, cancelled_at, cancelled_by, cancel_reason, created_at, updated_at";
 
 export async function getPublishedEventReservationContext(
   slug: string,

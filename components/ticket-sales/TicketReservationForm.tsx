@@ -1,78 +1,130 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useMemo, useState } from "react";
 import Link from "next/link";
+import {
+  buildPublicKioskPickerLines,
+  PublicEventKioskInlinePicker,
+} from "@/components/kiosk/PublicEventKioskInlinePicker";
+import { TicketReservationSuccess } from "@/components/ticket-sales/TicketReservationSuccess";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { ROUTES } from "@/lib/constants/routes";
-import { reserveTicketsFormAction } from "@/lib/ticket-sales/actions";
+import type { Event } from "@/lib/events/types";
+import type { PublicEventKioskProduct } from "@/lib/kiosk/types";
+import { formatKioskMoney } from "@/lib/kiosk/utils";
+import {
+  reserveTicketsFormAction,
+  reserveTicketsWithKioskFormAction,
+} from "@/lib/ticket-sales/actions";
 import type { ReservationActionResult } from "@/lib/ticket-sales/types";
 import { TICKET_PAYMENT_STATUS } from "@/lib/ticket-sales/types";
-import {
-  formatReservationExpiry,
-  TICKET_PAYMENT_STATUS_LABELS,
-} from "@/lib/ticket-sales/utils";
+import { TICKET_PAYMENT_STATUS_LABELS } from "@/lib/ticket-sales/utils";
 import type { TicketType } from "@/lib/tickets/types";
 import {
+  formatCommunityPriceLabel,
   formatTicketPrice,
   getStockAvailableLabel,
 } from "@/lib/tickets/utils";
 
 type TicketReservationFormProps = {
-  eventSlug: string;
-  eventName: string;
+  event: Pick<
+    Event,
+    | "name"
+    | "slug"
+    | "event_date"
+    | "start_time"
+    | "end_time"
+    | "location_name"
+    | "address"
+  >;
   ticketTypes: TicketType[];
+  kioskProducts?: PublicEventKioskProduct[];
   isLoggedIn: boolean;
   defaultBuyerName?: string;
 };
 
 const initialState: ReservationActionResult = { success: false };
 
-export function TicketReservationForm({
-  eventSlug,
-  eventName,
+export function TicketReservationForm(props: TicketReservationFormProps) {
+  const [sessionKey, setSessionKey] = useState(0);
+
+  return (
+    <TicketReservationFormSession
+      key={sessionKey}
+      {...props}
+      onMakeAnother={() => setSessionKey((key) => key + 1)}
+    />
+  );
+}
+
+function TicketReservationFormSession({
+  event,
   ticketTypes,
+  kioskProducts = [],
   isLoggedIn,
   defaultBuyerName = "",
-}: TicketReservationFormProps) {
-  const action = reserveTicketsFormAction.bind(null, eventSlug);
+  onMakeAnother,
+}: TicketReservationFormProps & { onMakeAnother: () => void }) {
+  const hasKiosk = kioskProducts.length > 0;
+  const action = (
+    hasKiosk ? reserveTicketsWithKioskFormAction : reserveTicketsFormAction
+  ).bind(null, event.slug);
   const [state, formAction, pending] = useActionState(action, initialState);
+
+  const [ticketQuantities, setTicketQuantities] = useState<
+    Record<string, number>
+  >({});
+  const [kioskQuantities, setKioskQuantities] = useState<
+    Record<string, number>
+  >({});
+
+  const ticketLines = useMemo(() => {
+    return ticketTypes
+      .map((ticketType) => {
+        const quantity = ticketQuantities[ticketType.id] ?? 0;
+        if (quantity <= 0) {
+          return null;
+        }
+
+        return {
+          ticketType,
+          quantity,
+          subtotal: ticketType.public_price * quantity,
+        };
+      })
+      .filter((line) => line != null);
+  }, [ticketTypes, ticketQuantities]);
+
+  const kioskLines = useMemo(
+    () => buildPublicKioskPickerLines(kioskProducts, kioskQuantities),
+    [kioskProducts, kioskQuantities],
+  );
+
+  const ticketsTotal = ticketLines.reduce((sum, line) => sum + line.subtotal, 0);
+  const kioskTotal = kioskLines.reduce((sum, line) => sum + line.subtotal, 0);
+  const grandTotal = ticketsTotal + kioskTotal;
+
+  const kioskItemsPayload = useMemo(
+    () =>
+      JSON.stringify(
+        kioskLines.map((line) => ({
+          eventKioskProductId: line.product.id,
+          quantity: line.quantity,
+          productName: line.product.product_name,
+          unitPrice: line.product.price,
+        })),
+      ),
+    [kioskLines],
+  );
 
   if (state.success) {
     return (
-      <Card padding="lg" className="text-center">
-        <p className="text-sm uppercase tracking-[0.3em] text-emerald-300">
-          Reserva creada
-        </p>
-        <h2 className="mt-3 text-2xl font-black text-white">
-          ¡Listo, {eventName}!
-        </h2>
-        <p className="mt-4 text-zinc-300">
-          {state.ticketCount === 1
-            ? "Se creó 1 entrada reservada."
-            : `Se crearon ${state.ticketCount} entradas reservadas.`}
-        </p>
-        <p className="mt-2 text-purple-200">
-          Queda pendiente de confirmación de pago.
-        </p>
-        <p className="mt-2 text-sm text-zinc-400">
-          La reserva vence en 24 horas
-          {state.reservationExpiresAt
-            ? ` (${formatReservationExpiry(state.reservationExpiresAt)})`
-            : ""}
-          .
-        </p>
-        <p className="mt-6 text-sm leading-6 text-zinc-400">
-          Las entradas aparecerán en Mi Cuenta con su código QR para presentar
-          en puerta una vez confirmado el pago.
-        </p>
-        <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
-          <Button href={ROUTES.miCuentaEntradas}>Ir a mis entradas</Button>
-          <Button href={ROUTES.evento(eventSlug)} variant="outline">
-            Volver al evento
-          </Button>
-        </div>
-      </Card>
+      <TicketReservationSuccess
+        event={event}
+        result={state}
+        onMakeAnother={onMakeAnother}
+      />
     );
   }
 
@@ -110,9 +162,12 @@ export function TicketReservationForm({
                   <span className="rounded-full bg-purple-500/20 px-3 py-1 text-purple-200">
                     Público: {formatTicketPrice(ticketType.public_price)}
                   </span>
-                  <span className="rounded-full bg-white/10 px-3 py-1 text-zinc-300">
-                    Comunidad: {formatTicketPrice(ticketType.community_price)}
-                  </span>
+                  {formatCommunityPriceLabel(ticketType.community_price) ? (
+                    <span className="rounded-full bg-white/10 px-3 py-1 text-zinc-300">
+                      Comunidad:{" "}
+                      {formatCommunityPriceLabel(ticketType.community_price)}
+                    </span>
+                  ) : null}
                   <span className="rounded-full bg-white/10 px-3 py-1 text-zinc-400">
                     Disponibles: {getStockAvailableLabel(ticketType)}
                   </span>
@@ -129,8 +184,20 @@ export function TicketReservationForm({
                 <select
                   id={`qty_${ticketType.id}`}
                   name={`qty_${ticketType.id}`}
-                  defaultValue="0"
+                  value={ticketQuantities[ticketType.id] ?? 0}
                   disabled={!isLoggedIn || pending}
+                  onChange={(changeEvent) => {
+                    const quantity = Number.parseInt(
+                      changeEvent.target.value,
+                      10,
+                    );
+                    setTicketQuantities((current) => ({
+                      ...current,
+                      [ticketType.id]: Number.isFinite(quantity)
+                        ? quantity
+                        : 0,
+                    }));
+                  }}
                   className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white focus:border-purple-400 focus:outline-none sm:w-28"
                 >
                   {Array.from(
@@ -148,11 +215,93 @@ export function TicketReservationForm({
         ))}
       </div>
 
+      {hasKiosk ? (
+        <Card padding="lg">
+          <PublicEventKioskInlinePicker
+            products={kioskProducts}
+            value={kioskQuantities}
+            onChange={setKioskQuantities}
+            disabled={!isLoggedIn || pending}
+          />
+          <input type="hidden" name="kiosk_items" value={kioskItemsPayload} />
+        </Card>
+      ) : null}
+
+      {(ticketLines.length > 0 || kioskLines.length > 0) && isLoggedIn ? (
+        <Card padding="lg">
+          <h3 className="text-lg font-bold text-white">Resumen</h3>
+
+          {ticketLines.length > 0 ? (
+            <div className="mt-4">
+              <p className="text-sm font-semibold uppercase tracking-wider text-zinc-400">
+                Entradas
+              </p>
+              <ul className="mt-2 space-y-1 text-sm text-zinc-300">
+                {ticketLines.map((line) => (
+                  <li
+                    key={line.ticketType.id}
+                    className="flex justify-between gap-4"
+                  >
+                    <span>
+                      {line.ticketType.name} × {line.quantity}
+                    </span>
+                    <span className="shrink-0 text-white">
+                      {formatTicketPrice(line.subtotal)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-2 flex justify-between text-sm font-semibold text-white">
+                <span>Subtotal entradas</span>
+                <span>{formatTicketPrice(ticketsTotal)}</span>
+              </p>
+            </div>
+          ) : null}
+
+          {kioskLines.length > 0 ? (
+            <div className="mt-4">
+              <p className="text-sm font-semibold uppercase tracking-wider text-zinc-400">
+                Consumisiones
+              </p>
+              <ul className="mt-2 space-y-1 text-sm text-zinc-300">
+                {kioskLines.map((line) => (
+                  <li
+                    key={line.product.id}
+                    className="flex justify-between gap-4"
+                  >
+                    <span>
+                      {line.product.product_name} × {line.quantity}
+                    </span>
+                    <span className="shrink-0 text-white">
+                      {formatKioskMoney(line.subtotal)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-2 flex justify-between text-sm font-semibold text-white">
+                <span>Subtotal consumisiones</span>
+                <span>{formatKioskMoney(kioskTotal)}</span>
+              </p>
+            </div>
+          ) : null}
+
+          {ticketLines.length > 0 && kioskLines.length > 0 ? (
+            <p className="mt-4 flex justify-between border-t border-white/10 pt-4 text-base font-bold text-white">
+              <span>Total general</span>
+              <span>{formatTicketPrice(grandTotal)}</span>
+            </p>
+          ) : null}
+        </Card>
+      ) : null}
+
       <Card padding="lg">
         <h3 className="text-lg font-bold text-white">Datos del comprador</h3>
         <p className="mt-1 text-sm text-zinc-400">
           Pago manual por ahora: transferencia o efectivo según indique
           Australe.
+          {hasKiosk
+            ? " Si sumás consumisiones, completá WhatsApp o DNI."
+            : ""}
         </p>
 
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
@@ -223,7 +372,11 @@ export function TicketReservationForm({
         className="w-full sm:w-auto"
         disabled={!isLoggedIn || pending}
       >
-        {pending ? "Reservando…" : "Reservar entrada"}
+        {pending
+          ? "Confirmando…"
+          : kioskLines.length > 0
+            ? "Reservar entrada y consumisiones"
+            : "Reservar entrada"}
       </Button>
 
       <p className="text-xs text-zinc-500">

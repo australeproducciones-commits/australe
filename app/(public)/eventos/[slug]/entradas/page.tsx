@@ -7,6 +7,7 @@ import { getProfile } from "@/lib/auth/getProfile";
 import { TICKET_SALE_MODE } from "@/lib/constants/event-status";
 import { ROUTES } from "@/lib/constants/routes";
 import { formatEventDateTime } from "@/lib/events/utils";
+import { getPublicEventKiosk } from "@/lib/kiosk/queries";
 import { getPublishedEventReservationContext } from "@/lib/ticket-sales/queries";
 import { isInternalSaleEnabled } from "@/lib/ticket-sales/utils";
 import { createClient } from "@/lib/supabase/server";
@@ -36,7 +37,10 @@ export default async function EntradasPage({ params }: EntradasPageProps) {
   }
 
   const { event, ticketTypes } = context;
-  const supabase = await createClient();
+  const [supabase, publicKiosk] = await Promise.all([
+    createClient(),
+    getPublicEventKiosk(context.event.id),
+  ]);
   const profile = await getProfile(supabase);
 
   const dateTimeLabel = formatEventDateTime(
@@ -103,9 +107,13 @@ export default async function EntradasPage({ params }: EntradasPageProps) {
         </Card>
       ) : (
         <TicketReservationForm
-          eventSlug={slug}
-          eventName={event.name}
+          event={event}
           ticketTypes={ticketTypes}
+          kioskProducts={
+            publicKiosk.presaleEnabled && publicKiosk.hasSellableProducts
+              ? publicKiosk.products
+              : []
+          }
           isLoggedIn={profile !== null}
           defaultBuyerName={profile?.full_name ?? ""}
         />

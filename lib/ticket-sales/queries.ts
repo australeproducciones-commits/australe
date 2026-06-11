@@ -1,4 +1,3 @@
-import { getProfile } from "@/lib/auth/getProfile";
 import { EVENT_STATUS } from "@/lib/constants/event-status";
 import { getPublishedEventBySlug } from "@/lib/events/queries";
 import { requireAdminPage } from "@/lib/events/queries";
@@ -13,8 +12,10 @@ import type {
 import { filterTicketTypesOnSale } from "@/lib/ticket-sales/utils";
 import { createClient } from "@/lib/supabase/server";
 
+// Sin user_id en el SELECT: compatible con BD sin migración schema-v1-ticket-user-link.sql.
+// Admin y customer siguen funcionando; user_id se usa solo en filtros cuando existe la columna.
 const TICKET_COLUMNS =
-  "id, event_id, ticket_type_id, user_id, community_member_id, buyer_name, buyer_whatsapp, buyer_dni, qr_token, qr_image_url, price_paid, original_price, discount_amount, payment_method, payment_status, ticket_status, sales_channel, reservation_expires_at, used_at, used_by, sold_by, cancelled_at, cancelled_by, cancel_reason, created_at, updated_at";
+  "id, event_id, ticket_type_id, community_member_id, buyer_name, buyer_whatsapp, buyer_dni, qr_token, qr_image_url, price_paid, original_price, discount_amount, payment_method, payment_status, ticket_status, sales_channel, reservation_expires_at, used_at, used_by, sold_by, cancelled_at, cancelled_by, cancel_reason, created_at, updated_at";
 
 export async function getPublishedEventReservationContext(
   slug: string,
@@ -79,16 +80,30 @@ export async function getCommunityMemberIdForProfile(
 
 export async function getCustomerTickets(): Promise<CustomerTicket[]> {
   const supabase = await createClient();
-  const profile = await getProfile(supabase);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  if (!profile) {
+  if (!user) {
     return [];
   }
 
-  const { data: tickets, error } = await supabase
+  let { data: tickets, error } = await supabase
     .from("tickets")
     .select(TICKET_COLUMNS)
+    .eq("user_id", user.id)
     .order("created_at", { ascending: false });
+
+  if (error?.message.includes("user_id")) {
+    console.warn(
+      "getCustomerTickets: columna user_id no disponible, usando RLS legacy.",
+      error.message,
+    );
+    ({ data: tickets, error } = await supabase
+      .from("tickets")
+      .select(TICKET_COLUMNS)
+      .order("created_at", { ascending: false }));
+  }
 
   if (error) {
     console.error("getCustomerTickets:", error.message);
@@ -158,7 +173,12 @@ export async function getTicketsByEventIdForAdmin(
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("getTicketsByEventIdForAdmin:", error.message);
+    console.error(
+      "getTicketsByEventIdForAdmin:",
+      error.message,
+      "eventId:",
+      eventId,
+    );
     return [];
   }
 
@@ -194,7 +214,7 @@ export async function getEventForAdminSales(eventId: string) {
 
   const { data, error } = await supabase
     .from("events")
-    .select("id, name, slug, status")
+    .select("id, name, slug, status, event_date, start_time")
     .eq("id", eventId)
     .maybeSingle();
 

@@ -303,3 +303,9 @@ export function canMarkTicketExpired(ticket: {
     isReservationExpired(ticket.reservation_expires_at)
   );
 }
+
+export function canMarkTicketUsed(ticket: {
+  ticket_status: TicketStatus;
+}): boolean {
+  return ticket.ticket_status === TICKET_STATUS.VALID;
+}

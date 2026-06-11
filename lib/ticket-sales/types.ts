@@ -96,11 +96,52 @@ export type ReservationBuyerInput = {
   buyer_dni: string;
 };
 
+export type ReservationBuyerSummary = {
+  buyerName: string;
+  buyerWhatsapp?: string | null;
+  buyerDni?: string | null;
+};
+
+export type ReservationTicketCreatedSummary = {
+  ticketTypeName: string;
+  qrToken: string;
+  unitPrice: number;
+  paymentStatus: TicketPaymentStatus;
+  ticketStatus: TicketStatus;
+};
+
+export type ReservationTicketLineSummary = {
+  ticketTypeName: string;
+  quantity: number;
+  unitPrice: number;
+  subtotal: number;
+};
+
+export type ReservationKioskLineSummary = {
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  subtotal: number;
+};
+
+export type ReservationKioskOrderSummary = {
+  orderCode: string;
+  totalAmount: number;
+  lines: ReservationKioskLineSummary[];
+};
+
 export type ReservationActionResult = {
   success: boolean;
   error?: string;
   ticketCount?: number;
   reservationExpiresAt?: string;
+  buyer?: ReservationBuyerSummary;
+  tickets?: ReservationTicketCreatedSummary[];
+  ticketsTotal?: number;
+  ticketLines?: ReservationTicketLineSummary[];
+  kioskOrder?: ReservationKioskOrderSummary;
+  kioskError?: string;
+  grandTotal?: number;
 };
 
 export type TicketAdminActionResult = {

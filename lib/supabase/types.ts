@@ -103,6 +103,73 @@ export type TicketRow = {
   updated_at: string;
 };
 
+export type KioskProductRow = {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  image_url: string | null;
+  default_price: number | null;
+  category: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type EventKioskSettingsRow = {
+  event_id: string;
+  presale_enabled: boolean;
+  manual_sales_enabled: boolean;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type EventKioskProductRow = {
+  id: string;
+  event_id: string;
+  product_id: string;
+  price: number;
+  stock_total: number | null;
+  stock_sold: number;
+  is_available: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type KioskOrderRow = {
+  id: string;
+  event_id: string;
+  buyer_name: string;
+  buyer_whatsapp: string | null;
+  buyer_dni: string | null;
+  buyer_email: string | null;
+  ticket_id: string | null;
+  order_code: string;
+  source: string;
+  payment_status: string;
+  pickup_status: string;
+  total_amount: number;
+  paid_at: string | null;
+  delivered_at: string | null;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type KioskOrderItemRow = {
+  id: string;
+  order_id: string;
+  event_kiosk_product_id: string;
+  product_name: string;
+  unit_price: number;
+  quantity: number;
+  subtotal: number;
+  created_at: string;
+};
+
 export type Database = {
   public: {
     Tables: {
@@ -156,6 +223,60 @@ export type Database = {
         Update: Partial<TicketRow>;
         Relationships: [];
       };
+      kiosk_products: {
+        Row: KioskProductRow;
+        Insert: Omit<KioskProductRow, "id" | "created_at" | "updated_at"> & {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<KioskProductRow>;
+        Relationships: [];
+      };
+      event_kiosk_settings: {
+        Row: EventKioskSettingsRow;
+        Insert: Omit<EventKioskSettingsRow, "created_at" | "updated_at"> & {
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<EventKioskSettingsRow>;
+        Relationships: [];
+      };
+      event_kiosk_products: {
+        Row: EventKioskProductRow;
+        Insert: Omit<
+          EventKioskProductRow,
+          "id" | "created_at" | "updated_at" | "stock_sold"
+        > & {
+          id?: string;
+          stock_sold?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<EventKioskProductRow>;
+        Relationships: [];
+      };
+      kiosk_orders: {
+        Row: KioskOrderRow;
+        Insert: Omit<KioskOrderRow, "id" | "created_at" | "updated_at" | "total_amount"> & {
+          id?: string;
+          order_code?: string;
+          total_amount?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<KioskOrderRow>;
+        Relationships: [];
+      };
+      kiosk_order_items: {
+        Row: KioskOrderItemRow;
+        Insert: Omit<KioskOrderItemRow, "id" | "created_at"> & {
+          id?: string;
+          created_at?: string;
+        };
+        Update: Partial<KioskOrderItemRow>;
+        Relationships: [];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -186,6 +307,115 @@ export type Database = {
           p_mark_as_expired: boolean;
         };
         Returns: TicketRow;
+      };
+      recalculate_kiosk_order_total: {
+        Args: {
+          p_order_id: string;
+        };
+        Returns: void;
+      };
+      reserve_event_kiosk_stock: {
+        Args: {
+          p_event_kiosk_product_id: string;
+          p_quantity: number;
+        };
+        Returns: EventKioskProductRow;
+      };
+      release_event_kiosk_stock: {
+        Args: {
+          p_event_kiosk_product_id: string;
+          p_quantity: number;
+        };
+        Returns: EventKioskProductRow;
+      };
+      create_manual_kiosk_order: {
+        Args: {
+          p_event_id: string;
+          p_buyer_name: string;
+          p_buyer_whatsapp: string | null;
+          p_buyer_dni: string | null;
+          p_buyer_email: string | null;
+          p_ticket_id: string | null;
+          p_payment_status: string;
+          p_notes: string | null;
+          p_items: Json;
+        };
+        Returns: {
+          order_id: string;
+          order_code: string;
+          total_amount: number;
+        }[];
+      };
+      create_public_kiosk_order: {
+        Args: {
+          p_event_id: string;
+          p_buyer_name: string;
+          p_buyer_whatsapp: string | null;
+          p_buyer_dni: string | null;
+          p_buyer_email: string | null;
+          p_notes: string | null;
+          p_items: Json;
+        };
+        Returns: {
+          order_id: string;
+          order_code: string;
+          total_amount: number;
+        }[];
+      };
+      create_public_kiosk_order_linked: {
+        Args: {
+          p_event_id: string;
+          p_ticket_id: string | null;
+          p_buyer_name: string;
+          p_buyer_whatsapp: string | null;
+          p_buyer_dni: string | null;
+          p_buyer_email: string | null;
+          p_notes: string | null;
+          p_items: Json;
+        };
+        Returns: {
+          order_id: string;
+          order_code: string;
+          total_amount: number;
+        }[];
+      };
+      mark_kiosk_order_paid: {
+        Args: { p_order_id: string };
+        Returns: {
+          order_id: string;
+          order_code: string;
+          payment_status: string;
+          paid_at: string | null;
+        }[];
+      };
+      mark_kiosk_order_ready: {
+        Args: { p_order_id: string };
+        Returns: {
+          order_id: string;
+          order_code: string;
+          pickup_status: string;
+        }[];
+      };
+      mark_kiosk_order_delivered: {
+        Args: { p_order_id: string };
+        Returns: {
+          order_id: string;
+          order_code: string;
+          pickup_status: string;
+          delivered_at: string | null;
+        }[];
+      };
+      cancel_kiosk_order: {
+        Args: {
+          p_order_id: string;
+          p_reason: string | null;
+        };
+        Returns: {
+          order_id: string;
+          order_code: string;
+          payment_status: string;
+          pickup_status: string;
+        }[];
       };
     };
     Enums: Record<string, never>;

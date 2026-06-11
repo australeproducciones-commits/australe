@@ -4,6 +4,7 @@ import { AdminCreateEventView } from "@/components/events/AdminCreateEventView";
 import { AdminHeader } from "@/components/layout/AdminHeader";
 import { EventForm } from "@/components/events/EventForm";
 import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
 import { ROUTES } from "@/lib/constants/routes";
 import { updateEventFormAction } from "@/lib/events/actions";
 import { isReservedEventAdminSegment, isUuid } from "@/lib/events/adminRoutes";
@@ -74,12 +75,34 @@ export default async function AdminEditEventoPage({
           >
             Ventas / reservas
           </Button>
+          <Button
+            href={ROUTES.adminEventoKiosco(event.id)}
+            variant="outline"
+            size="sm"
+          >
+            Kiosco / Consumisiones
+          </Button>
           {event.status === "published" ? (
             <Button href={ROUTES.evento(event.slug)} variant="outline" size="sm">
               Ver público
             </Button>
           ) : null}
         </div>
+
+        <Card padding="sm" className="mb-6 border-purple-400/20 bg-purple-400/5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="font-bold text-white">Kiosco / Consumisiones</h2>
+              <p className="mt-1 text-sm text-zinc-400">
+                Configurá productos, stock, preventa y ventas de consumisiones
+                para este evento.
+              </p>
+            </div>
+            <Button href={ROUTES.adminEventoKiosco(event.id)} size="sm">
+              Ir al kiosco
+            </Button>
+          </div>
+        </Card>
 
         <EventForm
           initialValues={eventToFormInput(event)}

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { PublicEventKioskSection } from "@/components/kiosk/PublicEventKioskSection";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { EventFlyer, EventPoster } from "@/components/events/EventFlyer";
@@ -9,12 +10,14 @@ import {
 } from "@/components/events/EventTicketActions";
 import { ROUTES } from "@/lib/constants/routes";
 import { getPublishedEventBySlug } from "@/lib/events/queries";
+import { getPublicEventKiosk } from "@/lib/kiosk/queries";
 import { formatEventDateTime } from "@/lib/events/utils";
 import { getActiveTicketTypesForPublishedEvent } from "@/lib/tickets/queries";
 import {
   formatTicketPrice,
   getMinPublicPrice,
 } from "@/lib/tickets/utils";
+import { getGoogleMapsSearchUrl } from "@/lib/utils/googleMaps";
 
 type EventoPageProps = {
   params: Promise<{ slug: string }>;
@@ -42,10 +45,10 @@ export default async function EventoPage({ params }: EventoPageProps) {
     event.end_time,
   );
 
-  const activeTicketTypes = await getActiveTicketTypesForPublishedEvent(
-    event.id,
-    event.status,
-  );
+  const [activeTicketTypes, publicKiosk] = await Promise.all([
+    getActiveTicketTypesForPublishedEvent(event.id, event.status),
+    getPublicEventKiosk(event.id),
+  ]);
   const minPrice = getMinPublicPrice(activeTicketTypes);
 
   return (
@@ -77,7 +80,14 @@ export default async function EventoPage({ params }: EventoPageProps) {
           {event.address ? (
             <div className="flex justify-between gap-4 rounded-2xl bg-white/5 p-4">
               <span className="shrink-0 text-zinc-400">Dirección</span>
-              <span className="text-right">{event.address}</span>
+              <a
+                href={getGoogleMapsSearchUrl(event.address)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-right text-purple-300 underline-offset-2 hover:text-purple-200 hover:underline"
+              >
+                {event.address}
+              </a>
             </div>
           ) : null}
           {event.capacity != null ? (
@@ -105,6 +115,23 @@ export default async function EventoPage({ params }: EventoPageProps) {
           <EventPriceListLink slug={event.slug} />
         </div>
       </Card>
+
+      {publicKiosk.presaleEnabled && publicKiosk.hasSellableProducts ? (
+        <PublicEventKioskSection
+          eventId={event.id}
+          eventSlug={event.slug}
+          products={publicKiosk.products}
+        />
+      ) : publicKiosk.presaleEnabled && publicKiosk.hasListedProducts ? (
+        <Card padding="lg" className="mt-8 text-center">
+          <h2 className="text-xl font-bold text-white">
+            Preventa de consumisiones
+          </h2>
+          <p className="mt-3 text-sm text-zinc-400">
+            Las consumisiones están agotadas por el momento.
+          </p>
+        </Card>
+      ) : null}
     </div>
   );
 }

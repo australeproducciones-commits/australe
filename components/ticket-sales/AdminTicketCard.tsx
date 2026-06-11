@@ -8,22 +8,27 @@ import {
   cancelTicketAction,
   confirmTicketPaymentAction,
   markTicketExpiredAction,
+  markTicketUsedAction,
 } from "@/lib/ticket-sales/actions";
 import type { TicketWithTypeName } from "@/lib/ticket-sales/types";
 import {
   canMarkTicketExpired,
+  canMarkTicketUsed,
   formatReservationExpiry,
+  isReservationExpired,
   SALES_CHANNEL_LABELS,
   TICKET_PAYMENT_STATUS_LABELS,
   TICKET_STATUS_LABELS,
 } from "@/lib/ticket-sales/utils";
 import { formatTicketPrice } from "@/lib/tickets/utils";
+import { cn } from "@/lib/utils/cn";
 
 type AdminTicketCardProps = {
   ticket: TicketWithTypeName;
+  onViewTicket: (ticket: TicketWithTypeName) => void;
 };
 
-export function AdminTicketCard({ ticket }: AdminTicketCardProps) {
+export function AdminTicketCard({ ticket, onViewTicket }: AdminTicketCardProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,53 +40,49 @@ export function AdminTicketCard({ ticket }: AdminTicketCardProps) {
   const canCancel =
     ticket.ticket_status !== "cancelled" && ticket.ticket_status !== "used";
   const canExpire = canMarkTicketExpired(ticket);
+  const canUse = canMarkTicketUsed(ticket);
+  const isExpiredPending =
+    ticket.ticket_status === "reserved" &&
+    ticket.payment_status === "pending" &&
+    isReservationExpired(ticket.reservation_expires_at);
 
-  async function handleConfirm() {
+  async function runAction(action: () => Promise<{ success: boolean; error?: string }>) {
     setLoading(true);
     setError(null);
-    const result = await confirmTicketPaymentAction(ticket.id);
+    const result = await action();
     setLoading(false);
 
     if (!result.success) {
-      setError(result.error ?? "No se pudo confirmar.");
+      setError(result.error ?? "No se pudo completar la acción.");
       return;
     }
 
     router.refresh();
+  }
+
+  async function handleConfirm() {
+    await runAction(() => confirmTicketPaymentAction(ticket.id));
   }
 
   async function handleCancel() {
-    setLoading(true);
-    setError(null);
-    const result = await cancelTicketAction(ticket.id, cancelReason);
-    setLoading(false);
-
-    if (!result.success) {
-      setError(result.error ?? "No se pudo cancelar.");
-      return;
-    }
-
+    await runAction(() => cancelTicketAction(ticket.id, cancelReason));
     setShowCancel(false);
     setCancelReason("");
-    router.refresh();
   }
 
   async function handleExpire() {
-    setLoading(true);
-    setError(null);
-    const result = await markTicketExpiredAction(ticket.id);
-    setLoading(false);
+    await runAction(() => markTicketExpiredAction(ticket.id));
+  }
 
-    if (!result.success) {
-      setError(result.error ?? "No se pudo marcar como vencida.");
-      return;
-    }
-
-    router.refresh();
+  async function handleMarkUsed() {
+    await runAction(() => markTicketUsedAction(ticket.id));
   }
 
   return (
-    <Card padding="md">
+    <Card
+      padding="md"
+      className={cn(isExpiredPending && "border-red-400/30 bg-red-400/[0.03]")}
+    >
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0 flex-1">
           <p className="text-xs uppercase tracking-wider text-purple-300">
@@ -92,19 +93,20 @@ export function AdminTicketCard({ ticket }: AdminTicketCardProps) {
           </h3>
           <div className="mt-2 space-y-1 text-sm text-zinc-400">
             {ticket.buyer_whatsapp ? (
-              <p>WhatsApp: {ticket.buyer_whatsapp}</p>
+              <p>Contacto: {ticket.buyer_whatsapp}</p>
             ) : null}
             {ticket.buyer_dni ? <p>DNI: {ticket.buyer_dni}</p> : null}
             <p>
-              Creada:{" "}
+              Reservada:{" "}
               {new Intl.DateTimeFormat("es-AR", {
                 dateStyle: "short",
                 timeStyle: "short",
               }).format(new Date(ticket.created_at))}
             </p>
             {ticket.reservation_expires_at ? (
-              <p>
+              <p className={cn(isExpiredPending && "text-red-300")}>
                 Vence: {formatReservationExpiry(ticket.reservation_expires_at)}
+                {isExpiredPending ? " · vencida" : ""}
               </p>
             ) : null}
           </div>
@@ -173,6 +175,15 @@ export function AdminTicketCard({ ticket }: AdminTicketCardProps) {
         </div>
       ) : (
         <div className="mt-4 flex flex-wrap gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={loading}
+            onClick={() => onViewTicket(ticket)}
+          >
+            Ver ticket
+          </Button>
           {canConfirm ? (
             <Button
               type="button"
@@ -181,6 +192,17 @@ export function AdminTicketCard({ ticket }: AdminTicketCardProps) {
               onClick={handleConfirm}
             >
               Confirmar pago
+            </Button>
+          ) : null}
+          {canUse ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              disabled={loading}
+              onClick={handleMarkUsed}
+            >
+              Marcar usado
             </Button>
           ) : null}
           {canCancel ? (

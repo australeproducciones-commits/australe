@@ -21,7 +21,7 @@ export function TicketTypesList({ ticketTypes }: TicketTypesListProps) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {ticketTypes.map((ticketType) => (
         <TicketTypeCard key={ticketType.id} ticketType={ticketType} />
       ))}

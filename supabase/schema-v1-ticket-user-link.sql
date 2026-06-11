@@ -18,6 +18,9 @@ CREATE INDEX IF NOT EXISTS idx_tickets_user_id ON public.tickets (user_id);
 COMMENT ON COLUMN public.tickets.user_id IS
   'Usuario autenticado que reservó/compró la entrada (auth.users.id).';
 
+-- Entradas reservadas antes de este script quedan con user_id NULL y no aparecen
+-- en Mi Cuenta hasta re-reservar o confirmar manualmente en admin.
+
 -- -----------------------------------------------------------------------------
 -- B) Policy RLS: usuario ve sus tickets por user_id
 -- -----------------------------------------------------------------------------

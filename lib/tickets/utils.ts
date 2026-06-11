@@ -9,6 +9,18 @@ export function formatTicketPrice(amount: number): string {
   }).format(amount);
 }
 
+export function hasCommunityPrice(price: number | null | undefined): boolean {
+  return price != null && price > 0;
+}
+
+export function formatCommunityPriceLabel(price: number | null | undefined): string | null {
+  if (!hasCommunityPrice(price)) {
+    return null;
+  }
+
+  return formatTicketPrice(price!);
+}
+
 export function getStockAvailable(ticketType: TicketType): number | null {
   if (ticketType.stock_total === null) {
     return null;
@@ -52,9 +64,13 @@ export function validateTicketTypeForm(input: TicketTypeFormInput): string | nul
     return "El precio público debe ser mayor o igual a 0.";
   }
 
-  const communityPrice = Number(input.community_price);
-  if (Number.isNaN(communityPrice) || communityPrice < 0) {
-    return "El precio comunidad debe ser mayor o igual a 0.";
+  const communityPriceRaw = input.community_price.trim();
+
+  if (communityPriceRaw) {
+    const communityPrice = Number(communityPriceRaw);
+    if (Number.isNaN(communityPrice) || communityPrice < 0) {
+      return "El precio comunidad debe ser mayor o igual a 0.";
+    }
   }
 
   if (input.stock_total) {
@@ -95,7 +111,9 @@ export function ticketTypeFormToPayload(
     name: input.name,
     description: input.description || null,
     public_price: Number(input.public_price),
-    community_price: Number(input.community_price),
+    community_price: input.community_price.trim()
+      ? Number(input.community_price)
+      : 0,
     stock_total: input.stock_total ? Number(input.stock_total) : null,
     max_per_order: Number(input.max_per_order),
     sale_start_at: input.sale_start_at
@@ -114,7 +132,9 @@ export function ticketTypeToFormInput(ticketType: TicketType): TicketTypeFormInp
     name: ticketType.name,
     description: ticketType.description ?? "",
     public_price: String(ticketType.public_price),
-    community_price: String(ticketType.community_price),
+    community_price: hasCommunityPrice(ticketType.community_price)
+      ? String(ticketType.community_price)
+      : "",
     stock_total:
       ticketType.stock_total != null ? String(ticketType.stock_total) : "",
     max_per_order: String(ticketType.max_per_order),

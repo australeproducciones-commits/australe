@@ -26,8 +26,13 @@ export type EventRow = {
   name: string;
   slug: string;
   description: string | null;
+  main_image_url: string | null;
+  thumbnail_url: string | null;
   flyer_url: string | null;
   banner_url: string | null;
+  social_presale_price: number | null;
+  social_regular_price: number | null;
+  box_office_preview: string | null;
   event_date: string;
   start_time: string | null;
   end_time: string | null;
@@ -35,9 +40,12 @@ export type EventRow = {
   address: string | null;
   capacity: number | null;
   status: string;
-  is_featured: boolean;
-  external_ticket_url: string | null;
   ticket_sale_mode: string;
+  external_ticket_url: string | null;
+  is_featured: boolean;
+  featured_ticket_label: string | null;
+  featured_until: string | null;
+  home_order: number;
   created_by: string | null;
   created_at: string;
   updated_at: string;

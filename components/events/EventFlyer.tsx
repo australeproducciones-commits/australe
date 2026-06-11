@@ -1,32 +1,22 @@
+import { EventImage, type EventImageVariant } from "@/components/events/EventImage";
 import type { Event } from "@/lib/events/types";
-import {
-  getEventCardImageUrl,
-  getEventDetailPosterUrl,
-  getEventHeroImageUrl,
-} from "@/lib/events/utils";
 import { cn } from "@/lib/utils/cn";
 
 type EventImagePurpose = "card" | "hero";
 
 type EventFlyerProps = {
-  event: Pick<Event, "name" | "flyer_url" | "banner_url">;
+  event: Pick<
+    Event,
+    "name" | "main_image_url" | "thumbnail_url" | "flyer_url" | "banner_url"
+  >;
   purpose?: EventImagePurpose;
   /** @deprecated Usar `purpose`. */
   variant?: EventImagePurpose;
   className?: string;
 };
 
-function resolveImageUrl(
-  event: Pick<Event, "flyer_url" | "banner_url">,
-  purpose: EventImagePurpose,
-): string | null {
-  return purpose === "hero"
-    ? getEventHeroImageUrl(event)
-    : getEventCardImageUrl(event);
-}
-
-function placeholderLabel(purpose: EventImagePurpose): string {
-  return purpose === "hero" ? "Portada próximamente" : "Afiche próximamente";
+function purposeToVariant(purpose: EventImagePurpose): EventImageVariant {
+  return purpose === "hero" ? "banner" : "card";
 }
 
 export function EventFlyer({
@@ -36,79 +26,48 @@ export function EventFlyer({
   className,
 }: EventFlyerProps) {
   const resolvedPurpose = purpose ?? variant;
-  const imageUrl = resolveImageUrl(event, resolvedPurpose);
-  const isHero = resolvedPurpose === "hero";
-
-  const heightClass = isHero
-    ? "min-h-[280px] sm:min-h-[360px]"
-    : className?.includes("absolute")
-      ? "h-full min-h-full"
-      : "h-full min-h-[10rem]";
-
-  if (imageUrl) {
-    return (
-      <div
-        className={cn(
-          "relative overflow-hidden rounded-2xl border border-white/10 bg-zinc-900",
-          heightClass,
-          className,
-        )}
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={imageUrl}
-          alt={
-            isHero
-              ? `Portada de ${event.name}`
-              : `Flyer de ${event.name}`
-          }
-          className="h-full w-full object-cover"
-        />
-      </div>
-    );
-  }
+  const imageVariant = purposeToVariant(resolvedPurpose);
 
   return (
-    <div
+    <EventImage
+      event={event}
+      alt={
+        resolvedPurpose === "hero"
+          ? `Portada de ${event.name}`
+          : `Flyer de ${event.name}`
+      }
+      variant={imageVariant}
       className={cn(
-        "flex flex-col items-center justify-center gap-2 rounded-2xl border border-white/10 bg-gradient-to-br from-zinc-900 via-purple-950/40 to-zinc-900 px-4 text-center",
-        heightClass,
+        resolvedPurpose === "hero" ? "min-h-[280px] sm:min-h-[360px]" : "",
         className,
       )}
-    >
-      <span className="text-2xl opacity-40">✦</span>
-      <span className="text-sm text-zinc-500">
-        {placeholderLabel(resolvedPurpose)}
-      </span>
-    </div>
+    />
   );
 }
 
 type EventPosterProps = {
-  event: Pick<Event, "name" | "flyer_url" | "banner_url">;
+  event: Pick<
+    Event,
+    "name" | "main_image_url" | "thumbnail_url" | "flyer_url" | "banner_url"
+  >;
   className?: string;
 };
 
 export function EventPoster({ event, className }: EventPosterProps) {
-  const posterUrl = getEventDetailPosterUrl(event);
+  if (event.main_image_url) {
+    return null;
+  }
 
-  if (!posterUrl) {
+  if (!event.flyer_url) {
     return null;
   }
 
   return (
     <div className={className}>
       <p className="mb-3 text-xs uppercase tracking-[0.3em] text-purple-300">
-        Afiche oficial
+        Afiche del evento
       </p>
-      <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-zinc-900">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={posterUrl}
-          alt={`Afiche de ${event.name}`}
-          className="mx-auto max-h-[520px] w-full object-contain"
-        />
-      </div>
+      <EventImage event={event} alt={`Afiche de ${event.name}`} variant="flyer" />
     </div>
   );
 }

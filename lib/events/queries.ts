@@ -3,11 +3,12 @@ import { ROLES } from "@/lib/constants/roles";
 import { ROUTES } from "@/lib/constants/routes";
 import { EVENT_STATUS } from "@/lib/constants/event-status";
 import type { Event } from "@/lib/events/types";
+import { isEventFeaturedActive } from "@/lib/events/utils";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 
 const EVENT_COLUMNS =
-  "id, name, slug, description, flyer_url, banner_url, event_date, start_time, end_time, location_name, address, capacity, status, is_featured, external_ticket_url, ticket_sale_mode, created_by, created_at, updated_at";
+  "id, name, slug, description, main_image_url, thumbnail_url, flyer_url, banner_url, social_presale_price, social_regular_price, box_office_preview, event_date, start_time, end_time, location_name, address, capacity, status, ticket_sale_mode, external_ticket_url, is_featured, featured_ticket_label, featured_until, home_order, created_by, created_at, updated_at";
 
 export async function requireAdminPage() {
   const supabase = await createClient();
@@ -30,11 +31,27 @@ export async function getPublishedEvents(): Promise<Event[]> {
     .order("event_date", { ascending: true });
 
   if (error) {
-    console.error("getPublishedEvents:", error.message);
+    console.error("getPublishedEvents:", error);
     return [];
   }
 
-  return (data ?? []) as Event[];
+  return ((data ?? []) as Event[]).map(normalizeEventRow);
+}
+
+function normalizeEventRow(row: Event): Event {
+  return {
+    ...row,
+    main_image_url: row.main_image_url ?? null,
+    thumbnail_url: row.thumbnail_url ?? null,
+    flyer_url: row.flyer_url ?? null,
+    banner_url: row.banner_url ?? null,
+    social_presale_price: row.social_presale_price ?? null,
+    social_regular_price: row.social_regular_price ?? null,
+    box_office_preview: row.box_office_preview ?? null,
+    featured_ticket_label: row.featured_ticket_label ?? null,
+    featured_until: row.featured_until ?? null,
+    home_order: row.home_order ?? 0,
+  };
 }
 
 export async function getPublishedEventBySlug(
@@ -50,14 +67,14 @@ export async function getPublishedEventBySlug(
     .maybeSingle();
 
   if (error) {
-    console.error("getPublishedEventBySlug:", error.message);
+    console.error("getPublishedEventBySlug:", error);
     return null;
   }
 
-  return (data as Event | null) ?? null;
+  return data ? normalizeEventRow(data as Event) : null;
 }
 
-export async function getFeaturedPublishedEvent(): Promise<Event | null> {
+export async function getFeaturedPublishedEvents(): Promise<Event[]> {
   const supabase = await createClient();
 
   const { data, error } = await supabase
@@ -65,16 +82,22 @@ export async function getFeaturedPublishedEvent(): Promise<Event | null> {
     .select(EVENT_COLUMNS)
     .eq("status", EVENT_STATUS.PUBLISHED)
     .eq("is_featured", true)
-    .order("event_date", { ascending: true })
-    .limit(1)
-    .maybeSingle();
+    .order("home_order", { ascending: true })
+    .order("event_date", { ascending: true });
 
   if (error) {
-    console.error("getFeaturedPublishedEvent:", error.message);
-    return null;
+    console.error("getFeaturedPublishedEvents:", error);
+    return [];
   }
 
-  return (data as Event | null) ?? null;
+  return ((data ?? []) as Event[])
+    .map(normalizeEventRow)
+    .filter(isEventFeaturedActive);
+}
+
+export async function getFeaturedPublishedEvent(): Promise<Event | null> {
+  const events = await getFeaturedPublishedEvents();
+  return events[0] ?? null;
 }
 
 export async function getAllEventsForAdmin(): Promise<Event[]> {
@@ -86,11 +109,11 @@ export async function getAllEventsForAdmin(): Promise<Event[]> {
     .order("event_date", { ascending: false });
 
   if (error) {
-    console.error("getAllEventsForAdmin:", error.message);
+    console.error("getAllEventsForAdmin:", error);
     return [];
   }
 
-  return (data ?? []) as Event[];
+  return ((data ?? []) as Event[]).map(normalizeEventRow);
 }
 
 export async function getEventByIdForAdmin(id: string): Promise<Event | null> {
@@ -103,9 +126,9 @@ export async function getEventByIdForAdmin(id: string): Promise<Event | null> {
     .maybeSingle();
 
   if (error) {
-    console.error("getEventByIdForAdmin:", error.message);
+    console.error("getEventByIdForAdmin:", error);
     return null;
   }
 
-  return (data as Event | null) ?? null;
+  return data ? normalizeEventRow(data as Event) : null;
 }

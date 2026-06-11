@@ -9,6 +9,7 @@ import {
 } from "@/lib/constants/event-status";
 import type { EventActionResult } from "@/lib/events/types";
 import {
+  eventFormToInsertPayload,
   eventFormToPayload,
   parseEventFormData,
   validateEventForm,
@@ -53,7 +54,7 @@ export async function createEventAction(
     return { success: false, error: validationError };
   }
 
-  const payload = eventFormToPayload(input, auth.profile.id);
+  const payload = eventFormToInsertPayload(input, auth.profile.id);
 
   const { data, error } = await auth.supabase
     .from("events")
@@ -62,10 +63,14 @@ export async function createEventAction(
     .single();
 
   if (error) {
+    console.error("createEventAction:", error);
     if (error.code === "23505") {
       return { success: false, error: "Ya existe un evento con ese slug." };
     }
-    return { success: false, error: "No se pudo crear el evento." };
+    return {
+      success: false,
+      error: error.message || "No se pudo crear el evento.",
+    };
   }
 
   revalidateEventPaths(data.slug);
@@ -98,10 +103,14 @@ export async function updateEventAction(
     .single();
 
   if (error) {
+    console.error("updateEventAction:", error);
     if (error.code === "23505") {
       return { success: false, error: "Ya existe un evento con ese slug." };
     }
-    return { success: false, error: "No se pudo actualizar el evento." };
+    return {
+      success: false,
+      error: error.message || "No se pudo actualizar el evento.",
+    };
   }
 
   revalidateEventPaths(data.slug);

@@ -20,6 +20,54 @@ body {
   font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
 
+/* ——— Tema público claro / pastel ——— */
+.public-theme {
+  --public-bg: #f8f3ff;
+  --public-bg-warm: #fff9f4;
+  --public-bg-section: #f1e8ff;
+  --public-card: #ffffff;
+  --public-card-tint: #fbf7ff;
+  --public-text: #2f2a3a;
+  --public-text-secondary: #6f647c;
+  --public-text-soft: #8b7a99;
+  --public-primary: #9b7ede;
+  --public-primary-hover: #8568cc;
+  --public-secondary: #c8b6ff;
+  --public-accent: #d96c4a;
+  --public-community: #f2c14e;
+  --public-border: #e8ddf8;
+  --public-shadow: 0 12px 40px rgba(75, 55, 110, 0.1);
+
+  background-color: var(--public-bg);
+  color: var(--public-text);
+}
+
+.public-theme .public-card {
+  background: var(--public-card);
+  border: 1px solid var(--public-border);
+  box-shadow: var(--public-shadow);
+}
+
+.public-theme .public-btn-primary {
+  background: var(--public-primary);
+  color: #fff;
+  box-shadow: 0 8px 24px rgba(155, 126, 222, 0.25);
+}
+
+.public-theme .public-btn-primary:hover {
+  background: var(--public-primary-hover);
+}
+
+.public-theme .public-btn-outline {
+  border: 1px solid var(--public-border);
+  background: #fff;
+  color: var(--public-text);
+}
+
+.public-theme .public-btn-outline:hover {
+  background: var(--public-card-tint);
+}
+
 .admin-form input[type="number"]::-webkit-outer-spin-button,
 .admin-form input[type="number"]::-webkit-inner-spin-button {
   -webkit-appearance: none;

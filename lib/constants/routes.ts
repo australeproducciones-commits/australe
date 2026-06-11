@@ -1,5 +1,7 @@
 export const ROUTES = {
   home: "/",
+  sobre: "/sobre",
+  contacto: "/contacto",
   eventos: "/eventos",
   evento: (slug: string) => `/eventos/${slug}`,
   eventoEntradas: (slug: string) => `/eventos/${slug}/entradas`,
@@ -25,9 +27,11 @@ export const ROUTES = {
 } as const;
 
 export const PUBLIC_NAV_LINKS = [
+  { href: ROUTES.home, label: "Inicio" },
   { href: ROUTES.eventos, label: "Eventos" },
   { href: ROUTES.comunidad, label: "Comunidad" },
-  { href: ROUTES.login, label: "Ingresar" },
+  { href: ROUTES.sobre, label: "Sobre Australe" },
+  { href: ROUTES.contacto, label: "Contacto" },
 ] as const;
 
 export const ADMIN_NAV_LINKS = [

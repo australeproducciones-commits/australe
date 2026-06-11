@@ -1,55 +1,71 @@
-import Image from "next/image";
-import { Button } from "@/components/ui/Button";
-import { BRAND_LOGO_ON_DARK } from "@/lib/constants/branding";
+import { EventImage } from "@/components/events/EventImage";
 import { ROUTES } from "@/lib/constants/routes";
+import type { Event } from "@/lib/events/types";
+import Link from "next/link";
 
-export function HomeHero() {
+type HomeHeroProps = {
+  featuredEvent?: Event | null;
+};
+
+export function HomeHero({ featuredEvent }: HomeHeroProps) {
   return (
-    <section className="relative overflow-hidden border-b border-white/5">
-      <div
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,rgba(168,85,247,0.28),transparent),radial-gradient(ellipse_50%_40%_at_100%_50%,rgba(236,72,153,0.12),transparent),radial-gradient(ellipse_40%_30%_at_0%_80%,rgba(99,102,241,0.1),transparent)]"
-        aria-hidden
-      />
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_bottom,transparent,rgba(9,9,11,0.4))]" aria-hidden />
+    <section className="relative overflow-hidden border-b border-[#E8DDF8] bg-gradient-to-br from-[#F8F3FF] via-[#FFF9F4] to-[#F1E8FF]">
+      <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-14 sm:px-6 sm:py-20 lg:grid-cols-2 lg:gap-14">
+        <div>
+          <p className="inline-flex rounded-full border border-[#E8DDF8] bg-white/70 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-[#8B7A99]">
+            Comunidad · Cultura · Encuentros
+          </p>
 
-      <div className="relative mx-auto flex max-w-6xl flex-col items-center px-4 py-16 text-center sm:px-6 sm:py-24 md:py-28">
-        <Image
-          src={BRAND_LOGO_ON_DARK}
-          alt="Australe Producciones"
-          width={320}
-          height={120}
-          priority
-          className="h-auto w-[200px] object-contain sm:w-[260px] md:w-[300px]"
-        />
+          <h1 className="mt-6 text-4xl font-black leading-[1.08] tracking-tight text-[#2F2A3A] sm:text-5xl">
+            Creamos encuentros para compartir, disfrutar y pertenecer.
+          </h1>
 
-        <p className="mt-8 inline-flex items-center gap-2 rounded-full border border-purple-400/25 bg-purple-500/10 px-4 py-1.5 text-xs font-medium uppercase tracking-[0.25em] text-purple-200">
-          Productora de eventos
-        </p>
+          <p className="mt-5 max-w-xl text-base leading-relaxed text-[#6F647C] sm:text-lg">
+            Australe Producciones organiza experiencias culturales, eventos y
+            espacios de encuentro pensados para conectar personas reales.
+          </p>
 
-        <h1 className="mt-6 max-w-3xl text-4xl font-black leading-[1.05] tracking-tight text-white sm:text-5xl md:text-6xl">
-          La cartelera que{" "}
-          <span className="bg-gradient-to-r from-purple-200 via-fuchsia-200 to-pink-200 bg-clip-text text-transparent">
-            no te podés perder
-          </span>
-        </h1>
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <Link
+              href={ROUTES.eventos}
+              className="public-btn-primary rounded-2xl px-8 py-4 text-center text-sm font-semibold transition"
+            >
+              Ver próximos eventos
+            </Link>
+            <Link
+              href={ROUTES.comunidad}
+              className="public-btn-outline rounded-2xl px-8 py-4 text-center text-sm font-semibold transition"
+            >
+              Conocer la comunidad
+            </Link>
+          </div>
+        </div>
 
-        <p className="mt-6 max-w-2xl text-base leading-relaxed text-zinc-400 sm:text-lg">
-          Entradas, experiencias y noches únicas. Descubrí los próximos
-          eventos de Australe y reservá tu lugar.
-        </p>
-
-        <div className="mt-10 flex w-full max-w-md flex-col gap-3 sm:max-w-none sm:flex-row sm:justify-center">
-          <Button href="/#cartelera" size="lg" className="sm:min-w-[180px]">
-            Ver cartelera
-          </Button>
-          <Button
-            href={ROUTES.comunidad}
-            variant="outline"
-            size="lg"
-            className="sm:min-w-[180px]"
-          >
-            Soy comunidad
-          </Button>
+        <div className="public-card overflow-hidden rounded-3xl p-3 sm:p-4">
+          {featuredEvent ? (
+            <Link href={ROUTES.evento(featuredEvent.slug)} className="block">
+              <EventImage
+                event={featuredEvent}
+                alt={featuredEvent.name}
+                variant="banner"
+              />
+              <div className="px-2 pb-1 pt-4">
+                <p className="text-xs font-semibold uppercase tracking-wider text-[#9B7EDE]">
+                  Próximo destacado
+                </p>
+                <p className="mt-1 text-lg font-bold text-[#2F2A3A]">
+                  {featuredEvent.name}
+                </p>
+              </div>
+            </Link>
+          ) : (
+            <div className="flex aspect-[12/5] flex-col items-center justify-center rounded-2xl bg-[#F1E8FF] text-center">
+              <span className="text-3xl text-[#C8B6FF]">✦</span>
+              <p className="mt-3 px-6 text-sm text-[#8B7A99]">
+                Muy pronto anunciamos la próxima experiencia Australe.
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </section>

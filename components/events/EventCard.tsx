@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { EventFlyer } from "@/components/events/EventFlyer";
-import { Button } from "@/components/ui/Button";
+import { EventImage } from "@/components/events/EventImage";
 import { EVENT_STATUS } from "@/lib/constants/event-status";
 import { ROUTES } from "@/lib/constants/routes";
 import type { Event } from "@/lib/events/types";
@@ -12,22 +11,34 @@ type EventCardProps = {
   event: Event;
   minPrice?: number | null;
   featured?: boolean;
-  variant?: "default" | "spotlight";
   showFullDateTime?: boolean;
+  surface?: "light" | "dark";
+  showCommunityBadge?: boolean;
 };
 
-function getPublicStatusBadge(status: Event["status"]) {
+function getPublicStatusBadge(status: Event["status"], light: boolean) {
   switch (status) {
     case EVENT_STATUS.SOLD_OUT:
-      return { label: "Agotado", className: "bg-amber-400/15 text-amber-200" };
+      return {
+        label: "Agotado",
+        className: light
+          ? "bg-amber-100 text-amber-800"
+          : "bg-amber-400/15 text-amber-200",
+      };
     case EVENT_STATUS.PUBLISHED:
-      return { label: "Disponible", className: "bg-emerald-400/15 text-emerald-200" };
-    case EVENT_STATUS.FINISHED:
-      return { label: "Finalizado", className: "bg-zinc-500/20 text-zinc-400" };
-    case EVENT_STATUS.CANCELLED:
-      return { label: "Cancelado", className: "bg-red-400/15 text-red-200" };
+      return {
+        label: "Disponible",
+        className: light
+          ? "bg-[#7FD8BE]/25 text-[#2F6F5E]"
+          : "bg-emerald-400/15 text-emerald-200",
+      };
     default:
-      return { label: "Próximamente", className: "bg-purple-400/15 text-purple-200" };
+      return {
+        label: "Próximamente",
+        className: light
+          ? "bg-[#F1E8FF] text-[#8568CC]"
+          : "bg-purple-400/15 text-purple-200",
+      };
   }
 }
 
@@ -35,99 +46,103 @@ export function EventCard({
   event,
   minPrice = null,
   featured = false,
-  variant = "default",
   showFullDateTime = false,
+  surface = "light",
+  showCommunityBadge = false,
 }: EventCardProps) {
-  const isSpotlight = variant === "spotlight" || featured;
+  const light = surface === "light";
   const dateLabel = showFullDateTime
     ? formatEventDateTime(event.event_date, event.start_time, event.end_time)
     : formatEventDate(event.event_date);
-  const statusBadge = getPublicStatusBadge(event.status);
+  const statusBadge = getPublicStatusBadge(event.status, light);
 
   return (
     <article
       className={cn(
-        "group overflow-hidden rounded-2xl border border-white/10 bg-zinc-900/50 shadow-lg shadow-black/25 transition duration-300 hover:border-purple-400/25 hover:shadow-xl hover:shadow-purple-950/20",
-        isSpotlight ? "md:grid md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]" : "",
+        "group flex h-full flex-col overflow-hidden rounded-2xl transition duration-300",
+        light
+          ? "public-card hover:-translate-y-0.5 hover:shadow-[0_16px_40px_rgba(75,55,110,0.12)]"
+          : "border border-white/10 bg-zinc-900/50 shadow-lg shadow-black/25 hover:border-purple-400/25",
       )}
     >
-      <Link
-        href={ROUTES.evento(event.slug)}
-        className={cn(
-          "relative block overflow-hidden",
-          isSpotlight ? "min-h-[280px] md:min-h-[360px]" : "aspect-[4/5] sm:aspect-[5/6]",
-        )}
-      >
-        <EventFlyer
-          event={event}
-          purpose="card"
-          className="absolute inset-0 h-full w-full rounded-none border-0"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/40 to-transparent" />
-
-        <div className="absolute left-3 top-3 flex flex-wrap gap-2">
-          {featured ? (
-            <span className="rounded-full bg-purple-500/90 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white shadow-lg">
-              Destacado
+      <Link href={ROUTES.evento(event.slug)} className="block p-3 pb-0">
+        <div className="relative">
+          <EventImage event={event} alt={event.name} variant="card" />
+          <div className="absolute left-2 top-2 flex flex-wrap gap-1.5">
+            {featured ? (
+              <span className="rounded-full bg-[#9B7EDE] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
+                Destacado
+              </span>
+            ) : null}
+            <span
+              className={cn(
+                "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider",
+                statusBadge.className,
+              )}
+            >
+              {statusBadge.label}
             </span>
-          ) : null}
-          <span
-            className={cn(
-              "rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider backdrop-blur-sm",
-              statusBadge.className,
-            )}
-          >
-            {statusBadge.label}
-          </span>
-        </div>
-
-        <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-5">
-          <p className="text-xs font-medium uppercase tracking-[0.2em] text-purple-200">
-            {dateLabel}
-          </p>
-          <h3
-            className={cn(
-              "mt-1 font-black leading-tight text-white",
-              isSpotlight ? "text-2xl sm:text-3xl" : "text-lg sm:text-xl",
-            )}
-          >
-            {event.name}
-          </h3>
+            {showCommunityBadge ? (
+              <span className="rounded-full bg-[#F2C14E]/35 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[#2F2A3A]">
+                Comunidad
+              </span>
+            ) : null}
+          </div>
         </div>
       </Link>
 
-      <div
-        className={cn(
-          "flex flex-col justify-between gap-4 p-4 sm:p-5",
-          isSpotlight ? "md:py-8 md:pr-8" : "",
-        )}
-      >
-        <div className="space-y-2 text-sm">
-          <p className="flex items-start gap-2 text-zinc-400">
-            <span className="mt-0.5 shrink-0 text-purple-400" aria-hidden>
-              ◎
-            </span>
-            <span>{event.location_name ?? "Ubicación a confirmar"}</span>
-          </p>
+      <div className="flex flex-1 flex-col p-4 pt-3">
+        <p
+          className={cn(
+            "text-xs font-semibold uppercase tracking-wider",
+            light ? "text-[#9B7EDE]" : "text-purple-300",
+          )}
+        >
+          {dateLabel}
+        </p>
+        <h3
+          className={cn(
+            "mt-1 line-clamp-2 text-lg font-bold leading-snug",
+            light ? "text-[#2F2A3A]" : "text-white",
+          )}
+        >
+          {event.name}
+        </h3>
+        <p
+          className={cn(
+            "mt-2 line-clamp-1 text-sm",
+            light ? "text-[#8B7A99]" : "text-zinc-400",
+          )}
+        >
+          {event.location_name ?? "Ubicación a confirmar"}
+        </p>
+
+        <div className="mt-auto pt-4">
           {minPrice != null ? (
-            <p className="text-sm text-zinc-300">
+            <p className={cn("text-sm", light ? "text-[#6F647C]" : "text-zinc-300")}>
               Desde{" "}
-              <span className="font-bold text-white">
+              <span className={cn("font-bold", light ? "text-[#2F2A3A]" : "text-white")}>
                 {formatTicketPrice(minPrice)}
               </span>
             </p>
           ) : (
-            <p className="text-sm text-zinc-500">Consultar entradas</p>
+            <p className={cn("text-sm", light ? "text-[#8B7A99]" : "text-zinc-500")}>
+              Consultar entradas
+            </p>
           )}
-        </div>
 
-        <Button
-          href={ROUTES.evento(event.slug)}
-          className="w-full"
-          size={isSpotlight ? "lg" : "md"}
-        >
-          Ver evento
-        </Button>
+          <Link
+            href={ROUTES.evento(event.slug)}
+            className={cn(
+              "mt-3 flex w-full items-center justify-center rounded-xl py-2.5 text-sm font-semibold transition",
+              light
+                ? "bg-[#9B7EDE] text-white hover:bg-[#8568CC]"
+                : "bg-purple-500 text-white hover:bg-purple-400",
+            )}
+          >
+            Ver evento
+          </Link>
+        </div>
       </div>
     </article>
   );

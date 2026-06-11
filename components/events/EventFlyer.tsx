@@ -41,7 +41,9 @@ export function EventFlyer({
 
   const heightClass = isHero
     ? "min-h-[280px] sm:min-h-[360px]"
-    : "h-40 sm:h-48";
+    : className?.includes("absolute")
+      ? "h-full min-h-full"
+      : "h-full min-h-[10rem]";
 
   if (imageUrl) {
     return (
@@ -60,10 +62,7 @@ export function EventFlyer({
               ? `Portada de ${event.name}`
               : `Flyer de ${event.name}`
           }
-          className={cn(
-            "h-full w-full",
-            isHero ? "object-cover" : "object-contain",
-          )}
+          className="h-full w-full object-cover"
         />
       </div>
     );

@@ -46,6 +46,13 @@ export type EventRow = {
   featured_ticket_label: string | null;
   featured_until: string | null;
   home_order: number;
+  sales_qr_enabled: boolean;
+  sales_qr_code: string | null;
+  sales_qr_url: string | null;
+  qr_sell_tickets: boolean;
+  qr_products_enabled: boolean;
+  qr_show_price_list: boolean;
+  qr_sell_products: boolean;
   created_by: string | null;
   created_at: string;
   updated_at: string;

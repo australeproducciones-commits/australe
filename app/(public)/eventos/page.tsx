@@ -17,24 +17,24 @@ export default async function EventosPage() {
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-16">
       <div className="mb-10 flex flex-col justify-between gap-4 md:flex-row md:items-end">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.35em] text-[#9B7EDE]">
+          <p className="public-label text-xs font-semibold uppercase tracking-[0.35em]">
             Cartelera
           </p>
-          <h1 className="mt-3 text-3xl font-black tracking-tight text-[#2F2A3A] sm:text-4xl">
+          <h1 className="public-heading mt-3 text-3xl font-black tracking-tight sm:text-4xl">
             Próximos eventos
           </h1>
         </div>
-        <p className="max-w-xl text-sm text-[#8B7A99]">
+        <p className="max-w-xl text-sm public-text-soft">
           Eventos publicados de Australe Producciones.
         </p>
       </div>
 
       {carteleraItems.length === 0 ? (
         <div className="public-card rounded-3xl p-10 text-center">
-          <h2 className="text-xl font-bold text-[#2F2A3A]">
+          <h2 className="public-heading text-xl font-bold">
             Cartelera en preparación
           </h2>
-          <p className="mt-2 text-sm text-[#8B7A99]">
+          <p className="mt-2 text-sm public-text-soft">
             Volvé pronto para ver la próxima fecha.
           </p>
           <Link
@@ -52,7 +52,7 @@ export default async function EventosPage() {
               event={item.event}
               minPrice={item.minPrice}
               featured={item.featured}
-              surface="light"
+              surface="dark"
             />
           ))}
         </div>

@@ -22,6 +22,17 @@ export function getEventPrimaryImageUrl(event: EventImageFields): string | null 
   );
 }
 
+/** Imagen para hero/home: banner primero, luego portada y miniatura. */
+export function getEventHeroBannerUrl(event: EventImageFields): string | null {
+  return (
+    event.banner_url ||
+    event.main_image_url ||
+    event.thumbnail_url ||
+    event.flyer_url ||
+    null
+  );
+}
+
 /** @deprecated Usar getEventPrimaryImageUrl + EventImage variant="card" */
 export function getEventCardImageUrl(event: EventImageFields): string | null {
   return getEventPrimaryImageUrl(event);
@@ -182,6 +193,10 @@ export function parseEventFormData(formData: FormData): EventFormInput {
     ticket_sale_mode: String(
       formData.get("ticket_sale_mode") ?? "internal",
     ) as TicketSaleMode,
+    qr_sell_tickets: formData.get("qr_sell_tickets") === "on",
+    qr_products_enabled: formData.get("qr_products_enabled") === "on",
+    qr_show_price_list: formData.get("qr_show_price_list") === "on",
+    qr_sell_products: formData.get("qr_sell_products") === "on",
   };
 }
 
@@ -331,5 +346,9 @@ export function eventToFormInput(event: Event): EventFormInput {
     home_order: String(event.home_order ?? 0),
     external_ticket_url: event.external_ticket_url ?? "",
     ticket_sale_mode: event.ticket_sale_mode,
+    qr_sell_tickets: event.qr_sell_tickets ?? false,
+    qr_products_enabled: event.qr_products_enabled ?? false,
+    qr_show_price_list: event.qr_show_price_list ?? false,
+    qr_sell_products: event.qr_sell_products ?? false,
   };
 }

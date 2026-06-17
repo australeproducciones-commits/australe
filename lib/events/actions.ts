@@ -8,6 +8,8 @@ import {
   type EventStatus,
 } from "@/lib/constants/event-status";
 import type { EventActionResult } from "@/lib/events/types";
+import { getEventByIdForAdmin } from "@/lib/events/queries";
+import { resolveSalesQrPayload } from "@/lib/events/salesQr";
 import {
   eventFormToInsertPayload,
   eventFormToPayload,
@@ -29,13 +31,43 @@ async function requireAdminAction() {
   return { supabase, profile };
 }
 
-function revalidateEventPaths(slug?: string) {
+function revalidateEventPaths(slug?: string, salesQrCode?: string | null) {
   revalidatePath(ROUTES.home);
   revalidatePath(ROUTES.eventos);
   revalidatePath(ROUTES.adminEventos);
 
   if (slug) {
     revalidatePath(ROUTES.evento(slug));
+  }
+
+  if (salesQrCode) {
+    revalidatePath(ROUTES.ventaEvento(salesQrCode));
+  }
+}
+
+async function syncKioskPresaleForQr(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  eventId: string,
+  qrProductsEnabled: boolean,
+  qrShowPriceList: boolean,
+  qrSellProducts: boolean,
+) {
+  if (!qrProductsEnabled || (!qrShowPriceList && !qrSellProducts)) {
+    return;
+  }
+
+  const { error } = await supabase.from("event_kiosk_settings").upsert(
+    {
+      event_id: eventId,
+      presale_enabled: true,
+      manual_sales_enabled: true,
+      notes: null,
+    },
+    { onConflict: "event_id" },
+  );
+
+  if (error) {
+    console.error("syncKioskPresaleForQr:", error);
   }
 }
 
@@ -54,12 +86,16 @@ export async function createEventAction(
     return { success: false, error: validationError };
   }
 
-  const payload = eventFormToInsertPayload(input, auth.profile.id);
+  const qrPayload = resolveSalesQrPayload(input, null);
+  const payload = {
+    ...eventFormToInsertPayload(input, auth.profile.id),
+    ...qrPayload,
+  };
 
   const { data, error } = await auth.supabase
     .from("events")
     .insert(payload)
-    .select("id, slug")
+    .select("id, slug, sales_qr_code")
     .single();
 
   if (error) {
@@ -73,7 +109,15 @@ export async function createEventAction(
     };
   }
 
-  revalidateEventPaths(data.slug);
+  await syncKioskPresaleForQr(
+    auth.supabase,
+    data.id,
+    qrPayload.qr_products_enabled,
+    qrPayload.qr_show_price_list,
+    qrPayload.qr_sell_products,
+  );
+
+  revalidateEventPaths(data.slug, data.sales_qr_code);
   redirect(`${ROUTES.adminEventos}/${data.id}`);
 }
 
@@ -93,13 +137,18 @@ export async function updateEventAction(
     return { success: false, error: validationError };
   }
 
-  const payload = eventFormToPayload(input);
+  const existing = await getEventByIdForAdmin(eventId);
+  const qrPayload = resolveSalesQrPayload(input, existing);
+  const payload = {
+    ...eventFormToPayload(input),
+    ...qrPayload,
+  };
 
   const { data, error } = await auth.supabase
     .from("events")
     .update(payload)
     .eq("id", eventId)
-    .select("id, slug")
+    .select("id, slug, sales_qr_code")
     .single();
 
   if (error) {
@@ -113,7 +162,15 @@ export async function updateEventAction(
     };
   }
 
-  revalidateEventPaths(data.slug);
+  await syncKioskPresaleForQr(
+    auth.supabase,
+    data.id,
+    qrPayload.qr_products_enabled,
+    qrPayload.qr_show_price_list,
+    qrPayload.qr_sell_products,
+  );
+
+  revalidateEventPaths(data.slug, data.sales_qr_code);
   return { success: true, eventId: data.id };
 }
 

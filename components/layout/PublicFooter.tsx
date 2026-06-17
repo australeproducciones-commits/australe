@@ -1,24 +1,64 @@
 import Link from "next/link";
-import { ROUTES } from "@/lib/constants/routes";
+import {
+  INSTAGRAM_HANDLE,
+  INSTAGRAM_URL,
+  ROUTES,
+} from "@/lib/constants/routes";
 
-export function PublicFooter() {
+type PublicFooterProps = {
+  dark?: boolean;
+};
+
+export function PublicFooter({ dark = false }: PublicFooterProps) {
   return (
-    <footer className="mt-auto border-t border-[#E8DDF8] bg-[#FBF7FF]">
-      <div className="mx-auto flex max-w-6xl flex-col items-center gap-4 px-4 py-8 text-center sm:flex-row sm:justify-between sm:text-left">
-        <p className="text-sm text-[#8B7A99]">
-          Australe Producciones · Encuentros, cultura y comunidad
-        </p>
-        <div className="flex flex-wrap justify-center gap-4 text-sm text-[#6F647C]">
-          <Link href={ROUTES.eventos} className="hover:text-[#8568CC]">
+    <footer
+      className="mt-auto border-t"
+      style={{
+        borderColor: "var(--public-border)",
+        backgroundColor: "var(--public-footer-bg)",
+      }}
+    >
+      <div className="mx-auto flex max-w-6xl flex-col items-center gap-5 px-4 py-8 text-center sm:flex-row sm:justify-between sm:text-left">
+        <div>
+          <p className="text-sm public-text-soft">
+            Australe Producciones · Encuentros, cultura y comunidad
+          </p>
+          <p className="mt-2 text-sm public-text-muted">
+            Seguinos{" "}
+            <a
+              href={INSTAGRAM_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium transition hover:underline"
+              style={{ color: dark ? "#c8b6ff" : "#8568cc" }}
+            >
+              {INSTAGRAM_HANDLE}
+            </a>
+          </p>
+        </div>
+        <div className="flex flex-wrap justify-center gap-4 text-sm public-text-muted">
+          <Link
+            href={ROUTES.home}
+            className="transition hover:text-[var(--public-primary)]"
+          >
+            Inicio
+          </Link>
+          <Link
+            href={ROUTES.eventos}
+            className="transition hover:text-[var(--public-primary)]"
+          >
             Eventos
           </Link>
-          <Link href={ROUTES.comunidad} className="hover:text-[#8568CC]">
+          <Link
+            href={ROUTES.comunidad}
+            className="transition hover:text-[var(--public-primary)]"
+          >
             Comunidad
           </Link>
-          <Link href={ROUTES.sobre} className="hover:text-[#8568CC]">
-            Sobre Australe
-          </Link>
-          <Link href={ROUTES.contacto} className="hover:text-[#8568CC]">
+          <Link
+            href={ROUTES.contacto}
+            className="transition hover:text-[var(--public-primary)]"
+          >
             Contacto
           </Link>
         </div>

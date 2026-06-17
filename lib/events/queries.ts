@@ -8,7 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 
 const EVENT_COLUMNS =
-  "id, name, slug, description, main_image_url, thumbnail_url, flyer_url, banner_url, social_presale_price, social_regular_price, box_office_preview, event_date, start_time, end_time, location_name, address, capacity, status, ticket_sale_mode, external_ticket_url, is_featured, featured_ticket_label, featured_until, home_order, created_by, created_at, updated_at";
+  "id, name, slug, description, main_image_url, thumbnail_url, flyer_url, banner_url, social_presale_price, social_regular_price, box_office_preview, event_date, start_time, end_time, location_name, address, capacity, status, ticket_sale_mode, external_ticket_url, is_featured, featured_ticket_label, featured_until, home_order, sales_qr_enabled, sales_qr_code, sales_qr_url, qr_sell_tickets, qr_products_enabled, qr_show_price_list, qr_sell_products, created_by, created_at, updated_at";
 
 export async function requireAdminPage() {
   const supabase = await createClient();
@@ -51,7 +51,37 @@ function normalizeEventRow(row: Event): Event {
     featured_ticket_label: row.featured_ticket_label ?? null,
     featured_until: row.featured_until ?? null,
     home_order: row.home_order ?? 0,
+    sales_qr_enabled: row.sales_qr_enabled ?? false,
+    sales_qr_code: row.sales_qr_code ?? null,
+    sales_qr_url: row.sales_qr_url ?? null,
+    qr_sell_tickets: row.qr_sell_tickets ?? false,
+    qr_products_enabled: row.qr_products_enabled ?? false,
+    qr_show_price_list: row.qr_show_price_list ?? false,
+    qr_sell_products: row.qr_sell_products ?? false,
   };
+}
+
+export async function getEventBySalesQrCode(code: string): Promise<Event | null> {
+  const supabase = await createClient();
+  const normalized = code.trim().toUpperCase();
+
+  if (!normalized) {
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from("events")
+    .select(EVENT_COLUMNS)
+    .eq("sales_qr_code", normalized)
+    .eq("sales_qr_enabled", true)
+    .maybeSingle();
+
+  if (error) {
+    console.error("getEventBySalesQrCode:", error);
+    return null;
+  }
+
+  return data ? normalizeEventRow(data as Event) : null;
 }
 
 export async function getPublishedEventBySlug(
@@ -75,6 +105,11 @@ export async function getPublishedEventBySlug(
 }
 
 export async function getFeaturedPublishedEvents(): Promise<Event[]> {
+  return getFeaturedEventsForHome();
+}
+
+/** Eventos destacados activos para la home (hero y promos). */
+export async function getFeaturedEventsForHome(): Promise<Event[]> {
   const supabase = await createClient();
 
   const { data, error } = await supabase
@@ -83,10 +118,11 @@ export async function getFeaturedPublishedEvents(): Promise<Event[]> {
     .eq("status", EVENT_STATUS.PUBLISHED)
     .eq("is_featured", true)
     .order("home_order", { ascending: true })
-    .order("event_date", { ascending: true });
+    .order("event_date", { ascending: true })
+    .order("start_time", { ascending: true });
 
   if (error) {
-    console.error("getFeaturedPublishedEvents:", error);
+    console.error("getFeaturedEventsForHome:", error);
     return [];
   }
 

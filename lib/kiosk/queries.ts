@@ -280,6 +280,59 @@ export async function getPublicEventKiosk(
   };
 }
 
+/** Catálogo de consumiciones para QR / lista de precios (sin filtrar agotados). */
+export async function getEventKioskCatalogForQr(
+  eventId: string,
+): Promise<PublicEventKioskProduct[]> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("event_kiosk_products")
+    .select(
+      `${EVENT_KIOSK_PRODUCT_COLUMNS}, kiosk_products ( name, slug, description, category, image_url, is_active )`,
+    )
+    .eq("event_id", eventId)
+    .eq("is_available", true)
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    console.error("getEventKioskCatalogForQr:", error.message);
+    return [];
+  }
+
+  return (data ?? [])
+    .map((row) => {
+      const catalog = Array.isArray(row.kiosk_products)
+        ? row.kiosk_products[0]
+        : row.kiosk_products;
+
+      if (!catalog?.is_active) {
+        return null;
+      }
+
+      return {
+        id: row.id,
+        event_id: row.event_id,
+        product_id: row.product_id,
+        price: row.price,
+        stock_total: row.stock_total,
+        stock_sold: row.stock_sold,
+        is_available: row.is_available,
+        sort_order: row.sort_order,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        product_name: catalog.name ?? "Producto",
+        product_slug: catalog.slug ?? "",
+        product_category: catalog.category ?? null,
+        product_image_url: catalog.image_url ?? null,
+        product_is_active: catalog.is_active ?? true,
+        product_description: catalog.description ?? null,
+      } satisfies PublicEventKioskProduct;
+    })
+    .filter((product): product is PublicEventKioskProduct => product != null);
+}
+
 export async function getKioskOrderItemsByEventId(
   eventId: string,
 ): Promise<KioskOrderItem[]> {

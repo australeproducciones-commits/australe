@@ -17,27 +17,30 @@ export function HomeCartelera({ items }: HomeCarteleraProps) {
     >
       <div className="mb-10 flex flex-col justify-between gap-4 md:flex-row md:items-end">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.35em] text-[#9B7EDE]">
+          <p className="public-label text-xs font-semibold uppercase tracking-[0.35em]">
             Cartelera
           </p>
-          <h2 className="mt-3 text-3xl font-black tracking-tight text-[#2F2A3A] sm:text-4xl">
+          <h2 className="public-heading mt-3 text-3xl font-black tracking-tight sm:text-4xl">
             Próximos eventos
           </h2>
         </div>
-        <p className="max-w-md text-sm leading-relaxed text-[#8B7A99] md:text-right">
+        <p className="max-w-md text-sm leading-relaxed public-text-soft md:text-right">
           Flyers, fechas, ubicación y entradas en un solo lugar.
         </p>
       </div>
 
       {items.length === 0 ? (
         <div className="public-card rounded-3xl p-10 text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#F1E8FF] text-2xl text-[#9B7EDE]">
+          <div
+            className="mx-auto flex h-14 w-14 items-center justify-center rounded-full text-2xl public-label"
+            style={{ backgroundColor: "var(--public-card-tint)" }}
+          >
             ✦
           </div>
-          <h3 className="mt-5 text-xl font-bold text-[#2F2A3A]">
+          <h3 className="public-heading mt-5 text-xl font-bold">
             Cartelera en preparación
           </h3>
-          <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-[#8B7A99]">
+          <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed public-text-soft">
             Todavía no hay eventos publicados. Volvé pronto para conocer la
             próxima fecha de Australe Producciones.
           </p>
@@ -57,7 +60,7 @@ export function HomeCartelera({ items }: HomeCarteleraProps) {
                 event={item.event}
                 minPrice={item.minPrice}
                 featured={item.featured}
-                surface="light"
+                surface="dark"
               />
             ))}
           </div>

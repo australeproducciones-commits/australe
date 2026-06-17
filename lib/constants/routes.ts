@@ -6,6 +6,7 @@ export const ROUTES = {
   evento: (slug: string) => `/eventos/${slug}`,
   eventoEntradas: (slug: string) => `/eventos/${slug}/entradas`,
   eventoListaPrecios: (slug: string) => `/eventos/${slug}/lista-precios`,
+  ventaEvento: (code: string) => `/venta/e/${code}`,
   comunidad: "/comunidad",
   login: "/login",
   miCuenta: "/mi-cuenta",
@@ -30,9 +31,11 @@ export const PUBLIC_NAV_LINKS = [
   { href: ROUTES.home, label: "Inicio" },
   { href: ROUTES.eventos, label: "Eventos" },
   { href: ROUTES.comunidad, label: "Comunidad" },
-  { href: ROUTES.sobre, label: "Sobre Australe" },
   { href: ROUTES.contacto, label: "Contacto" },
 ] as const;
+
+export const INSTAGRAM_URL = "https://www.instagram.com/australeproducciones/";
+export const INSTAGRAM_HANDLE = "@australeproducciones";
 
 export const ADMIN_NAV_LINKS = [
   { href: ROUTES.admin, label: "Inicio" },

@@ -20,7 +20,7 @@ body {
   font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
 
-/* ——— Tema público claro / pastel ——— */
+/* ——— Tema público (claro por defecto) ——— */
 .public-theme {
   --public-bg: #f8f3ff;
   --public-bg-warm: #fff9f4;
@@ -37,9 +37,41 @@ body {
   --public-community: #f2c14e;
   --public-border: #e8ddf8;
   --public-shadow: 0 12px 40px rgba(75, 55, 110, 0.1);
+  --public-header-bg: rgba(248, 243, 255, 0.9);
+  --public-header-hover: #f1e8ff;
+  --public-footer-bg: #fbf7ff;
+  --public-image-fallback: linear-gradient(
+    135deg,
+    #fbf7ff 0%,
+    #f1e8ff 50%,
+    #fff9f4 100%
+  );
 
   background-color: var(--public-bg);
   color: var(--public-text);
+}
+
+/* ——— Home y cartelera: fondo negro ——— */
+.public-theme.public-theme-dark {
+  --public-bg: #000000;
+  --public-bg-warm: #050505;
+  --public-bg-section: #0a0a0a;
+  --public-card: #111111;
+  --public-card-tint: #1a1a1a;
+  --public-text: #fafafa;
+  --public-text-secondary: #d4d4d8;
+  --public-text-soft: #a1a1aa;
+  --public-border: rgba(155, 126, 222, 0.22);
+  --public-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
+  --public-header-bg: rgba(0, 0, 0, 0.88);
+  --public-header-hover: rgba(155, 126, 222, 0.12);
+  --public-footer-bg: #000000;
+  --public-image-fallback: linear-gradient(
+    135deg,
+    #111111 0%,
+    #1a1028 50%,
+    #0a0a0a 100%
+  );
 }
 
 .public-theme .public-card {
@@ -60,12 +92,42 @@ body {
 
 .public-theme .public-btn-outline {
   border: 1px solid var(--public-border);
-  background: #fff;
+  background: var(--public-card);
   color: var(--public-text);
 }
 
 .public-theme .public-btn-outline:hover {
   background: var(--public-card-tint);
+}
+
+.public-theme-dark .public-btn-outline {
+  background: transparent;
+}
+
+.public-theme-dark .public-btn-outline:hover {
+  background: var(--public-card);
+  border-color: rgba(155, 126, 222, 0.4);
+}
+
+.public-theme .public-heading {
+  color: var(--public-text);
+}
+
+.public-theme .public-text-muted {
+  color: var(--public-text-secondary);
+}
+
+.public-theme .public-text-soft {
+  color: var(--public-text-soft);
+}
+
+.public-theme .public-label {
+  color: var(--public-primary);
+}
+
+.public-theme .public-section-alt {
+  background: var(--public-bg-section);
+  border-color: var(--public-border);
 }
 
 .admin-form input[type="number"]::-webkit-outer-spin-button,

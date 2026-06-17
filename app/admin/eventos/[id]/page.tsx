@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { AdminCreateEventView } from "@/components/events/AdminCreateEventView";
 import { AdminHeader } from "@/components/layout/AdminHeader";
 import { EventForm } from "@/components/events/EventForm";
+import { EventSalesQrAdminCard } from "@/components/events/EventSalesQrAdminCard";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { ROUTES } from "@/lib/constants/routes";
@@ -88,6 +89,8 @@ export default async function AdminEditEventoPage({
             </Button>
           ) : null}
         </div>
+
+        <EventSalesQrAdminCard event={event} />
 
         <Card padding="sm" className="mb-6 border-purple-400/20 bg-purple-400/5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

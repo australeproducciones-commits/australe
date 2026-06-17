@@ -1,16 +1,15 @@
 import { CommunitySection } from "@/components/home/CommunitySection";
+import { FeaturedEventsHero } from "@/components/home/FeaturedEventsHero";
 import { HomeCartelera } from "@/components/home/HomeCartelera";
-import { HomeFeaturedSection } from "@/components/home/HomeFeaturedSection";
-import { HomeHero } from "@/components/home/HomeHero";
 import { buildCarteleraEvents } from "@/lib/events/cartelera";
 import {
-  getFeaturedPublishedEvents,
+  getFeaturedEventsForHome,
   getPublishedEvents,
 } from "@/lib/events/queries";
 
 export default async function Home() {
   const [featuredEvents, publishedEvents] = await Promise.all([
-    getFeaturedPublishedEvents(),
+    getFeaturedEventsForHome(),
     getPublishedEvents(),
   ]);
 
@@ -21,8 +20,7 @@ export default async function Home() {
 
   return (
     <main>
-      <HomeHero featuredEvent={featuredEvents[0] ?? null} />
-      <HomeFeaturedSection events={featuredEvents} />
+      <FeaturedEventsHero events={featuredEvents} />
       <HomeCartelera items={carteleraItems} />
       <CommunitySection />
     </main>

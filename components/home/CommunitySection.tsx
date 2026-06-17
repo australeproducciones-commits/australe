@@ -11,16 +11,19 @@ const BENEFITS = [
 
 export function CommunitySection() {
   return (
-    <section className="border-t border-[#E8DDF8] bg-[#F1E8FF]">
+    <section
+      className="border-t public-section-alt"
+      style={{ backgroundColor: "var(--public-bg-section)" }}
+    >
       <div className="mx-auto grid max-w-6xl gap-10 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-2 lg:items-center">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.35em] text-[#9B7EDE]">
+          <p className="public-label text-xs font-semibold uppercase tracking-[0.35em]">
             Comunidad
           </p>
-          <h2 className="mt-3 text-3xl font-black text-[#2F2A3A] sm:text-4xl">
+          <h2 className="public-heading mt-3 text-3xl font-black sm:text-4xl">
             Más que eventos, somos una comunidad.
           </h2>
-          <p className="mt-4 text-base leading-relaxed text-[#6F647C]">
+          <p className="mt-4 text-base leading-relaxed public-text-muted">
             Sumate para enterarte primero, acceder a beneficios y ser parte de
             encuentros pensados para compartir.
           </p>
@@ -31,9 +34,9 @@ export function CommunitySection() {
             {BENEFITS.map((benefit) => (
               <li
                 key={benefit}
-                className="flex items-center gap-3 text-sm text-[#2F2A3A]"
+                className="flex items-center gap-3 text-sm public-heading"
               >
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#F2C14E]/25 text-[#D96C4A]">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#F2C14E]/20 text-[#F2C14E]">
                   ✓
                 </span>
                 {benefit}

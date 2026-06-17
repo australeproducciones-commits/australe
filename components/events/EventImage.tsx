@@ -43,14 +43,20 @@ export function EventImage({
     return (
       <div
         className={cn(
-          "flex flex-col items-center justify-center gap-2 border border-[#E8DDF8] bg-gradient-to-br from-[#FBF7FF] via-[#F1E8FF] to-[#FFF9F4] text-center",
+          "flex flex-col items-center justify-center gap-2 border text-center",
           styles.aspect,
           styles.rounded,
           className,
         )}
+        style={{
+          borderColor: "var(--public-border)",
+          background: "var(--public-image-fallback)",
+        }}
       >
-        <span className="text-2xl text-[#C8B6FF]">✦</span>
-        <span className="px-4 text-xs text-[#8B7A99]">Imagen próximamente</span>
+        <span className="text-2xl" style={{ color: "var(--public-secondary)" }}>
+          ✦
+        </span>
+        <span className="px-4 text-xs public-text-soft">Imagen próximamente</span>
       </div>
     );
   }
@@ -58,11 +64,15 @@ export function EventImage({
   return (
     <div
       className={cn(
-        "relative overflow-hidden border border-[#E8DDF8] bg-[#FBF7FF]",
+        "relative overflow-hidden border",
         styles.aspect,
         styles.rounded,
         className,
       )}
+      style={{
+        borderColor: "var(--public-border)",
+        backgroundColor: "var(--public-card-tint)",
+      }}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img

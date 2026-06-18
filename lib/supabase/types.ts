@@ -40,6 +40,10 @@ export type EventRow = {
   address: string | null;
   capacity: number | null;
   status: string;
+  audience: string;
+  financial_management_status: string;
+  financial_closed_at: string | null;
+  financial_closed_by: string | null;
   ticket_sale_mode: string;
   external_ticket_url: string | null;
   is_featured: boolean;
@@ -185,6 +189,66 @@ export type KioskOrderItemRow = {
   created_at: string;
 };
 
+export type AnalyticsEventRow = {
+  id: string;
+  event_name: string;
+  page_path: string;
+  event_id: string | null;
+  ticket_type_id: string | null;
+  session_id: string;
+  visitor_id: string;
+  referrer: string | null;
+  user_agent: string | null;
+  metadata: Json;
+  created_at: string;
+};
+
+export type EventExpenseCategoryRow = {
+  id: string;
+  name: string;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+};
+
+export type EventExpenseRow = {
+  id: string;
+  event_id: string;
+  category_id: string | null;
+  concept: string;
+  description: string | null;
+  provider: string | null;
+  amount: number;
+  quantity: number;
+  unit_price: number | null;
+  expense_date: string | null;
+  due_date: string | null;
+  status: string;
+  payment_method: string | null;
+  receipt_number: string | null;
+  internal_note: string | null;
+  amount_paid: number;
+  created_by: string | null;
+  updated_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type EventOtherIncomeRow = {
+  id: string;
+  event_id: string;
+  concept: string;
+  category: string | null;
+  amount: number;
+  income_date: string | null;
+  status: string;
+  note: string | null;
+  created_by: string | null;
+  updated_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type Database = {
   public: {
     Tables: {
@@ -226,6 +290,44 @@ export type Database = {
           updated_at?: string;
         };
         Update: Partial<CommunityMemberRow>;
+        Relationships: [];
+      };
+      analytics_events: {
+        Row: AnalyticsEventRow;
+        Insert: Omit<AnalyticsEventRow, "id" | "created_at"> & {
+          id?: string;
+          created_at?: string;
+        };
+        Update: Partial<AnalyticsEventRow>;
+        Relationships: [];
+      };
+      event_expense_categories: {
+        Row: EventExpenseCategoryRow;
+        Insert: Omit<EventExpenseCategoryRow, "id" | "created_at"> & {
+          id?: string;
+          created_at?: string;
+        };
+        Update: Partial<EventExpenseCategoryRow>;
+        Relationships: [];
+      };
+      event_expenses: {
+        Row: EventExpenseRow;
+        Insert: Omit<EventExpenseRow, "id" | "created_at" | "updated_at"> & {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<EventExpenseRow>;
+        Relationships: [];
+      };
+      event_other_income: {
+        Row: EventOtherIncomeRow;
+        Insert: Omit<EventOtherIncomeRow, "id" | "created_at" | "updated_at"> & {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<EventOtherIncomeRow>;
         Relationships: [];
       };
       tickets: {

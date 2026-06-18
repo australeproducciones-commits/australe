@@ -6,7 +6,11 @@ import { useState } from "react";
 import { ADMIN_NAV_LINKS, ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils/cn";
 
-export function AdminSidebar() {
+type AdminSidebarProps = {
+  pendingSalesCount?: number;
+};
+
+export function AdminSidebar({ pendingSalesCount = 0 }: AdminSidebarProps) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
@@ -33,7 +37,14 @@ export function AdminSidebar() {
               : "text-zinc-400 hover:bg-white/5 hover:text-white",
           )}
         >
-          {link.label}
+          <span className="flex items-center justify-between gap-2">
+            <span>{link.label}</span>
+            {link.href === ROUTES.adminVentas && pendingSalesCount > 0 ? (
+              <span className="rounded-full bg-amber-400 px-2 py-0.5 text-xs font-bold text-zinc-900">
+                {pendingSalesCount}
+              </span>
+            ) : null}
+          </span>
         </Link>
       ))}
     </nav>

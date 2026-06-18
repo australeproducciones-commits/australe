@@ -4,6 +4,9 @@ import {
   type EventVentasDashboard,
 } from "@/lib/ticket-sales/eventVentasStats";
 import {
+  isPendingReservation,
+} from "@/lib/ticket-sales/saleStatus";
+import {
   TICKET_PAYMENT_STATUS,
   TICKET_STATUS,
   type TicketWithTypeName,
@@ -16,6 +19,7 @@ import {
 } from "@/lib/ticket-sales/utils";
 
 export const VENTAS_STATUS_FILTERS = [
+  { id: "pending", label: "Por confirmar" },
   { id: "all", label: "Todas" },
   { id: "confirmed", label: "Confirmadas" },
   { id: "reserved", label: "Reservadas" },
@@ -48,6 +52,11 @@ export function ticketMatchesStatusFilter(
   switch (filter) {
     case "all":
       return true;
+    case "pending":
+      return isPendingReservation(
+        ticket.ticket_status,
+        ticket.payment_status,
+      );
     case "confirmed":
       return ticket.ticket_status === TICKET_STATUS.VALID;
     case "reserved":

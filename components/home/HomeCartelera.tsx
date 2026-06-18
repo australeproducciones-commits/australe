@@ -60,7 +60,6 @@ export function HomeCartelera({ items }: HomeCarteleraProps) {
                 event={item.event}
                 minPrice={item.minPrice}
                 featured={item.featured}
-                surface="dark"
               />
             ))}
           </div>

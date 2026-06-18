@@ -2,6 +2,10 @@ import type {
   EventStatus,
   TicketSaleMode,
 } from "@/lib/constants/event-status";
+import type {
+  EventAudience,
+  FinancialManagementStatus,
+} from "@/lib/constants/event-audience";
 
 export type Event = {
   id: string;
@@ -22,6 +26,10 @@ export type Event = {
   address: string | null;
   capacity: number | null;
   status: EventStatus;
+  audience: EventAudience;
+  financial_management_status: FinancialManagementStatus;
+  financial_closed_at: string | null;
+  financial_closed_by: string | null;
   is_featured: boolean;
   featured_ticket_label: string | null;
   featured_until: string | null;
@@ -58,6 +66,7 @@ export type EventFormInput = {
   address: string;
   capacity: string;
   status: EventStatus;
+  audience: EventAudience;
   is_featured: boolean;
   featured_ticket_label: string;
   featured_until: string;

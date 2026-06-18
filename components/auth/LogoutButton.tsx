@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils/cn";
 
 type LogoutButtonProps = {
   className?: string;
-  variant?: "header" | "default";
+  variant?: "header" | "default" | "public";
 };
 
 export function LogoutButton({
@@ -36,9 +36,11 @@ export function LogoutButton({
       disabled={loading}
       className={cn(
         "font-semibold transition disabled:opacity-50",
-        variant === "header"
-          ? "rounded-xl px-3 py-2 text-sm text-zinc-300 hover:bg-white/5 hover:text-white sm:px-4"
-          : "rounded-2xl border border-white/20 px-6 py-3 text-sm text-white hover:bg-white/10",
+        variant === "header" &&
+          "rounded-xl px-3 py-2 text-sm text-zinc-300 hover:bg-white/5 hover:text-white sm:px-4",
+        variant === "default" &&
+          "rounded-2xl border border-white/20 px-6 py-3 text-sm text-white hover:bg-white/10",
+        variant === "public" && "public-btn-outline rounded-2xl px-6 py-3 text-sm",
         className,
       )}
     >

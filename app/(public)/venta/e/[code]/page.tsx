@@ -3,7 +3,13 @@ import { notFound } from "next/navigation";
 import { EventSalesQrPriceList } from "@/components/events/EventSalesQrPriceList";
 import { PublicEventKioskSection } from "@/components/kiosk/PublicEventKioskSection";
 import { TicketReservationForm } from "@/components/ticket-sales/TicketReservationForm";
-import { Card } from "@/components/ui/Card";
+import {
+  PageContainer,
+  PublicButton,
+  PublicCard,
+  SectionHeading,
+  StatusBadge,
+} from "@/components/ui/public";
 import { getProfile } from "@/lib/auth/getProfile";
 import {
   EVENT_STATUS,
@@ -92,70 +98,63 @@ export default async function VentaEventoPage({ params }: VentaEventoPageProps) 
   const sellableTicketTypes = filterTicketTypesOnSale(ticketTypes);
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-16">
-      <Card padding="lg" className="mb-8">
-        <p className="text-xs font-semibold uppercase tracking-[0.35em] text-purple-300">
-          QR de ventas
-        </p>
-        <h1 className="mt-2 text-3xl font-black text-white sm:text-4xl">
-          {event.name}
-        </h1>
-        <p className="mt-3 text-purple-200">{dateTimeLabel}</p>
+    <PageContainer size="sm">
+      <PublicCard padding="lg" className="mb-8">
+        <SectionHeading
+          label="QR de ventas"
+          title={event.name}
+          subtitle={dateTimeLabel}
+        />
         {event.location_name ? (
-          <p className="mt-2 text-sm text-zinc-400">{event.location_name}</p>
+          <p className="mt-2 text-sm public-text-muted">{event.location_name}</p>
         ) : null}
-        <p className="mt-4 inline-flex rounded-full bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-zinc-300">
-          {EVENT_STATUS_LABELS[event.status] ?? event.status}
-        </p>
-      </Card>
+        <div className="mt-4">
+          <StatusBadge tone="neutral">
+            {EVENT_STATUS_LABELS[event.status] ?? event.status}
+          </StatusBadge>
+        </div>
+      </PublicCard>
 
       {!hasActiveModule ? (
-        <Card padding="lg" className="text-center">
-          <h2 className="text-xl font-bold text-white">
+        <PublicCard padding="lg" className="text-center">
+          <h2 className="public-heading text-xl font-bold">
             QR de ventas no disponible
           </h2>
-          <p className="mt-3 text-sm text-zinc-400">
+          <p className="mt-3 text-sm public-text-muted">
             {event.status !== EVENT_STATUS.PUBLISHED
               ? "Este evento todavía no está publicado o las opciones del QR no están activas."
               : "No hay módulos de venta habilitados para este código."}
           </p>
           {event.qr_sell_tickets &&
           !isInternalSaleEnabled(event.ticket_sale_mode) ? (
-            <p className="mt-3 text-sm text-zinc-500">
+            <p className="mt-3 text-sm public-text-soft">
               La venta de entradas por QR requiere venta interna habilitada.
             </p>
           ) : null}
           {event.ticket_sale_mode === TICKET_SALE_MODE.EXTERNAL &&
           event.external_ticket_url ? (
-            <a
+            <PublicButton
               href={event.external_ticket_url}
+              className="mt-6"
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-6 inline-flex rounded-2xl bg-purple-500 px-6 py-3 text-sm font-semibold text-white hover:bg-purple-400"
             >
               Comprar entradas externas
-            </a>
+            </PublicButton>
           ) : null}
-        </Card>
+        </PublicCard>
       ) : (
         <div className="space-y-10">
           {showTickets ? (
             <section className="space-y-4">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.35em] text-purple-300">
-                  Entradas
-                </p>
-                <h2 className="mt-2 text-2xl font-black text-white">
-                  Reservar entradas
-                </h2>
-              </div>
+              <SectionHeading label="Entradas" title="Reservar entradas" />
 
               {sellableTicketTypes.length === 0 ? (
-                <Card padding="lg" className="text-center">
-                  <p className="text-sm text-zinc-400">
+                <PublicCard padding="lg" className="text-center">
+                  <p className="text-sm public-text-muted">
                     No hay entradas disponibles en este momento.
                   </p>
-                </Card>
+                </PublicCard>
               ) : (
                 <TicketReservationForm
                   event={event}
@@ -174,14 +173,7 @@ export default async function VentaEventoPage({ params }: VentaEventoPageProps) 
 
           {showSellProducts ? (
             <section className="space-y-4">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.35em] text-purple-300">
-                  Consumiciones
-                </p>
-                <h2 className="mt-2 text-2xl font-black text-white">
-                  Comprar consumiciones
-                </h2>
-              </div>
+              <SectionHeading label="Consumiciones" title="Comprar consumiciones" />
               {publicKiosk.hasSellableProducts ? (
                 <PublicEventKioskSection
                   eventId={event.id}
@@ -189,19 +181,19 @@ export default async function VentaEventoPage({ params }: VentaEventoPageProps) 
                   products={publicKiosk.products}
                 />
               ) : (
-                <Card padding="lg" className="text-center">
-                  <h2 className="text-lg font-bold text-white">
+                <PublicCard padding="lg" className="text-center">
+                  <h2 className="public-heading text-lg font-bold">
                     Venta de consumiciones
                   </h2>
-                  <p className="mt-2 text-sm text-zinc-400">
+                  <p className="mt-2 text-sm public-text-muted">
                     No hay consumiciones disponibles para comprar por ahora.
                   </p>
-                </Card>
+                </PublicCard>
               )}
             </section>
           ) : null}
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 }

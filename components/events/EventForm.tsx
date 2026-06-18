@@ -5,6 +5,10 @@ import { EventImageAdminPreview } from "@/components/events/EventImageAdminPrevi
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import {
+  EVENT_AUDIENCE_LABELS,
+  EVENT_AUDIENCE_VALUES,
+} from "@/lib/constants/event-audience";
+import {
   EVENT_STATUS_LABELS,
   EVENT_STATUS_VALUES,
   TICKET_SALE_MODE_LABELS,
@@ -64,6 +68,7 @@ const defaultValues: EventFormInput = {
   address: "",
   capacity: "",
   status: "draft",
+  audience: "public",
   is_featured: false,
   featured_ticket_label: "",
   featured_until: "",
@@ -359,6 +364,31 @@ export function EventForm({
               className={inputClassName}
               disabled={pending}
             />
+          </Field>
+
+          <Field label="Visibilidad del evento">
+            <select
+              name="audience"
+              value={values.audience}
+              onChange={(e) =>
+                updateField(
+                  "audience",
+                  e.target.value as EventFormInput["audience"],
+                )
+              }
+              className={inputClassName}
+              disabled={pending}
+            >
+              {EVENT_AUDIENCE_VALUES.map((audience) => (
+                <option key={audience} value={audience} className="bg-zinc-900">
+                  {EVENT_AUDIENCE_LABELS[audience]}
+                </option>
+              ))}
+            </select>
+            <p className="mt-2 text-xs text-zinc-500">
+              Público: visible para todos. Solo comunidad: requiere membresía activa.
+              Usá estado Borrador u Oculto para eventos privados no accesibles por URL.
+            </p>
           </Field>
 
           <Field label="Estado">

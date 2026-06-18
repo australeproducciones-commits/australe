@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
+import { PublicButton } from "@/components/ui/public/PublicButton";
+import { PublicCard } from "@/components/ui/public/PublicCard";
+import { StatusBadge } from "@/components/ui/public/StatusBadge";
 import { ROUTES } from "@/lib/constants/routes";
 import {
   formatKioskMoney,
@@ -36,14 +37,6 @@ type PublicKioskOrderSuccessProps = {
   showActions?: boolean;
 };
 
-function StatusBadge({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="rounded-full bg-amber-400/15 px-2.5 py-1 text-[11px] font-medium text-amber-200">
-      {children}
-    </span>
-  );
-}
-
 export function PublicKioskOrderSuccess({
   title = "Consumisiones reservadas",
   subtitle,
@@ -66,115 +59,115 @@ export function PublicKioskOrderSuccess({
       {showHeader ? (
         <div className="flex items-start gap-3">
           <div
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-400/15 text-lg text-emerald-300"
+            className="public-success-icon h-10 w-10 shrink-0 text-lg"
             aria-hidden
           >
             ✓
           </div>
           <div className="min-w-0 text-left">
-            <p className="text-xs uppercase tracking-[0.25em] text-emerald-300">
+            <p className="text-xs uppercase tracking-[0.25em] text-[var(--public-fresh-foreground)]">
               Reserva registrada
             </p>
-            <h2 className="mt-1 text-xl font-black text-white sm:text-2xl">
+            <h2 className="public-heading mt-1 text-xl font-black sm:text-2xl">
               {title}
             </h2>
             {subtitle ? (
-              <p className="mt-2 text-sm leading-6 text-zinc-400">{subtitle}</p>
+              <p className="mt-2 text-sm leading-6 public-text-muted">{subtitle}</p>
             ) : null}
           </div>
         </div>
       ) : (
-        <h3 className="text-left text-lg font-bold text-white">{title}</h3>
+        <h3 className="public-heading text-left text-lg font-bold">{title}</h3>
       )}
 
       {buyerName ? (
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-left text-sm">
-          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+        <div className="public-summary-box text-left text-sm">
+          <p className="text-xs font-semibold uppercase tracking-wider public-text-soft">
             Comprador
           </p>
-          <p className="mt-1 font-medium text-white">{buyerName}</p>
+          <p className="public-heading mt-1 font-medium">{buyerName}</p>
           {buyerWhatsapp || buyerDni || buyerEmail ? (
-            <p className="mt-1 text-zinc-400">
+            <p className="mt-1 public-text-muted">
               {[buyerWhatsapp, buyerDni, buyerEmail].filter(Boolean).join(" · ")}
             </p>
           ) : null}
         </div>
       ) : null}
 
-      <div className="rounded-2xl border border-purple-400/20 bg-purple-400/10 p-4 text-left">
-        <p className="text-xs font-semibold uppercase tracking-wider text-purple-200">
+      <div className="public-price-banner text-left">
+        <p className="text-xs font-semibold uppercase tracking-wider public-label">
           Código de kiosco
         </p>
-        <p className="mt-2 font-mono text-2xl font-bold tracking-wide text-white">
+        <p className="public-heading mt-2 font-mono text-2xl font-bold tracking-wide">
           {orderCode}
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
-          <StatusBadge>
+          <StatusBadge tone="warning">
             Pago: {getKioskPaymentStatusLabel(KIOSK_ORDER_PAYMENT_STATUS.PENDING)}
           </StatusBadge>
-          <StatusBadge>
+          <StatusBadge tone="warning">
             Retiro: {getKioskPickupStatusLabel(KIOSK_ORDER_PICKUP_STATUS.PENDING)}
           </StatusBadge>
         </div>
       </div>
 
-      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-left text-sm">
-        <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+      <div className="public-summary-box text-left text-sm">
+        <p className="text-xs font-semibold uppercase tracking-wider public-text-soft">
           Productos
         </p>
         <ul className="mt-3 space-y-2">
           {lines.map((line) => (
             <li
               key={`${line.name}-${line.quantity}`}
-              className="flex justify-between gap-4 text-zinc-300"
+              className="flex justify-between gap-4 public-text-muted"
             >
               <span className="min-w-0">
                 {line.name} × {line.quantity}
-                <span className="mt-0.5 block text-xs text-zinc-500">
+                <span className="mt-0.5 block text-xs public-text-soft">
                   {formatKioskMoney(line.unitPrice)} c/u
                 </span>
               </span>
-              <span className="shrink-0 font-medium text-white">
+              <span className="public-heading shrink-0 font-medium">
                 {formatKioskMoney(line.subtotal)}
               </span>
             </li>
           ))}
         </ul>
-        <p className="mt-4 flex justify-between border-t border-white/10 pt-3 font-bold text-white">
+        <p className="public-heading mt-4 flex justify-between border-t pt-3 font-bold" style={{ borderColor: "var(--public-border)" }}>
           <span>Total consumisiones</span>
           <span>{formatKioskMoney(totalAmount)}</span>
         </p>
       </div>
 
       {showInstructions ? (
-        <Card padding="md" className="border-white/10 bg-white/[0.02] text-left">
-          <p className="text-sm leading-6 text-zinc-300">
+        <PublicCard padding="md" className="text-left">
+          <p className="text-sm leading-6 public-text-muted">
             Las consumisiones quedan reservadas. El pago se confirma según la
             modalidad indicada por la organización.
           </p>
-          <ul className="mt-3 space-y-1.5 text-xs leading-5 text-zinc-500">
+          <ul className="mt-3 space-y-1.5 text-xs leading-5 public-text-soft">
             <li>Guardá esta pantalla o tomá captura.</li>
             <li>Presentá el código de kiosco para retirar tus consumisiones.</li>
             <li>La organización confirmará el pago según corresponda.</li>
           </ul>
-        </Card>
+        </PublicCard>
       ) : null}
 
       {showActions ? (
         <div className="flex flex-col gap-3 sm:flex-row">
           {onMakeAnother ? (
-            <Button type="button" onClick={onMakeAnother} className="sm:flex-1">
+            <PublicButton type="button" onClick={onMakeAnother} className="sm:flex-1">
               Hacer otra reserva
-            </Button>
+            </PublicButton>
           ) : null}
           {eventSlug ? (
-            <Button
+            <PublicButton
               href={ROUTES.evento(eventSlug)}
               variant="outline"
               className="sm:flex-1"
             >
               Volver al evento
-            </Button>
+            </PublicButton>
           ) : null}
         </div>
       ) : null}
@@ -186,9 +179,9 @@ export function PublicKioskOrderSuccess({
   }
 
   return (
-    <Card padding="lg" className="mt-8">
+    <PublicCard padding="lg" className="mt-8">
       {content}
-    </Card>
+    </PublicCard>
   );
 }
 
@@ -202,7 +195,7 @@ export function PublicKioskPresaleLink({
   return (
     <Link
       href={`${ROUTES.evento(eventSlug)}#preventa-consumisiones`}
-      className={className}
+      className={className ?? "public-link text-sm"}
     >
       Reservar consumisiones
     </Link>

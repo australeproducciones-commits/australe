@@ -52,7 +52,6 @@ export default async function EventosPage() {
               event={item.event}
               minPrice={item.minPrice}
               featured={item.featured}
-              surface="dark"
             />
           ))}
         </div>

@@ -4,13 +4,15 @@ import { AdminHeader } from "@/components/layout/AdminHeader";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import {
-  EVENT_STATUS_LABELS,
   TICKET_SALE_MODE_LABELS,
 } from "@/lib/constants/event-status";
 import {
   formatEventSoldStockLabel,
   getAdminStatsByEventIds,
 } from "@/lib/events/adminStats";
+import { getEventVisibilityBadge } from "@/lib/events/access";
+import { getFinancialSummariesByEventIds } from "@/lib/finance/queries";
+import { getPendingSalesSummary } from "@/lib/ticket-sales/pendingSales";
 import { ROUTES } from "@/lib/constants/routes";
 import { getAllEventsForAdmin } from "@/lib/events/queries";
 import { formatEventDate } from "@/lib/events/utils";
@@ -23,7 +25,12 @@ export const metadata: Metadata = {
 
 export default async function AdminEventosPage() {
   const events = await getAllEventsForAdmin();
-  const statsMap = await getAdminStatsByEventIds(events.map((event) => event.id));
+  const eventIds = events.map((event) => event.id);
+  const [statsMap, financialMap, pendingSales] = await Promise.all([
+    getAdminStatsByEventIds(eventIds),
+    getFinancialSummariesByEventIds(eventIds),
+    getPendingSalesSummary(),
+  ]);
 
   return (
     <>
@@ -54,6 +61,8 @@ export default async function AdminEventosPage() {
           <div className="space-y-4">
             {events.map((event) => {
               const stats = statsMap.get(event.id);
+              const financial = financialMap.get(event.id);
+              const pendingCount = pendingSales.byEvent.get(event.id) ?? 0;
               const soldLabel = stats
                 ? formatEventSoldStockLabel(stats)
                 : "0 vendidas";
@@ -90,7 +99,7 @@ export default async function AdminEventosPage() {
                     ) : null}
                     <div className="mt-3 flex flex-wrap gap-2 text-xs">
                       <span className="rounded-full bg-white/10 px-3 py-1 text-zinc-300">
-                        {EVENT_STATUS_LABELS[event.status]}
+                        {getEventVisibilityBadge(event)}
                       </span>
                       <span className="rounded-full bg-white/10 px-3 py-1 text-zinc-300">
                         {TICKET_SALE_MODE_LABELS[event.ticket_sale_mode]}
@@ -106,6 +115,22 @@ export default async function AdminEventosPage() {
                         label={`${formatTicketPrice(stats?.revenue ?? 0)} recaudado`}
                         tone="emerald"
                       />
+                      {financial ? (
+                        <StatBadge
+                          label={financial.profitBadgeLabel}
+                          tone={
+                            financial.profitVisualState === "negative"
+                              ? "neutral"
+                              : "emerald"
+                          }
+                        />
+                      ) : null}
+                      {pendingCount > 0 ? (
+                        <StatBadge
+                          label={`${pendingCount} por confirmar`}
+                          tone="purple"
+                        />
+                      ) : null}
                     </div>
                   </div>
 
@@ -118,6 +143,9 @@ export default async function AdminEventosPage() {
                     </Button>
                     <Button href={ROUTES.adminEventoVentas(event.id)} variant="outline">
                       Ventas
+                    </Button>
+                    <Button href={ROUTES.adminEventoGestion(event.id)} variant="secondary">
+                      Gestión
                     </Button>
                     {event.status === "published" ? (
                       <Link

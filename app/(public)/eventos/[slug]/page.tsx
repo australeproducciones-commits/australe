@@ -1,15 +1,22 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { EventPageAnalytics } from "@/components/analytics/EventPageAnalytics";
+import { EventPublicTicketTypes } from "@/components/events/EventPublicTicketTypes";
 import { PublicEventKioskSection } from "@/components/kiosk/PublicEventKioskSection";
-import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
 import { EventFlyer, EventPoster } from "@/components/events/EventFlyer";
+import { EventPriceListLink } from "@/components/events/EventTicketActions";
 import {
-  EventPriceListLink,
-  EventTicketActions,
-} from "@/components/events/EventTicketActions";
+  PageContainer,
+  PublicButton,
+  PublicCard,
+  SectionHeading,
+} from "@/components/ui/public";
 import { ROUTES } from "@/lib/constants/routes";
 import { getPublishedEventBySlug } from "@/lib/events/queries";
+import { getProfile } from "@/lib/auth/getProfile";
+import { resolveEventPublicAccess } from "@/lib/events/access";
+import { CommunityEventGate } from "@/components/events/CommunityEventGate";
+import { createClient } from "@/lib/supabase/server";
 import { getPublicEventKiosk } from "@/lib/kiosk/queries";
 import { formatEventDateTime } from "@/lib/events/utils";
 import { getActiveTicketTypesForPublishedEvent } from "@/lib/tickets/queries";
@@ -39,6 +46,18 @@ export default async function EventoPage({ params }: EventoPageProps) {
     notFound();
   }
 
+  const supabase = await createClient();
+  const profile = await getProfile(supabase);
+  const access = await resolveEventPublicAccess(event, profile?.id ?? null);
+
+  if (access === "not_found") {
+    notFound();
+  }
+
+  if (access === "community_gate") {
+    return <CommunityEventGate />;
+  }
+
   const dateTimeLabel = formatEventDateTime(
     event.event_date,
     event.start_time,
@@ -52,69 +71,84 @@ export default async function EventoPage({ params }: EventoPageProps) {
   const minPrice = getMinPublicPrice(activeTicketTypes);
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 sm:py-16">
-      <Button href={ROUTES.eventos} variant="ghost" size="sm" className="mb-6">
+    <PageContainer>
+      <EventPageAnalytics eventId={event.id} slug={event.slug} />
+      <PublicButton href={ROUTES.eventos} variant="ghost" size="sm" className="mb-6">
         ← Volver a eventos
-      </Button>
+      </PublicButton>
 
       <EventFlyer event={event} purpose="hero" className="mb-8" />
 
-      <Card padding="lg">
-        <p className="text-sm uppercase tracking-[0.3em] text-purple-300">
-          Evento
-        </p>
-        <h1 className="mt-3 text-3xl font-black text-white sm:text-4xl">
-          {event.name}
-        </h1>
-        <p className="mt-4 text-lg text-purple-200">{dateTimeLabel}</p>
+      <PublicCard padding="lg">
+        <SectionHeading
+          label="Evento"
+          title={event.name}
+          subtitle={dateTimeLabel}
+          titleClassName="mt-3"
+        />
 
         <EventPoster event={event} className="mt-8" />
 
         <div className="mt-6 grid gap-3 text-sm">
           {event.location_name ? (
-            <div className="flex justify-between rounded-2xl bg-white/5 p-4">
-              <span className="text-zinc-400">Lugar</span>
-              <span>{event.location_name}</span>
+            <div className="public-surface-row">
+              <span className="public-text-soft">Lugar</span>
+              <span className="public-heading font-medium">{event.location_name}</span>
             </div>
           ) : null}
           {event.address ? (
-            <div className="flex justify-between gap-4 rounded-2xl bg-white/5 p-4">
-              <span className="shrink-0 text-zinc-400">Dirección</span>
+            <div className="public-surface-row">
+              <span className="shrink-0 public-text-soft">Dirección</span>
               <a
                 href={getGoogleMapsSearchUrl(event.address)}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-right text-purple-300 underline-offset-2 hover:text-purple-200 hover:underline"
+                className="public-link text-right font-medium"
               >
                 {event.address}
               </a>
             </div>
           ) : null}
           {event.capacity != null ? (
-            <div className="flex justify-between rounded-2xl bg-white/5 p-4">
-              <span className="text-zinc-400">Capacidad</span>
-              <span>{event.capacity}</span>
+            <div className="public-surface-row">
+              <span className="public-text-soft">Capacidad</span>
+              <span className="public-heading font-medium">{event.capacity}</span>
             </div>
           ) : null}
         </div>
 
         {event.description ? (
-          <p className="mt-8 whitespace-pre-line leading-7 text-zinc-300">
+          <p className="mt-8 whitespace-pre-line leading-7 public-text-muted">
             {event.description}
           </p>
         ) : null}
 
-        {minPrice != null ? (
-          <p className="mt-4 rounded-2xl border border-purple-400/20 bg-purple-400/10 px-4 py-3 text-sm text-purple-200">
+        {minPrice != null && activeTicketTypes.length > 0 ? (
+          <p className="public-price-banner mt-4">
             Entradas disponibles desde {formatTicketPrice(minPrice)}
           </p>
         ) : null}
 
-        <div className="mt-8 space-y-4">
-          <EventTicketActions event={event} />
+        {activeTicketTypes.length === 0 ? (
+          <div className="mt-8">
+            <EventPriceListLink slug={event.slug} />
+          </div>
+        ) : null}
+      </PublicCard>
+
+      <EventPublicTicketTypes
+        eventId={event.id}
+        eventSlug={event.slug}
+        ticketSaleMode={event.ticket_sale_mode}
+        externalTicketUrl={event.external_ticket_url}
+        ticketTypes={activeTicketTypes}
+      />
+
+      {activeTicketTypes.length > 0 ? (
+        <div className="mt-4">
           <EventPriceListLink slug={event.slug} />
         </div>
-      </Card>
+      ) : null}
 
       {publicKiosk.presaleEnabled && publicKiosk.hasSellableProducts ? (
         <PublicEventKioskSection
@@ -123,15 +157,15 @@ export default async function EventoPage({ params }: EventoPageProps) {
           products={publicKiosk.products}
         />
       ) : publicKiosk.presaleEnabled && publicKiosk.hasListedProducts ? (
-        <Card padding="lg" className="mt-8 text-center">
-          <h2 className="text-xl font-bold text-white">
+        <PublicCard padding="lg" className="mt-8 text-center">
+          <h2 className="public-heading text-xl font-bold">
             Preventa de consumisiones
           </h2>
-          <p className="mt-3 text-sm text-zinc-400">
+          <p className="mt-3 text-sm public-text-muted">
             Las consumisiones están agotadas por el momento.
           </p>
-        </Card>
+        </PublicCard>
       ) : null}
-    </div>
+    </PageContainer>
   );
 }

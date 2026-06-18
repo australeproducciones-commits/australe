@@ -1,5 +1,8 @@
 import {
-  TICKET_PAYMENT_STATUS,
+  isConfirmedSale,
+  isPendingReservation,
+} from "@/lib/ticket-sales/saleStatus";
+import {
   TICKET_STATUS,
   type TicketStatus,
 } from "@/lib/ticket-sales/types";
@@ -28,21 +31,6 @@ export type EventVentasDashboard = {
   eventDateLabel: string;
   isEventPast: boolean;
 };
-
-function isConfirmedSale(ticketStatus: string, paymentStatus: string): boolean {
-  return (
-    (ticketStatus === TICKET_STATUS.VALID ||
-      ticketStatus === TICKET_STATUS.USED) &&
-    paymentStatus === TICKET_PAYMENT_STATUS.CONFIRMED
-  );
-}
-
-function isPendingReservation(ticketStatus: string, paymentStatus: string): boolean {
-  return (
-    ticketStatus === TICKET_STATUS.RESERVED &&
-    paymentStatus === TICKET_PAYMENT_STATUS.PENDING
-  );
-}
 
 function emptyStatusCounts(): Record<TicketStatus, number> {
   return {

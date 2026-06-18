@@ -83,6 +83,13 @@ export default async function AdminEditEventoPage({
           >
             Kiosco / Consumisiones
           </Button>
+          <Button
+            href={ROUTES.adminEventoGestion(event.id)}
+            variant="secondary"
+            size="sm"
+          >
+            Gestión
+          </Button>
           {event.status === "published" ? (
             <Button href={ROUTES.evento(event.slug)} variant="outline" size="sm">
               Ver público

@@ -2,8 +2,10 @@
 
 import { useMemo, useState } from "react";
 import { PublicKioskOrderSuccess } from "@/components/kiosk/PublicKioskOrderSuccess";
-import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
+import { PublicButton } from "@/components/ui/public/PublicButton";
+import { PublicCard } from "@/components/ui/public/PublicCard";
+import { SectionHeading } from "@/components/ui/public/SectionHeading";
+import { StatusBadge } from "@/components/ui/public/StatusBadge";
 import { createPublicKioskOrderAction } from "@/lib/kiosk/actions";
 import type { PublicEventKioskProduct } from "@/lib/kiosk/types";
 import {
@@ -32,8 +34,7 @@ export function PublicEventKioskSection(props: PublicEventKioskSectionProps) {
   );
 }
 
-const inputClassName =
-  "w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-zinc-500 focus:border-purple-400 focus:outline-none";
+const inputClassName = "public-input";
 
 type SuccessState = {
   orderCode: string;
@@ -177,17 +178,12 @@ function PublicEventKioskSectionSession({
   }
 
   return (
-    <Card padding="lg" className="mt-8">
-      <p className="text-sm uppercase tracking-[0.3em] text-purple-300">
-        Consumiciones
-      </p>
-      <h2 className="mt-3 text-2xl font-black text-white">
-        Preventa de consumisiones
-      </h2>
-      <p className="mt-3 text-sm leading-6 text-zinc-400">
-        Reservá tus consumisiones para retirar el día del evento. El pago se
-        confirma según la modalidad indicada por la organización.
-      </p>
+    <PublicCard padding="lg" className="mt-8">
+      <SectionHeading
+        label="Consumiciones"
+        title="Preventa de consumisiones"
+        subtitle="Reservá tus consumisiones para retirar el día del evento. El pago se confirma según la modalidad indicada por la organización."
+      />
 
       <form onSubmit={handleSubmit} className="mt-8 space-y-6">
         <div className="space-y-4">
@@ -196,30 +192,30 @@ function PublicEventKioskSectionSession({
             const maxQuantity = stockAvailable ?? 99;
 
             return (
-              <Card key={product.id} padding="md">
+              <PublicCard key={product.id} padding="md">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0 flex-1">
-                    <h3 className="text-lg font-bold text-white">
+                    <h3 className="public-heading text-lg font-bold">
                       {product.product_name}
                     </h3>
                     {product.product_description ? (
-                      <p className="mt-1 text-sm text-zinc-400">
+                      <p className="mt-1 text-sm public-text-muted">
                         {product.product_description}
                       </p>
                     ) : null}
                     <div className="mt-3 flex flex-wrap gap-2 text-sm">
                       {product.product_category ? (
-                        <span className="rounded-full bg-white/10 px-3 py-1 text-zinc-300">
+                        <StatusBadge tone="neutral">
                           {product.product_category}
-                        </span>
+                        </StatusBadge>
                       ) : null}
-                      <span className="rounded-full bg-purple-500/20 px-3 py-1 text-purple-200">
+                      <StatusBadge tone="primary">
                         {formatKioskMoney(product.price)}
-                      </span>
+                      </StatusBadge>
                       {product.stock_total != null ? (
-                        <span className="rounded-full bg-white/10 px-3 py-1 text-zinc-400">
+                        <StatusBadge tone="neutral">
                           Disponibles: {formatKioskStockRemaining(product)}
-                        </span>
+                        </StatusBadge>
                       ) : null}
                     </div>
                   </div>
@@ -227,7 +223,7 @@ function PublicEventKioskSectionSession({
                   <div className="shrink-0">
                     <label
                       htmlFor={`kiosk_qty_${product.id}`}
-                      className="mb-2 block text-xs uppercase tracking-wider text-zinc-400"
+                      className="mb-2 block text-xs uppercase tracking-wider public-text-soft"
                     >
                       Cantidad
                       {stockAvailable != null ? ` (máx. ${maxQuantity})` : ""}
@@ -250,32 +246,32 @@ function PublicEventKioskSectionSession({
                     />
                   </div>
                 </div>
-              </Card>
+              </PublicCard>
             );
           })}
         </div>
 
         {lines.length > 0 ? (
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-zinc-400">
+          <div className="public-summary-box">
+            <h3 className="text-sm font-semibold uppercase tracking-wider public-text-soft">
               Resumen
             </h3>
             <ul className="mt-3 space-y-2 text-sm">
               {lines.map((line) => (
                 <li
                   key={line.product.id}
-                  className="flex justify-between gap-4 text-zinc-300"
+                  className="flex justify-between gap-4 public-text-muted"
                 >
                   <span>
                     {line.product.product_name} × {line.quantity}
                   </span>
-                  <span className="shrink-0 text-white">
+                  <span className="shrink-0 public-heading font-medium">
                     {formatKioskMoney(line.subtotal)}
                   </span>
                 </li>
               ))}
             </ul>
-            <p className="mt-4 flex justify-between border-t border-white/10 pt-4 text-base font-bold text-white">
+            <p className="mt-4 flex justify-between border-t pt-4 text-base font-bold public-heading" style={{ borderColor: "var(--public-border)" }}>
               <span>Total</span>
               <span>{formatKioskMoney(total)}</span>
             </p>
@@ -283,8 +279,8 @@ function PublicEventKioskSectionSession({
         ) : null}
 
         <div>
-          <h3 className="text-lg font-bold text-white">Datos del comprador</h3>
-          <p className="mt-1 text-sm text-zinc-400">
+          <h3 className="public-heading text-lg font-bold">Datos del comprador</h3>
+          <p className="mt-1 text-sm public-text-muted">
             Completá al menos uno: WhatsApp, DNI o email.
           </p>
 
@@ -292,7 +288,7 @@ function PublicEventKioskSectionSession({
             <div className="sm:col-span-2">
               <label
                 htmlFor="kiosk_buyer_name"
-                className="mb-2 block text-sm text-zinc-300"
+                className="mb-2 block text-sm public-text-muted"
               >
                 Nombre *
               </label>
@@ -311,7 +307,7 @@ function PublicEventKioskSectionSession({
             <div>
               <label
                 htmlFor="kiosk_buyer_whatsapp"
-                className="mb-2 block text-sm text-zinc-300"
+                className="mb-2 block text-sm public-text-muted"
               >
                 WhatsApp
               </label>
@@ -331,7 +327,7 @@ function PublicEventKioskSectionSession({
             <div>
               <label
                 htmlFor="kiosk_buyer_dni"
-                className="mb-2 block text-sm text-zinc-300"
+                className="mb-2 block text-sm public-text-muted"
               >
                 DNI
               </label>
@@ -349,7 +345,7 @@ function PublicEventKioskSectionSession({
             <div className="sm:col-span-2">
               <label
                 htmlFor="kiosk_buyer_email"
-                className="mb-2 block text-sm text-zinc-300"
+                className="mb-2 block text-sm public-text-muted"
               >
                 Email
               </label>
@@ -369,7 +365,7 @@ function PublicEventKioskSectionSession({
             <div className="sm:col-span-2">
               <label
                 htmlFor="kiosk_notes"
-                className="mb-2 block text-sm text-zinc-300"
+                className="mb-2 block text-sm public-text-muted"
               >
                 Notas (opcional)
               </label>
@@ -386,16 +382,12 @@ function PublicEventKioskSectionSession({
           </div>
         </div>
 
-        {error ? (
-          <p className="rounded-2xl border border-red-400/30 bg-red-400/10 px-4 py-3 text-sm text-red-200">
-            {error}
-          </p>
-        ) : null}
+        {error ? <p className="public-alert-error">{error}</p> : null}
 
-        <Button type="submit" disabled={loading || lines.length === 0}>
+        <PublicButton type="submit" disabled={loading || lines.length === 0}>
           {loading ? "Confirmando…" : "Reservar consumisiones"}
-        </Button>
+        </PublicButton>
       </form>
-    </Card>
+    </PublicCard>
   );
 }

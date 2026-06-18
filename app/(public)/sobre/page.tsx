@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ROUTES } from "@/lib/constants/routes";
+import { PageContainer } from "@/components/ui/public/PageContainer";
+import { SectionHeading } from "@/components/ui/public/SectionHeading";
 
 export const metadata: Metadata = {
   title: "Sobre Australe",
@@ -8,19 +10,14 @@ export const metadata: Metadata = {
 
 export default function SobrePage() {
   return (
-    <div className="mx-auto max-w-3xl px-4 py-14 sm:px-6 sm:py-20">
-      <p className="text-xs font-semibold uppercase tracking-[0.35em] text-[#9B7EDE]">
-        Nosotros
-      </p>
-      <h1 className="mt-3 text-3xl font-black text-[#2F2A3A] sm:text-4xl">
-        Sobre Australe Producciones
-      </h1>
-      <p className="mt-6 text-base leading-relaxed text-[#6F647C]">
+    <PageContainer size="sm" className="sm:py-20">
+      <SectionHeading label="Nosotros" title="Sobre Australe Producciones" />
+      <p className="mt-6 text-base leading-relaxed public-text-muted">
         Somos una productora que organiza experiencias culturales, eventos y
         espacios de encuentro. Creemos en la cultura como forma de conectar
         personas, compartir momentos y construir comunidad.
       </p>
-      <p className="mt-4 text-base leading-relaxed text-[#6F647C]">
+      <p className="mt-4 text-base leading-relaxed public-text-muted">
         A través de nuestra cartelera, la comunidad Australe y experiencias
         pensadas con cuidado, buscamos que cada evento sea accesible, cálido y
         memorable.
@@ -31,6 +28,6 @@ export default function SobrePage() {
       >
         Conocer la comunidad
       </Link>
-    </div>
+    </PageContainer>
   );
 }

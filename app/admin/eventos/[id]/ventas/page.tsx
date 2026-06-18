@@ -16,6 +16,7 @@ import { getTicketTypesByEventIdForAdmin } from "@/lib/tickets/queries";
 
 type AdminEventoVentasPageProps = {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ estado?: string }>;
 };
 
 export async function generateMetadata({
@@ -32,8 +33,12 @@ export async function generateMetadata({
 
 export default async function AdminEventoVentasPage({
   params,
+  searchParams,
 }: AdminEventoVentasPageProps) {
   const { id } = await params;
+  const { estado } = await searchParams;
+  const initialFilter =
+    estado === "pendiente" ? ("pending" as const) : ("all" as const);
 
   if (isReservedEventAdminSegment(id) || !isUuid(id)) {
     notFound();
@@ -106,6 +111,7 @@ export default async function AdminEventoVentasPage({
             eventDate={event.event_date}
             startTime={event.start_time}
             dashboard={dashboard}
+            initialFilter={initialFilter}
           />
         </div>
       </div>

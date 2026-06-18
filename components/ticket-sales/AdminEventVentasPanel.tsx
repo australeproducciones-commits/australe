@@ -26,6 +26,7 @@ type AdminEventVentasPanelProps = {
   eventDate: string;
   startTime: string | null;
   dashboard: EventVentasDashboard;
+  initialFilter?: VentasStatusFilter;
 };
 
 export function AdminEventVentasPanel({
@@ -34,8 +35,9 @@ export function AdminEventVentasPanel({
   eventDate,
   startTime,
   dashboard,
+  initialFilter = "all",
 }: AdminEventVentasPanelProps) {
-  const [filter, setFilter] = useState<VentasStatusFilter>("all");
+  const [filter, setFilter] = useState<VentasStatusFilter>(initialFilter);
   const [searchQuery, setSearchQuery] = useState("");
   const [exportOpen, setExportOpen] = useState(false);
   const [viewTicket, setViewTicket] = useState<TicketWithTypeName | null>(null);

@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { ROUTES } from "@/lib/constants/routes";
+import { StatusBadge } from "@/components/ui/public/StatusBadge";
 import type { Event } from "@/lib/events/types";
 import {
   formatEventDate,
@@ -91,8 +92,8 @@ export function FeaturedEventsHeroClient({
               className="flex flex-col justify-center px-6 py-8 sm:px-8 sm:py-10 lg:px-10"
               style={{ backgroundColor: "var(--public-card)" }}
             >
-              <span className="mb-3 inline-flex w-fit rounded-full bg-[#9B7EDE]/20 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-[#c8b6ff]">
-                Evento destacado
+              <span className="mb-3 inline-flex w-fit">
+                <StatusBadge tone="primary">Evento destacado</StatusBadge>
               </span>
 
               <Link href={ROUTES.evento(event.slug)} className="group">

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { TicketCard } from "@/app/(public)/mi-cuenta/_components/TicketCard";
-import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
+import { PublicButton } from "@/components/ui/public/PublicButton";
+import { PublicCard } from "@/components/ui/public/PublicCard";
 import { ROUTES } from "@/lib/constants/routes";
 import type { CustomerTicket } from "@/lib/ticket-sales/types";
 import { groupCustomerTicketsByStatus } from "@/lib/ticket-sales/utils";
@@ -18,16 +18,16 @@ export function CustomerTicketsByStatus({
   if (sections.length === 0) {
     return (
       <div id="entradas">
-        <Card padding="lg" className="text-center">
-          <h2 className="text-xl font-bold text-white">Sin entradas todavía</h2>
-          <p className="mt-3 text-sm leading-6 text-zinc-400">
+        <PublicCard padding="lg" className="text-center">
+          <h2 className="public-heading text-xl font-bold">Sin entradas todavía</h2>
+          <p className="mt-3 text-sm leading-6 public-text-muted">
             Cuando reserves entradas en eventos publicados, aparecerán acá con su
             código QR para validación en puerta.
           </p>
-          <Button href={ROUTES.eventos} className="mt-6" variant="outline">
+          <PublicButton href={ROUTES.eventos} className="mt-6" variant="outline">
             Ver eventos
-          </Button>
-        </Card>
+          </PublicButton>
+        </PublicCard>
       </div>
     );
   }
@@ -37,9 +37,9 @@ export function CustomerTicketsByStatus({
       {sections.map((section) => (
         <section key={section.status}>
           <div className="mb-4">
-            <h2 className="text-lg font-bold text-white">{section.label}</h2>
-            <p className="mt-1 text-sm text-zinc-400">{section.description}</p>
-            <p className="mt-1 text-xs text-zinc-500">
+            <h2 className="public-heading text-lg font-bold">{section.label}</h2>
+            <p className="mt-1 text-sm public-text-muted">{section.description}</p>
+            <p className="mt-1 text-xs public-text-soft">
               {section.tickets.length} entrada
               {section.tickets.length === 1 ? "" : "s"}
             </p>
@@ -52,9 +52,9 @@ export function CustomerTicketsByStatus({
         </section>
       ))}
 
-      <p className="text-center text-sm text-zinc-500">
+      <p className="text-center text-sm public-text-soft">
         ¿Buscás más eventos?{" "}
-        <Link href={ROUTES.eventos} className="text-purple-300 hover:text-purple-200">
+        <Link href={ROUTES.eventos} className="public-link">
           Ver cartelera
         </Link>
       </p>

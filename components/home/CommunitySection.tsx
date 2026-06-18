@@ -36,7 +36,9 @@ export function CommunitySection() {
                 key={benefit}
                 className="flex items-center gap-3 text-sm public-heading"
               >
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#F2C14E]/20 text-[#F2C14E]">
+                <span
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full public-success-icon"
+                >
                   ✓
                 </span>
                 {benefit}

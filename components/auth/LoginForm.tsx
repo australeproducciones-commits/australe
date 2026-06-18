@@ -2,8 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
+import { PublicButton } from "@/components/ui/public/PublicButton";
+import { PublicCard } from "@/components/ui/public/PublicCard";
+import { SectionHeading } from "@/components/ui/public/SectionHeading";
 import {
   completeAuthFlow,
   signInWithEmail,
@@ -13,9 +14,6 @@ import { ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils/cn";
 
 type AuthMode = "login" | "signup";
-
-const inputClassName =
-  "w-full rounded-2xl border border-white/10 bg-white/5 px-5 py-4 text-white outline-none placeholder:text-zinc-500 focus:border-purple-400/50 focus:ring-1 focus:ring-purple-400/30";
 
 export function LoginForm() {
   const router = useRouter();
@@ -102,28 +100,24 @@ export function LoginForm() {
   }
 
   return (
-    <Card padding="lg">
-      <p className="text-xs uppercase tracking-[0.3em] text-purple-300">
-        Australe Producciones
-      </p>
-      <h1 className="mt-4 text-3xl font-black text-white">
-        {mode === "login" ? "Iniciar sesión" : "Crear cuenta"}
-      </h1>
-      <p className="mt-2 text-sm text-zinc-400">
-        {mode === "login"
-          ? "Ingresá con tu email y contraseña."
-          : "Registrate para acceder a eventos y tu cuenta."}
-      </p>
+    <PublicCard padding="lg">
+      <SectionHeading
+        label="Australe Producciones"
+        title={mode === "login" ? "Iniciar sesión" : "Crear cuenta"}
+        subtitle={
+          mode === "login"
+            ? "Ingresá con tu email y contraseña."
+            : "Registrate para acceder a eventos y tu cuenta."
+        }
+      />
 
-      <div className="mt-6 flex rounded-2xl border border-white/10 bg-black/30 p-1">
+      <div className="public-segmented mt-6">
         <button
           type="button"
           onClick={() => switchMode("login")}
           className={cn(
-            "flex-1 rounded-xl px-4 py-3 text-sm font-semibold transition",
-            mode === "login"
-              ? "bg-purple-500 text-white"
-              : "text-zinc-400 hover:text-white",
+            "public-segmented-btn",
+            mode === "login" && "public-segmented-btn-active",
           )}
         >
           Iniciar sesión
@@ -132,10 +126,8 @@ export function LoginForm() {
           type="button"
           onClick={() => switchMode("signup")}
           className={cn(
-            "flex-1 rounded-xl px-4 py-3 text-sm font-semibold transition",
-            mode === "signup"
-              ? "bg-purple-500 text-white"
-              : "text-zinc-400 hover:text-white",
+            "public-segmented-btn",
+            mode === "signup" && "public-segmented-btn-active",
           )}
         >
           Crear cuenta
@@ -146,7 +138,7 @@ export function LoginForm() {
         {mode === "signup" && (
           <>
             <div>
-              <label htmlFor="fullName" className="mb-2 block text-sm text-zinc-400">
+              <label htmlFor="fullName" className="mb-2 block text-sm public-text-muted">
                 Nombre completo
               </label>
               <input
@@ -155,13 +147,13 @@ export function LoginForm() {
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 placeholder="Tu nombre"
-                className={inputClassName}
+                className="public-input"
                 autoComplete="name"
                 disabled={loading}
               />
             </div>
             <div>
-              <label htmlFor="whatsapp" className="mb-2 block text-sm text-zinc-400">
+              <label htmlFor="whatsapp" className="mb-2 block text-sm public-text-muted">
                 WhatsApp
               </label>
               <input
@@ -170,7 +162,7 @@ export function LoginForm() {
                 value={whatsapp}
                 onChange={(e) => setWhatsapp(e.target.value)}
                 placeholder="+54 9 ..."
-                className={inputClassName}
+                className="public-input"
                 autoComplete="tel"
                 disabled={loading}
               />
@@ -179,7 +171,7 @@ export function LoginForm() {
         )}
 
         <div>
-          <label htmlFor="email" className="mb-2 block text-sm text-zinc-400">
+          <label htmlFor="email" className="mb-2 block text-sm public-text-muted">
             Email
           </label>
           <input
@@ -188,14 +180,14 @@ export function LoginForm() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="tu@email.com"
-            className={inputClassName}
+            className="public-input"
             autoComplete="email"
             disabled={loading}
           />
         </div>
 
         <div>
-          <label htmlFor="password" className="mb-2 block text-sm text-zinc-400">
+          <label htmlFor="password" className="mb-2 block text-sm public-text-muted">
             Contraseña
           </label>
           <input
@@ -204,39 +196,30 @@ export function LoginForm() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="••••••••"
-            className={inputClassName}
+            className="public-input"
             autoComplete={mode === "login" ? "current-password" : "new-password"}
             disabled={loading}
             minLength={6}
           />
         </div>
 
-        {error && (
-          <p className="rounded-2xl border border-red-400/30 bg-red-400/10 px-4 py-3 text-sm text-red-200">
-            {error}
-          </p>
-        )}
+        {error ? <p className="public-alert-error">{error}</p> : null}
+        {info ? <p className="public-alert-warning">{info}</p> : null}
 
-        {info && (
-          <p className="rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-200">
-            {info}
-          </p>
-        )}
-
-        <Button type="submit" className="w-full" size="lg" disabled={loading}>
+        <PublicButton type="submit" className="w-full" size="lg" disabled={loading}>
           {loading
             ? "Procesando..."
             : mode === "login"
               ? "Ingresar"
               : "Crear cuenta"}
-        </Button>
+        </PublicButton>
       </form>
 
       <div className="mt-6 text-center">
-        <Button href={ROUTES.home} variant="ghost" size="sm">
+        <PublicButton href={ROUTES.home} variant="ghost" size="sm">
           Volver al inicio
-        </Button>
+        </PublicButton>
       </div>
-    </Card>
+    </PublicCard>
   );
 }

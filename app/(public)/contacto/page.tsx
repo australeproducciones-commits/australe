@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ROUTES } from "@/lib/constants/routes";
+import { PageContainer } from "@/components/ui/public/PageContainer";
+import { PublicCard } from "@/components/ui/public/PublicCard";
+import { SectionHeading } from "@/components/ui/public/SectionHeading";
 
 export const metadata: Metadata = {
   title: "Contacto",
@@ -8,19 +11,14 @@ export const metadata: Metadata = {
 
 export default function ContactoPage() {
   return (
-    <div className="mx-auto max-w-3xl px-4 py-14 sm:px-6 sm:py-20">
-      <p className="text-xs font-semibold uppercase tracking-[0.35em] text-[#9B7EDE]">
-        Contacto
-      </p>
-      <h1 className="mt-3 text-3xl font-black text-[#2F2A3A] sm:text-4xl">
-        Escribinos
-      </h1>
-      <p className="mt-6 text-base leading-relaxed text-[#6F647C]">
-        Para consultas sobre eventos, prensa o alianzas, podés acercarte a
-        través de nuestras redes o la comunidad Australe.
-      </p>
-      <div className="public-card mt-8 rounded-3xl p-6">
-        <p className="text-sm text-[#6F647C]">
+    <PageContainer size="sm">
+      <SectionHeading
+        label="Contacto"
+        title="Escribinos"
+        subtitle="Para consultas sobre eventos, prensa o alianzas, podés acercarte a través de nuestras redes o la comunidad Australe."
+      />
+      <PublicCard padding="lg" className="mt-8">
+        <p className="text-sm public-text-muted">
           Canales de contacto próximamente. Mientras tanto, seguinos en la
           cartelera y unite a la comunidad para enterarte primero.
         </p>
@@ -38,7 +36,7 @@ export default function ContactoPage() {
             Comunidad
           </Link>
         </div>
-      </div>
-    </div>
+      </PublicCard>
+    </PageContainer>
   );
 }

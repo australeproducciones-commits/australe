@@ -1,4 +1,10 @@
 import {
+  EVENT_AUDIENCE,
+  EVENT_AUDIENCE_VALUES,
+  FINANCIAL_MANAGEMENT_STATUS,
+  type EventAudience,
+} from "@/lib/constants/event-audience";
+import {
   EVENT_STATUS_VALUES,
   TICKET_SALE_MODE_VALUES,
   type EventStatus,
@@ -183,6 +189,7 @@ export function parseEventFormData(formData: FormData): EventFormInput {
     address: String(formData.get("address") ?? "").trim(),
     capacity: String(formData.get("capacity") ?? "").trim(),
     status: String(formData.get("status") ?? "draft") as EventStatus,
+    audience: String(formData.get("audience") ?? "public") as EventAudience,
     is_featured: formData.get("is_featured") === "on",
     featured_ticket_label: String(
       formData.get("featured_ticket_label") ?? "",
@@ -265,6 +272,10 @@ export function validateEventForm(input: EventFormInput): string | null {
     return "El modo de venta seleccionado no es válido.";
   }
 
+  if (!EVENT_AUDIENCE_VALUES.includes(input.audience)) {
+    return "La visibilidad seleccionada no es válida.";
+  }
+
   if (
     (input.ticket_sale_mode === "external" || input.ticket_sale_mode === "both") &&
     !input.external_ticket_url
@@ -294,6 +305,7 @@ export function eventFormToPayload(input: EventFormInput) {
     address: input.address || null,
     capacity: parseNullableNumber(input.capacity),
     status: input.status,
+    audience: input.audience,
     ticket_sale_mode: input.ticket_sale_mode,
     external_ticket_url: input.external_ticket_url || null,
     is_featured: input.is_featured,
@@ -310,6 +322,9 @@ export function eventFormToInsertPayload(
   return {
     ...eventFormToPayload(input),
     created_by: createdBy,
+    financial_management_status: FINANCIAL_MANAGEMENT_STATUS.OPEN,
+    financial_closed_at: null,
+    financial_closed_by: null,
   };
 }
 
@@ -338,6 +353,7 @@ export function eventToFormInput(event: Event): EventFormInput {
     address: event.address ?? "",
     capacity: event.capacity != null ? String(event.capacity) : "",
     status: event.status,
+    audience: event.audience ?? EVENT_AUDIENCE.PUBLIC,
     is_featured: event.is_featured,
     featured_ticket_label: event.featured_ticket_label ?? "",
     featured_until: event.featured_until

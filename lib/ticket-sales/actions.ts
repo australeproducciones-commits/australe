@@ -1,6 +1,7 @@
 "use server";
 
 import { getProfile } from "@/lib/auth/getProfile";
+import { resolveEventPublicAccess } from "@/lib/events/access";
 import { ROLES } from "@/lib/constants/roles";
 import { ROUTES } from "@/lib/constants/routes";
 import type { TicketType } from "@/lib/tickets/types";
@@ -85,7 +86,10 @@ function revalidateReservationPaths(eventSlug: string, eventId: string) {
   revalidatePath(ROUTES.adminEventoVentas(eventId));
   revalidatePath(ROUTES.adminEventoEntradas(eventId));
   revalidatePath(ROUTES.adminEventoKiosco(eventId));
+  revalidatePath(ROUTES.adminEventoGestion(eventId));
   revalidatePath(ROUTES.miCuentaEntradas);
+  revalidatePath(ROUTES.admin);
+  revalidatePath(ROUTES.adminVentas);
 }
 
 export async function reserveTicketsAction(
@@ -104,6 +108,15 @@ export async function reserveTicketsAction(
   }
 
   const { event } = context;
+
+  const access = await resolveEventPublicAccess(event, auth.profile.id);
+  if (access !== "full") {
+    return {
+      success: false,
+      error:
+        "Este evento es exclusivo para miembros activos de la comunidad Australe.",
+    };
+  }
 
   if (!isInternalSaleEnabled(event.ticket_sale_mode)) {
     return {

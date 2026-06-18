@@ -1,8 +1,5 @@
 import { requireAdminPage } from "@/lib/events/queries";
-import {
-  TICKET_PAYMENT_STATUS,
-  TICKET_STATUS,
-} from "@/lib/ticket-sales/types";
+import { isConfirmedSale } from "@/lib/ticket-sales/saleStatus";
 
 export type EventAdminStats = {
   visits: number;
@@ -19,14 +16,6 @@ const EMPTY_STATS: EventAdminStats = {
   hasUndefinedStock: false,
   revenue: 0,
 };
-
-function isSoldTicket(ticketStatus: string, paymentStatus: string): boolean {
-  return (
-    (ticketStatus === TICKET_STATUS.VALID ||
-      ticketStatus === TICKET_STATUS.USED) &&
-    paymentStatus === TICKET_PAYMENT_STATUS.CONFIRMED
-  );
-}
 
 export async function getAdminStatsByEventIds(
   eventIds: string[],
@@ -74,7 +63,7 @@ export async function getAdminStatsByEventIds(
       continue;
     }
 
-    if (isSoldTicket(ticket.ticket_status, ticket.payment_status)) {
+    if (isConfirmedSale(ticket.ticket_status, ticket.payment_status)) {
       stats.soldCount += 1;
       stats.revenue += Number(ticket.price_paid) || 0;
     }

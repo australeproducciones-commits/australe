@@ -3,18 +3,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
-import {
-  BRAND_LOGO_ON_DARK,
-  BRAND_LOGO_ON_LIGHT,
-} from "@/lib/constants/branding";
+import { BRAND_LOGO_ON_LIGHT } from "@/lib/constants/branding";
 import { PUBLIC_NAV_LINKS, ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils/cn";
 
-type PublicHeaderProps = {
-  dark?: boolean;
-};
-
-export function PublicHeader({ dark = false }: PublicHeaderProps) {
+export function PublicHeader() {
   const [open, setOpen] = useState(false);
 
   return (
@@ -28,7 +21,7 @@ export function PublicHeader({ dark = false }: PublicHeaderProps) {
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
         <Link href={ROUTES.home} className="shrink-0 rounded-lg transition hover:opacity-90">
           <Image
-            src={dark ? BRAND_LOGO_ON_DARK : BRAND_LOGO_ON_LIGHT}
+            src={BRAND_LOGO_ON_LIGHT}
             alt="Australe Producciones"
             width={240}
             height={80}
@@ -54,7 +47,7 @@ export function PublicHeader({ dark = false }: PublicHeaderProps) {
           className="rounded-xl border p-2.5 lg:hidden public-heading"
           style={{
             borderColor: "var(--public-border)",
-            backgroundColor: dark ? "var(--public-card)" : "#fff",
+            backgroundColor: "var(--public-card)",
           }}
           aria-label={open ? "Cerrar menú" : "Abrir menú"}
           aria-expanded={open}

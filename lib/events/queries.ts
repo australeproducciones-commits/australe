@@ -1,6 +1,7 @@
 import { getProfile } from "@/lib/auth/getProfile";
 import { ROLES } from "@/lib/constants/roles";
 import { ROUTES } from "@/lib/constants/routes";
+import { EVENT_AUDIENCE } from "@/lib/constants/event-audience";
 import { EVENT_STATUS } from "@/lib/constants/event-status";
 import type { Event } from "@/lib/events/types";
 import { isEventFeaturedActive } from "@/lib/events/utils";
@@ -8,7 +9,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 
 const EVENT_COLUMNS =
-  "id, name, slug, description, main_image_url, thumbnail_url, flyer_url, banner_url, social_presale_price, social_regular_price, box_office_preview, event_date, start_time, end_time, location_name, address, capacity, status, ticket_sale_mode, external_ticket_url, is_featured, featured_ticket_label, featured_until, home_order, sales_qr_enabled, sales_qr_code, sales_qr_url, qr_sell_tickets, qr_products_enabled, qr_show_price_list, qr_sell_products, created_by, created_at, updated_at";
+  "id, name, slug, description, main_image_url, thumbnail_url, flyer_url, banner_url, social_presale_price, social_regular_price, box_office_preview, event_date, start_time, end_time, location_name, address, capacity, status, audience, financial_management_status, financial_closed_at, financial_closed_by, ticket_sale_mode, external_ticket_url, is_featured, featured_ticket_label, featured_until, home_order, sales_qr_enabled, sales_qr_code, sales_qr_url, qr_sell_tickets, qr_products_enabled, qr_show_price_list, qr_sell_products, created_by, created_at, updated_at";
 
 export async function requireAdminPage() {
   const supabase = await createClient();
@@ -28,6 +29,7 @@ export async function getPublishedEvents(): Promise<Event[]> {
     .from("events")
     .select(EVENT_COLUMNS)
     .eq("status", EVENT_STATUS.PUBLISHED)
+    .eq("audience", EVENT_AUDIENCE.PUBLIC)
     .order("event_date", { ascending: true });
 
   if (error) {
@@ -41,6 +43,10 @@ export async function getPublishedEvents(): Promise<Event[]> {
 function normalizeEventRow(row: Event): Event {
   return {
     ...row,
+    audience: row.audience ?? EVENT_AUDIENCE.PUBLIC,
+    financial_management_status: row.financial_management_status ?? "open",
+    financial_closed_at: row.financial_closed_at ?? null,
+    financial_closed_by: row.financial_closed_by ?? null,
     main_image_url: row.main_image_url ?? null,
     thumbnail_url: row.thumbnail_url ?? null,
     flyer_url: row.flyer_url ?? null,
@@ -116,6 +122,7 @@ export async function getFeaturedEventsForHome(): Promise<Event[]> {
     .from("events")
     .select(EVENT_COLUMNS)
     .eq("status", EVENT_STATUS.PUBLISHED)
+    .eq("audience", EVENT_AUDIENCE.PUBLIC)
     .eq("is_featured", true)
     .order("home_order", { ascending: true })
     .order("event_date", { ascending: true })
@@ -129,6 +136,26 @@ export async function getFeaturedEventsForHome(): Promise<Event[]> {
   return ((data ?? []) as Event[])
     .map(normalizeEventRow)
     .filter(isEventFeaturedActive);
+}
+
+/** Eventos publicados exclusivos para miembros activos de la comunidad. */
+export async function getCommunityPublishedEvents(): Promise<Event[]> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("events")
+    .select(EVENT_COLUMNS)
+    .eq("status", EVENT_STATUS.PUBLISHED)
+    .eq("audience", EVENT_AUDIENCE.COMMUNITY)
+    .order("event_date", { ascending: true })
+    .order("start_time", { ascending: true });
+
+  if (error) {
+    console.error("getCommunityPublishedEvents:", error);
+    return [];
+  }
+
+  return ((data ?? []) as Event[]).map(normalizeEventRow);
 }
 
 export async function getFeaturedPublishedEvent(): Promise<Event | null> {

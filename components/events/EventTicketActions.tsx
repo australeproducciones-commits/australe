@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Button } from "@/components/ui/Button";
+import { PublicButton } from "@/components/ui/public/PublicButton";
 import { ROUTES } from "@/lib/constants/routes";
 import {
   TICKET_SALE_MODE,
@@ -16,7 +16,7 @@ export function EventTicketActions({ event }: EventTicketActionsProps) {
 
   if (mode === TICKET_SALE_MODE.DISABLED) {
     return (
-      <p className="rounded-2xl border border-white/10 bg-white/5 px-5 py-4 text-center text-zinc-400">
+      <p className="public-muted-box">
         Entradas no disponibles
       </p>
     );
@@ -24,23 +24,23 @@ export function EventTicketActions({ event }: EventTicketActionsProps) {
 
   if (mode === TICKET_SALE_MODE.INTERNAL) {
     return (
-      <Button href={ROUTES.eventoEntradas(event.slug)} size="lg" className="w-full">
+      <PublicButton href={ROUTES.eventoEntradas(event.slug)} size="lg" className="w-full">
         Comprar entradas
-      </Button>
+      </PublicButton>
     );
   }
 
   if (mode === TICKET_SALE_MODE.EXTERNAL) {
     if (!event.external_ticket_url) {
       return (
-        <p className="rounded-2xl border border-white/10 bg-white/5 px-5 py-4 text-center text-zinc-400">
+        <p className="public-muted-box">
           Entradas no disponibles
         </p>
       );
     }
 
     return (
-      <Button
+      <PublicButton
         href={event.external_ticket_url}
         size="lg"
         className="w-full"
@@ -48,17 +48,17 @@ export function EventTicketActions({ event }: EventTicketActionsProps) {
         rel="noopener noreferrer"
       >
         Comprar entradas
-      </Button>
+      </PublicButton>
     );
   }
 
   return (
     <div className="flex flex-col gap-3">
-      <Button href={ROUTES.eventoEntradas(event.slug)} size="lg" className="w-full">
+      <PublicButton href={ROUTES.eventoEntradas(event.slug)} size="lg" className="w-full">
         Comprar entradas
-      </Button>
+      </PublicButton>
       {event.external_ticket_url ? (
-        <Button
+        <PublicButton
           href={event.external_ticket_url}
           variant="outline"
           size="lg"
@@ -67,7 +67,7 @@ export function EventTicketActions({ event }: EventTicketActionsProps) {
           rel="noopener noreferrer"
         >
           Comprar en link externo
-        </Button>
+        </PublicButton>
       ) : null}
     </div>
   );
@@ -75,10 +75,7 @@ export function EventTicketActions({ event }: EventTicketActionsProps) {
 
 export function EventPriceListLink({ slug }: { slug: string }) {
   return (
-    <Link
-      href={ROUTES.eventoListaPrecios(slug)}
-      className="text-sm text-purple-300 transition hover:text-purple-200"
-    >
+    <Link href={ROUTES.eventoListaPrecios(slug)} className="public-link text-sm">
       Ver lista de precios →
     </Link>
   );

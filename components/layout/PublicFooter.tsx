@@ -5,11 +5,7 @@ import {
   ROUTES,
 } from "@/lib/constants/routes";
 
-type PublicFooterProps = {
-  dark?: boolean;
-};
-
-export function PublicFooter({ dark = false }: PublicFooterProps) {
+export function PublicFooter() {
   return (
     <footer
       className="mt-auto border-t"
@@ -29,8 +25,7 @@ export function PublicFooter({ dark = false }: PublicFooterProps) {
               href={INSTAGRAM_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="font-medium transition hover:underline"
-              style={{ color: dark ? "#c8b6ff" : "#8568cc" }}
+              className="public-link font-medium"
             >
               {INSTAGRAM_HANDLE}
             </a>

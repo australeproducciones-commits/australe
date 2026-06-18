@@ -64,7 +64,7 @@ export function EventPoster({ event, className }: EventPosterProps) {
 
   return (
     <div className={className}>
-      <p className="mb-3 text-xs uppercase tracking-[0.3em] text-purple-300">
+      <p className="public-label mb-3 text-xs uppercase tracking-[0.3em]">
         Afiche del evento
       </p>
       <EventImage event={event} alt={`Afiche de ${event.name}`} variant="flyer" />

@@ -5,6 +5,10 @@ export const ROUTES = {
   eventos: "/eventos",
   evento: (slug: string) => `/eventos/${slug}`,
   eventoEntradas: (slug: string) => `/eventos/${slug}/entradas`,
+  eventoEntradasTipo: (slug: string, ticketTypeId: string) =>
+    `/eventos/${slug}/entradas?ticketType=${encodeURIComponent(ticketTypeId)}`,
+  eventoEntradaDirecta: (slug: string, entradaSlug: string) =>
+    `/eventos/${slug}?entrada=${encodeURIComponent(entradaSlug)}`,
   eventoListaPrecios: (slug: string) => `/eventos/${slug}/lista-precios`,
   ventaEvento: (code: string) => `/venta/e/${code}`,
   comunidad: "/comunidad",
@@ -18,6 +22,7 @@ export const ROUTES = {
   adminEventoEntradas: (id: string) => `/admin/eventos/${id}/entradas`,
   adminEventoVentas: (id: string) => `/admin/eventos/${id}/ventas`,
   adminEventoKiosco: (id: string) => `/admin/eventos/${id}/kiosco`,
+  adminEventoGestion: (id: string) => `/admin/eventos/${id}/gestion`,
   adminComunidad: "/admin/comunidad",
   adminProductos: "/admin/productos",
   adminVentas: "/admin/ventas",

@@ -88,10 +88,53 @@ export const SALES_CHANNEL_LABELS: Record<SalesChannel, string> = {
   [SALES_CHANNEL.COURTESY]: "Cortesía",
 };
 
-export function isInternalSaleEnabled(ticketSaleMode: string): boolean {
+export function isInternalSaleEnabled(
+  event: Partial<{
+    ticket_sale_mode: string;
+    sale_web_enabled?: boolean;
+    reservation_enabled?: boolean;
+  }>,
+): boolean {
+  if (
+    event.sale_web_enabled != null ||
+    event.reservation_enabled != null
+  ) {
+    return Boolean(event.sale_web_enabled || event.reservation_enabled);
+  }
+
   return (
-    ticketSaleMode === TICKET_SALE_MODE.INTERNAL ||
-    ticketSaleMode === TICKET_SALE_MODE.BOTH
+    event.ticket_sale_mode === TICKET_SALE_MODE.INTERNAL ||
+    event.ticket_sale_mode === TICKET_SALE_MODE.BOTH
+  );
+}
+
+export function isSaleWebEnabled(
+  event: Parameters<typeof isInternalSaleEnabled>[0] & {
+    sale_web_enabled?: boolean;
+  },
+): boolean {
+  if (event.sale_web_enabled != null) {
+    return event.sale_web_enabled;
+  }
+
+  return (
+    event.ticket_sale_mode === TICKET_SALE_MODE.INTERNAL ||
+    event.ticket_sale_mode === TICKET_SALE_MODE.BOTH
+  );
+}
+
+export function isReservationSaleEnabled(
+  event: Parameters<typeof isInternalSaleEnabled>[0] & {
+    reservation_enabled?: boolean;
+  },
+): boolean {
+  if (event.reservation_enabled != null) {
+    return event.reservation_enabled;
+  }
+
+  return (
+    event.ticket_sale_mode === TICKET_SALE_MODE.INTERNAL ||
+    event.ticket_sale_mode === TICKET_SALE_MODE.BOTH
   );
 }
 
@@ -256,6 +299,40 @@ export function mapCancelTicketRpcError(message: string): string {
   }
 
   return "No se pudo cancelar la entrada. Intentá de nuevo.";
+}
+
+export function mapMarkTicketUsedRpcError(message: string): string {
+  const normalized = message.toLowerCase();
+
+  if (normalized.includes("usuario no autenticado")) {
+    return "Tenés que iniciar sesión para validar entradas.";
+  }
+  if (normalized.includes("usuario inactivo")) {
+    return "Tu cuenta está inactiva. Contactá a un administrador.";
+  }
+  if (normalized.includes("permiso denegado")) {
+    return "No tenés permiso para validar entradas.";
+  }
+  if (normalized.includes("entrada no encontrada")) {
+    return "Entrada no encontrada.";
+  }
+  if (normalized.includes("entrada ya utilizada")) {
+    return "Esta entrada ya fue utilizada.";
+  }
+  if (normalized.includes("entrada cancelada")) {
+    return "Esta entrada está cancelada.";
+  }
+  if (normalized.includes("entrada vencida")) {
+    return "Esta entrada está vencida.";
+  }
+  if (normalized.includes("entrada no válida") || normalized.includes("entrada no valida")) {
+    return "Esta entrada no está en condiciones de ingreso.";
+  }
+  if (normalized.includes("evento no autorizado")) {
+    return "No tenés acceso para validar entradas de este evento.";
+  }
+
+  return "No se pudo validar la entrada. Intentá de nuevo.";
 }
 
 export function mapReserveTicketsRpcError(message: string): string {

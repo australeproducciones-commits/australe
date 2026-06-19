@@ -1,13 +1,17 @@
 import type {
-  EventKioskProduct,
   EventKioskProductWithCatalog,
   KioskOrder,
   KioskOrderPaymentStatus,
   KioskOrderPickupStatus,
   KioskOrderSource,
+  PublicEventKioskProduct,
   PublicKioskReservationItemInput,
 } from "@/lib/kiosk/types";
 import { KIOSK_ORDER_PAYMENT_STATUS, KIOSK_ORDER_PICKUP_STATUS } from "@/lib/kiosk/types";
+import {
+  formatCommunityPriceLabel,
+  hasCommunityPrice,
+} from "@/lib/tickets/utils";
 
 export type EventKioskProductStatus = "available" | "paused" | "sold_out";
 
@@ -102,10 +106,53 @@ export function getKioskOrderSourceLabel(
   return KIOSK_ORDER_SOURCE_LABELS[source as KioskOrderSource] ?? source;
 }
 
+export const PUBLIC_KIOSK_QUANTITY_NOT_ALLOWED =
+  "La cantidad seleccionada no está permitida. Ajustá tu pedido e intentá nuevamente.";
+
+export function exceedsKioskMaxPerOrder(
+  maxPerOrder: number | null | undefined,
+  quantity: number,
+): boolean {
+  return maxPerOrder != null && quantity > maxPerOrder;
+}
+
+export function getKioskPublicUnitPrice(
+  product: Pick<PublicEventKioskProduct, "price" | "community_price">,
+  isCommunityMember: boolean,
+): number {
+  if (
+    isCommunityMember &&
+    product.community_price != null
+  ) {
+    return product.community_price;
+  }
+
+  return product.price;
+}
+
+export function getKioskCommunityPriceLabel(
+  communityPrice: number | null | undefined,
+  isCommunityMember: boolean,
+): string | null {
+  if (!isCommunityMember || !hasCommunityPrice(communityPrice)) {
+    return null;
+  }
+
+  return formatCommunityPriceLabel(communityPrice);
+}
+
 export function getKioskStockLabel(product: {
   stock_total: number | null;
   stock_sold: number;
+  product_stock_on_hand?: number;
+  product_stock_reserved?: number;
 }): string {
+  const available = getKioskStockAvailable(product);
+
+  if (available != null) {
+    return `${product.stock_sold} vendidas en evento · ${available} disponibles en catálogo`;
+  }
+
   if (product.stock_total == null) {
     return `${product.stock_sold} vendidas · stock ilimitado`;
   }
@@ -118,9 +165,20 @@ export function isKioskProductSoldOut(product: {
   stock_total: number | null;
   stock_sold: number;
   is_available: boolean;
+  product_stock_on_hand?: number;
+  product_stock_reserved?: number;
 }): boolean {
   if (!product.is_available) {
     return true;
+  }
+
+  if (
+    product.product_stock_on_hand != null &&
+    product.product_stock_reserved != null
+  ) {
+    return (
+      product.product_stock_on_hand - product.product_stock_reserved <= 0
+    );
   }
 
   if (product.stock_total == null) {
@@ -130,7 +188,22 @@ export function isKioskProductSoldOut(product: {
   return product.stock_sold >= product.stock_total;
 }
 
-export function getKioskStockAvailable(product: EventKioskProduct): number | null {
+export function getKioskStockAvailable(product: {
+  stock_total: number | null;
+  stock_sold: number;
+  product_stock_on_hand?: number;
+  product_stock_reserved?: number;
+}): number | null {
+  if (
+    product.product_stock_on_hand != null &&
+    product.product_stock_reserved != null
+  ) {
+    return Math.max(
+      0,
+      product.product_stock_on_hand - product.product_stock_reserved,
+    );
+  }
+
   if (product.stock_total == null) {
     return null;
   }
@@ -160,6 +233,30 @@ export function validateKioskStockTotal(
   return null;
 }
 
+export function validateKioskCommunityPrice(
+  price: number | null | undefined,
+): string | null {
+  if (price == null) {
+    return null;
+  }
+
+  return validateKioskPrice(price);
+}
+
+export function validateKioskMaxPerOrder(
+  maxPerOrder: number | null | undefined,
+): string | null {
+  if (maxPerOrder == null) {
+    return null;
+  }
+
+  if (!Number.isInteger(maxPerOrder) || maxPerOrder <= 0) {
+    return "El límite por pedido debe ser un entero positivo o dejarse vacío.";
+  }
+
+  return null;
+}
+
 export function normalizeOptionalText(value: string | null | undefined): string | null {
   if (value == null) {
     return null;
@@ -184,6 +281,8 @@ export function getEventKioskProductStatus(product: {
   stock_total: number | null;
   stock_sold: number;
   is_available: boolean;
+  product_stock_on_hand?: number;
+  product_stock_reserved?: number;
 }): EventKioskProductStatus {
   if (!product.is_available) {
     return "paused";
@@ -248,10 +347,25 @@ export function isEventKioskProductSellable(
   );
 }
 
+export function isEventKioskProductSellableForCashier(
+  product: EventKioskProductWithCatalog,
+): boolean {
+  return (
+    isEventKioskProductSellable(product) &&
+    (product.cashier_sale_enabled ?? true)
+  );
+}
+
 export function getSellableEventKioskProducts(
   eventProducts: EventKioskProductWithCatalog[],
 ): EventKioskProductWithCatalog[] {
   return eventProducts.filter(isEventKioskProductSellable);
+}
+
+export function getSellableEventKioskProductsForCashier(
+  eventProducts: EventKioskProductWithCatalog[],
+): EventKioskProductWithCatalog[] {
+  return eventProducts.filter(isEventKioskProductSellableForCashier);
 }
 
 export function isKioskOrderCancelled(order: KioskOrder): boolean {
@@ -431,6 +545,9 @@ export function mapManageKioskOrderRpcError(message: string): string {
   if (normalized.includes("permiso denegado")) {
     return "No tenés permiso para gestionar órdenes.";
   }
+  if (normalized.includes("evento no autorizado")) {
+    return "No tenés acceso para operar órdenes de este evento.";
+  }
   if (normalized.includes("orden no encontrada")) {
     return "Orden no encontrada.";
   }
@@ -459,11 +576,17 @@ export function mapManualKioskOrderRpcError(message: string): string {
   if (normalized.includes("permiso denegado")) {
     return "No tenés permiso para registrar ventas manuales.";
   }
+  if (normalized.includes("evento no autorizado")) {
+    return "No tenés acceso para operar en este evento.";
+  }
   if (normalized.includes("comprador requerido")) {
     return "Ingresá el nombre del comprador.";
   }
   if (normalized.includes("venta manual deshabilitada")) {
     return "La venta manual está deshabilitada para este evento.";
+  }
+  if (normalized.includes("max_per_order_exceeded")) {
+    return "La cantidad supera el límite permitido para uno de los productos.";
   }
   if (normalized.includes("stock insuficiente")) {
     return "No hay stock suficiente para uno de los productos.";
@@ -487,6 +610,12 @@ export function mapManualKioskOrderRpcError(message: string): string {
 export function mapPublicKioskOrderRpcError(message: string): string {
   const normalized = message.toLowerCase();
 
+  if (normalized.includes("usuario no autenticado")) {
+    return "Iniciá sesión para acceder a la preventa.";
+  }
+  if (normalized.includes("comunidad requerida")) {
+    return "La preventa de consumiciones es exclusiva para miembros de la comunidad.";
+  }
   if (normalized.includes("comprador requerido")) {
     return "Ingresá tu nombre.";
   }
@@ -501,6 +630,9 @@ export function mapPublicKioskOrderRpcError(message: string): string {
   }
   if (normalized.includes("evento no encontrado")) {
     return "Evento no encontrado.";
+  }
+  if (normalized.includes("max_per_order_exceeded")) {
+    return PUBLIC_KIOSK_QUANTITY_NOT_ALLOWED;
   }
   if (normalized.includes("stock insuficiente")) {
     return "Stock insuficiente. Actualizá la selección e intentá nuevamente.";
@@ -578,7 +710,15 @@ export function parseKioskReservationItemsFromFormData(
 export function formatKioskStockRemaining(product: {
   stock_total: number | null;
   stock_sold: number;
+  product_stock_on_hand?: number;
+  product_stock_reserved?: number;
 }): string {
+  const available = getKioskStockAvailable(product);
+
+  if (available != null) {
+    return String(available);
+  }
+
   if (product.stock_total == null) {
     return "Ilimitado";
   }

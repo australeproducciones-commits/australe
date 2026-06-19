@@ -17,8 +17,32 @@ export type ProfileRow = {
   whatsapp: string | null;
   role: string;
   is_active: boolean;
+  staff_all_events: boolean;
   created_at: string;
   updated_at: string;
+};
+
+export type EventStaffRow = {
+  id: string;
+  event_id: string;
+  user_id: string;
+  role: string;
+  is_active: boolean;
+  assigned_at: string;
+  assigned_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AuditLogRow = {
+  id: string;
+  user_id: string | null;
+  action: string;
+  entity_type: string;
+  entity_id: string | null;
+  event_id: string | null;
+  details: Json | null;
+  created_at: string;
 };
 
 export type EventRow = {
@@ -46,6 +70,12 @@ export type EventRow = {
   financial_closed_by: string | null;
   ticket_sale_mode: string;
   external_ticket_url: string | null;
+  sale_web_enabled: boolean;
+  external_sale_enabled: boolean;
+  sale_whatsapp_enabled: boolean;
+  reservation_enabled: boolean;
+  whatsapp_sale_number: string | null;
+  whatsapp_sale_message: string | null;
   is_featured: boolean;
   featured_ticket_label: string | null;
   featured_until: string | null;
@@ -130,6 +160,12 @@ export type KioskProductRow = {
   image_url: string | null;
   default_price: number | null;
   category: string | null;
+  category_id: string | null;
+  sku: string | null;
+  unit: string;
+  stock_on_hand: number;
+  stock_reserved: number;
+  low_stock_threshold: number | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -139,6 +175,8 @@ export type EventKioskSettingsRow = {
   event_id: string;
   presale_enabled: boolean;
   manual_sales_enabled: boolean;
+  qr_sale_enabled: boolean;
+  show_price_list: boolean;
   notes: string | null;
   created_at: string;
   updated_at: string;
@@ -149,9 +187,15 @@ export type EventKioskProductRow = {
   event_id: string;
   product_id: string;
   price: number;
+  community_price: number | null;
   stock_total: number | null;
   stock_sold: number;
   is_available: boolean;
+  is_visible: boolean;
+  presale_enabled: boolean;
+  qr_sale_enabled: boolean;
+  cashier_sale_enabled: boolean;
+  max_per_order: number | null;
   sort_order: number;
   created_at: string;
   updated_at: string;
@@ -178,12 +222,40 @@ export type KioskOrderRow = {
   updated_at: string;
 };
 
+export type KioskProductCategoryRow = {
+  id: string;
+  name: string;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type KioskProductStockMovementRow = {
+  id: string;
+  product_id: string;
+  event_id: string | null;
+  order_id: string | null;
+  order_item_id: string | null;
+  movement_type: string;
+  quantity_delta: number;
+  previous_stock_on_hand: number;
+  resulting_stock_on_hand: number;
+  previous_stock_reserved: number | null;
+  resulting_stock_reserved: number | null;
+  reason: string | null;
+  created_by: string | null;
+  created_at: string;
+};
+
 export type KioskOrderItemRow = {
   id: string;
   order_id: string;
   event_kiosk_product_id: string;
+  product_id: string | null;
   product_name: string;
   unit_price: number;
+  community_price_applied: number | null;
   quantity: number;
   subtotal: number;
   created_at: string;
@@ -350,6 +422,25 @@ export type Database = {
         Update: Partial<KioskProductRow>;
         Relationships: [];
       };
+      kiosk_product_categories: {
+        Row: KioskProductCategoryRow;
+        Insert: Omit<KioskProductCategoryRow, "id" | "created_at" | "updated_at"> & {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<KioskProductCategoryRow>;
+        Relationships: [];
+      };
+      kiosk_product_stock_movements: {
+        Row: KioskProductStockMovementRow;
+        Insert: Omit<KioskProductStockMovementRow, "id" | "created_at"> & {
+          id?: string;
+          created_at?: string;
+        };
+        Update: Partial<KioskProductStockMovementRow>;
+        Relationships: [];
+      };
       event_kiosk_settings: {
         Row: EventKioskSettingsRow;
         Insert: Omit<EventKioskSettingsRow, "created_at" | "updated_at"> & {
@@ -394,6 +485,26 @@ export type Database = {
         Update: Partial<KioskOrderItemRow>;
         Relationships: [];
       };
+      event_staff: {
+        Row: EventStaffRow;
+        Insert: Omit<EventStaffRow, "id" | "created_at" | "updated_at" | "assigned_at"> & {
+          id?: string;
+          assigned_at?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<EventStaffRow>;
+        Relationships: [];
+      };
+      audit_logs: {
+        Row: AuditLogRow;
+        Insert: Omit<AuditLogRow, "id" | "created_at"> & {
+          id?: string;
+          created_at?: string;
+        };
+        Update: Partial<AuditLogRow>;
+        Relationships: [];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -424,6 +535,17 @@ export type Database = {
           p_mark_as_expired: boolean;
         };
         Returns: TicketRow;
+      };
+      mark_ticket_used: {
+        Args: {
+          p_ticket_id: string;
+        };
+        Returns: {
+          ticket_id: string;
+          event_id: string;
+          ticket_status: string;
+          used_at: string;
+        }[];
       };
       recalculate_kiosk_order_total: {
         Args: {
@@ -532,6 +654,36 @@ export type Database = {
           order_code: string;
           payment_status: string;
           pickup_status: string;
+        }[];
+      };
+      record_kiosk_stock_movement: {
+        Args: {
+          p_product_id: string;
+          p_movement_type: string;
+          p_quantity_delta: number;
+          p_previous_on_hand: number;
+          p_resulting_on_hand: number;
+          p_previous_reserved?: number | null;
+          p_resulting_reserved?: number | null;
+          p_event_id?: string | null;
+          p_order_id?: string | null;
+          p_order_item_id?: string | null;
+          p_reason?: string | null;
+        };
+        Returns: string;
+      };
+      adjust_kiosk_product_stock: {
+        Args: {
+          p_product_id: string;
+          p_movement_type: string;
+          p_quantity: number;
+          p_reason: string;
+        };
+        Returns: {
+          product_id: string;
+          stock_on_hand: number;
+          stock_reserved: number;
+          stock_available: number;
         }[];
       };
     };

@@ -6,4 +6,5 @@ export type Profile = {
   whatsapp: string | null;
   role: Role;
   is_active: boolean;
+  staff_all_events: boolean;
 };

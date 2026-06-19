@@ -1,7 +1,11 @@
 "use server";
 
-import { getProfile } from "@/lib/auth/getProfile";
-import { ROLES } from "@/lib/constants/roles";
+import { requireCustomerAction } from "@/lib/auth/requireCustomerAction";
+import {
+  requireAdmin,
+  requireCashierForEvent,
+} from "@/lib/auth/require";
+import { isActiveCommunityMember } from "@/lib/community/membership";
 import { ROUTES } from "@/lib/constants/routes";
 import { slugifyName } from "@/lib/events/utils";
 import {
@@ -27,36 +31,11 @@ import {
   mapPublicKioskOrderRpcError,
   normalizeOptionalText,
   validateKioskPrice,
-  validateKioskStockTotal,
+  validateKioskCommunityPrice,
+  validateKioskMaxPerOrder,
 } from "@/lib/kiosk/utils";
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
-
-async function requireAdminAction() {
-  const supabase = await createClient();
-  const profile = await getProfile(supabase);
-
-  if (!profile || profile.role !== ROLES.ADMIN || !profile.is_active) {
-    return { error: "No tenés permiso para realizar esta acción." as const };
-  }
-
-  return { supabase, profile };
-}
-
-async function requireStaffKioskAction() {
-  const supabase = await createClient();
-  const profile = await getProfile(supabase);
-
-  if (
-    !profile ||
-    !profile.is_active ||
-    (profile.role !== ROLES.ADMIN && profile.role !== ROLES.CASHIER)
-  ) {
-    return { error: "No tenés permiso para realizar esta acción." as const };
-  }
-
-  return { supabase, profile };
-}
 
 function revalidateKioskAdminPaths(eventId?: string) {
   revalidatePath(ROUTES.adminProductos);
@@ -85,7 +64,7 @@ export async function upsertEventKioskSettingsAction(
   eventId: string,
   input: EventKioskSettingsInput,
 ): Promise<KioskActionResult> {
-  const auth = await requireAdminAction();
+  const auth = await requireAdmin();
   if ("error" in auth) {
     return { success: false, error: auth.error };
   }
@@ -94,6 +73,8 @@ export async function upsertEventKioskSettingsAction(
     event_id: eventId,
     presale_enabled: input.presale_enabled ?? false,
     manual_sales_enabled: input.manual_sales_enabled ?? true,
+    qr_sale_enabled: input.qr_sale_enabled ?? true,
+    show_price_list: input.show_price_list ?? true,
     notes: normalizeOptionalText(input.notes),
   };
 
@@ -113,7 +94,7 @@ export async function upsertEventKioskSettingsAction(
 export async function createKioskProductAction(
   input: KioskProductInput,
 ): Promise<KioskActionResult> {
-  const auth = await requireAdminAction();
+  const auth = await requireAdmin();
   if ("error" in auth) {
     return { success: false, error: auth.error };
   }
@@ -142,6 +123,12 @@ export async function createKioskProductAction(
       image_url: normalizeOptionalText(input.image_url),
       default_price: defaultPrice,
       category: normalizeOptionalText(input.category),
+      category_id: null,
+      sku: null,
+      unit: "unidad",
+      stock_on_hand: 0,
+      stock_reserved: 0,
+      low_stock_threshold: null,
       is_active: input.is_active ?? true,
     })
     .select("id")
@@ -163,7 +150,7 @@ export async function updateKioskProductAction(
   productId: string,
   input: KioskProductInput,
 ): Promise<KioskActionResult> {
-  const auth = await requireAdminAction();
+  const auth = await requireAdmin();
   if ("error" in auth) {
     return { success: false, error: auth.error };
   }
@@ -218,7 +205,7 @@ export async function addProductToEventKioskAction(
   productId: string,
   input: EventKioskProductInput,
 ): Promise<KioskActionResult> {
-  const auth = await requireAdminAction();
+  const auth = await requireAdmin();
   if ("error" in auth) {
     return { success: false, error: auth.error };
   }
@@ -233,9 +220,14 @@ export async function addProductToEventKioskAction(
     return { success: false, error: priceError };
   }
 
-  const stockError = validateKioskStockTotal(input.stock_total);
-  if (stockError) {
-    return { success: false, error: stockError };
+  const communityPriceError = validateKioskCommunityPrice(input.community_price);
+  if (communityPriceError) {
+    return { success: false, error: communityPriceError };
+  }
+
+  const maxPerOrderError = validateKioskMaxPerOrder(input.max_per_order);
+  if (maxPerOrderError) {
+    return { success: false, error: maxPerOrderError };
   }
 
   const { data, error } = await auth.supabase
@@ -244,8 +236,14 @@ export async function addProductToEventKioskAction(
       event_id: eventId,
       product_id: productId,
       price: input.price,
-      stock_total: input.stock_total ?? null,
+      community_price: input.community_price ?? null,
+      stock_total: null,
       is_available: input.is_available ?? true,
+      is_visible: input.is_visible ?? true,
+      presale_enabled: input.presale_enabled ?? true,
+      qr_sale_enabled: input.qr_sale_enabled ?? true,
+      cashier_sale_enabled: input.cashier_sale_enabled ?? true,
+      max_per_order: input.max_per_order ?? null,
       sort_order: input.sort_order ?? 0,
     })
     .select("id")
@@ -270,7 +268,7 @@ export async function updateEventKioskProductAction(
   eventKioskProductId: string,
   input: EventKioskProductInput,
 ): Promise<KioskActionResult> {
-  const auth = await requireAdminAction();
+  const auth = await requireAdmin();
   if ("error" in auth) {
     return { success: false, error: auth.error };
   }
@@ -285,27 +283,34 @@ export async function updateEventKioskProductAction(
     return { success: false, error: priceError };
   }
 
-  const stockError = validateKioskStockTotal(input.stock_total);
-  if (stockError) {
-    return { success: false, error: stockError };
+  const communityPriceError = validateKioskCommunityPrice(input.community_price);
+  if (communityPriceError) {
+    return { success: false, error: communityPriceError };
   }
 
-  if (
-    input.stock_total != null &&
-    existing.stock_sold > input.stock_total
-  ) {
-    return {
-      success: false,
-      error: "El stock total no puede ser menor a lo ya vendido.",
-    };
+  const maxPerOrderError = validateKioskMaxPerOrder(input.max_per_order);
+  if (maxPerOrderError) {
+    return { success: false, error: maxPerOrderError };
   }
 
   const { error } = await auth.supabase
     .from("event_kiosk_products")
     .update({
       price: input.price,
-      stock_total: input.stock_total ?? null,
+      community_price:
+        input.community_price !== undefined
+          ? input.community_price
+          : existing.community_price,
       is_available: input.is_available ?? existing.is_available,
+      is_visible: input.is_visible ?? existing.is_visible,
+      presale_enabled: input.presale_enabled ?? existing.presale_enabled,
+      qr_sale_enabled: input.qr_sale_enabled ?? existing.qr_sale_enabled,
+      cashier_sale_enabled:
+        input.cashier_sale_enabled ?? existing.cashier_sale_enabled,
+      max_per_order:
+        input.max_per_order !== undefined
+          ? input.max_per_order
+          : existing.max_per_order,
       sort_order: input.sort_order ?? existing.sort_order,
     })
     .eq("id", eventKioskProductId);
@@ -331,8 +336,13 @@ export async function toggleEventKioskProductAvailabilityAction(
 
   return updateEventKioskProductAction(eventKioskProductId, {
     price: existing.price,
-    stock_total: existing.stock_total,
+    community_price: existing.community_price,
     is_available: isAvailable,
+    is_visible: existing.is_visible,
+    presale_enabled: existing.presale_enabled,
+    qr_sale_enabled: existing.qr_sale_enabled,
+    cashier_sale_enabled: existing.cashier_sale_enabled,
+    max_per_order: existing.max_per_order,
     sort_order: existing.sort_order,
   });
 }
@@ -341,7 +351,7 @@ export async function createManualKioskOrderAction(
   eventId: string,
   input: ManualKioskOrderInput,
 ): Promise<ManualKioskOrderResult> {
-  const auth = await requireStaffKioskAction();
+  const auth = await requireCashierForEvent(eventId);
   if ("error" in auth) {
     return {
       ok: false,
@@ -418,6 +428,22 @@ export async function createPublicKioskOrderAction(
   eventId: string,
   input: PublicKioskOrderInput,
 ): Promise<PublicKioskOrderResult> {
+  const auth = await requireCustomerAction();
+  if ("error" in auth) {
+    return { ok: false, message: auth.error };
+  }
+
+  const profile = auth.profile;
+
+  const isCommunityMember = await isActiveCommunityMember(profile.id);
+  if (!isCommunityMember) {
+    return {
+      ok: false,
+      message:
+        "La preventa de consumiciones es exclusiva para miembros de la comunidad.",
+    };
+  }
+
   if (!isUuid(eventId)) {
     return { ok: false, message: "Evento inválido." };
   }
@@ -459,7 +485,7 @@ export async function createPublicKioskOrderAction(
     }
   }
 
-  const supabase = await createClient();
+  const { supabase } = auth;
 
   const { data, error } = await supabase.rpc("create_public_kiosk_order", {
     p_event_id: eventId,
@@ -509,6 +535,22 @@ export async function createPublicKioskOrderLinkedAction(
   eventId: string,
   input: PublicKioskOrderLinkedInput,
 ): Promise<PublicKioskOrderResult> {
+  const auth = await requireCustomerAction();
+  if ("error" in auth) {
+    return { ok: false, message: auth.error };
+  }
+
+  const profile = auth.profile;
+
+  const isCommunityMember = await isActiveCommunityMember(profile.id);
+  if (!isCommunityMember) {
+    return {
+      ok: false,
+      message:
+        "La preventa de consumiciones es exclusiva para miembros de la comunidad.",
+    };
+  }
+
   if (!isUuid(eventId)) {
     return { ok: false, message: "Evento inválido." };
   }
@@ -555,7 +597,7 @@ export async function createPublicKioskOrderLinkedAction(
     }
   }
 
-  const supabase = await createClient();
+  const { supabase } = auth;
 
   const { data, error } = await supabase.rpc("create_public_kiosk_order_linked", {
     p_event_id: eventId,
@@ -610,7 +652,7 @@ async function requireStaffForOrderManage(
   | { error: KioskOrderManageResult }
   | { supabase: Awaited<ReturnType<typeof createClient>> }
 > {
-  const auth = await requireStaffKioskAction();
+  const auth = await requireCashierForEvent(eventId);
   if ("error" in auth) {
     return {
       error: {

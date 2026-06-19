@@ -1,6 +1,7 @@
 "use server";
 
 import { getProfile } from "@/lib/auth/getProfile";
+import { requireActiveProfile, requireAdmin } from "@/lib/auth/require";
 import { resolveEventPublicAccess } from "@/lib/events/access";
 import { ROLES } from "@/lib/constants/roles";
 import { ROUTES } from "@/lib/constants/routes";
@@ -23,11 +24,11 @@ import {
 } from "@/lib/ticket-sales/types";
 import {
   canMarkTicketExpired,
-  canMarkTicketUsed,
   getReservationExpiresAt,
   isInternalSaleEnabled,
   isTicketTypeOnSale,
   mapCancelTicketRpcError,
+  mapMarkTicketUsedRpcError,
   mapReserveTicketsRpcError,
   parseReservationBuyer,
   parseReservationLines,
@@ -69,17 +70,6 @@ async function requireReservationActor() {
   return { supabase, profile } as const;
 }
 
-async function requireAdminAction() {
-  const supabase = await createClient();
-  const profile = await getProfile(supabase);
-
-  if (!profile || profile.role !== ROLES.ADMIN || !profile.is_active) {
-    return { error: "No tenés permiso para realizar esta acción." as const };
-  }
-
-  return { supabase, profile };
-}
-
 function revalidateReservationPaths(eventSlug: string, eventId: string) {
   revalidatePath(ROUTES.evento(eventSlug));
   revalidatePath(ROUTES.eventoEntradas(eventSlug));
@@ -118,7 +108,7 @@ export async function reserveTicketsAction(
     };
   }
 
-  if (!isInternalSaleEnabled(event.ticket_sale_mode)) {
+  if (!isInternalSaleEnabled(event)) {
     return {
       success: false,
       error: "La venta interna no está habilitada para este evento.",
@@ -359,7 +349,7 @@ export async function createPublicTicketReservationWithKioskAction(
 export async function confirmTicketPaymentAction(
   ticketId: string,
 ): Promise<TicketAdminActionResult> {
-  const auth = await requireAdminAction();
+  const auth = await requireAdmin();
   if ("error" in auth) {
     return { success: false, error: auth.error };
   }
@@ -407,7 +397,7 @@ export async function cancelTicketAction(
   ticketId: string,
   reason: string,
 ): Promise<TicketAdminActionResult> {
-  const auth = await requireAdminAction();
+  const auth = await requireAdmin();
   if ("error" in auth) {
     return { success: false, error: auth.error };
   }
@@ -445,7 +435,7 @@ export async function cancelTicketAction(
 export async function markTicketExpiredAction(
   ticketId: string,
 ): Promise<TicketAdminActionResult> {
-  const auth = await requireAdminAction();
+  const auth = await requireAdmin();
   if ("error" in auth) {
     return { success: false, error: auth.error };
   }
@@ -493,42 +483,37 @@ export async function markTicketExpiredAction(
 export async function markTicketUsedAction(
   ticketId: string,
 ): Promise<TicketAdminActionResult> {
-  const auth = await requireAdminAction();
+  const auth = await requireActiveProfile();
   if ("error" in auth) {
     return { success: false, error: auth.error };
   }
 
-  const ticket = await getTicketByIdForAdmin(ticketId);
+  const { data, error } = await auth.supabase.rpc("mark_ticket_used", {
+    p_ticket_id: ticketId,
+  });
 
-  if (!ticket) {
-    return { success: false, error: "Entrada no encontrada." };
-  }
-
-  if (!canMarkTicketUsed(ticket)) {
+  if (error) {
     return {
       success: false,
-      error: "Solo se pueden marcar entradas válidas como usadas.",
+      error: mapMarkTicketUsedRpcError(error.message),
     };
   }
 
-  const { error } = await auth.supabase
-    .from("tickets")
-    .update({
-      ticket_status: TICKET_STATUS.USED,
-      used_at: new Date().toISOString(),
-      used_by: auth.profile.id,
-    })
-    .eq("id", ticketId);
+  const row = Array.isArray(data) ? data[0] : data;
 
-  if (error) {
-    return { success: false, error: "No se pudo marcar la entrada como usada." };
+  if (!row?.ticket_id) {
+    return {
+      success: false,
+      error: "No se pudo marcar la entrada como usada.",
+    };
   }
 
-  const event = await assertPublishedEventForReservation(ticket.event_id);
+  const eventId = row.event_id as string;
+  const event = await assertPublishedEventForReservation(eventId);
   if (event) {
-    revalidateReservationPaths(event.slug, ticket.event_id);
+    revalidateReservationPaths(event.slug, eventId);
   } else {
-    revalidatePath(ROUTES.adminEventoVentas(ticket.event_id));
+    revalidatePath(ROUTES.adminEventoVentas(eventId));
     revalidatePath(ROUTES.miCuentaEntradas);
   }
 

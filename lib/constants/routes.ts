@@ -30,6 +30,11 @@ export const ROUTES = {
   adminCajero: "/admin/cajero",
   adminPuerta: "/admin/puerta",
   adminUsuarios: "/admin/usuarios",
+  adminUsuarioNuevo: "/admin/usuarios/nuevo",
+  adminUsuario: (id: string) => `/admin/usuarios/${id}`,
+  adminConfiguracion: "/admin/configuracion",
+  adminPartners: "/admin/partners",
+  adminPublicidad: "/admin/publicidad",
 } as const;
 
 export const PUBLIC_NAV_LINKS = [

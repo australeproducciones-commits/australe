@@ -3,14 +3,23 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { ADMIN_NAV_LINKS, ROUTES } from "@/lib/constants/routes";
+import { ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils/cn";
+
+type AdminNavLink = {
+  href: string;
+  label: string;
+};
 
 type AdminSidebarProps = {
   pendingSalesCount?: number;
+  navLinks: AdminNavLink[];
 };
 
-export function AdminSidebar({ pendingSalesCount = 0 }: AdminSidebarProps) {
+export function AdminSidebar({
+  pendingSalesCount = 0,
+  navLinks,
+}: AdminSidebarProps) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
@@ -25,7 +34,7 @@ export function AdminSidebar({ pendingSalesCount = 0 }: AdminSidebarProps) {
       >
         ← Volver al sitio
       </Link>
-      {ADMIN_NAV_LINKS.map((link) => (
+      {navLinks.map((link) => (
         <Link
           key={link.href}
           href={link.href}

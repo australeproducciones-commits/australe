@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { AdminQueryErrorCard } from "@/components/admin/AdminQueryErrorCard";
 import { AdminHeader } from "@/components/layout/AdminHeader";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -18,13 +19,27 @@ import { getAllEventsForAdmin } from "@/lib/events/queries";
 import { formatEventDate } from "@/lib/events/utils";
 import { formatTicketPrice } from "@/lib/tickets/utils";
 import { getGoogleMapsSearchUrl } from "@/lib/utils/googleMaps";
+import { isSupabaseQueryError } from "@/lib/supabase/queryError";
+import type { Event } from "@/lib/events/types";
 
 export const metadata: Metadata = {
   title: "Admin · Eventos",
 };
 
 export default async function AdminEventosPage() {
-  const events = await getAllEventsForAdmin();
+  let events: Event[] = [];
+  let loadError: string | null = null;
+
+  try {
+    events = await getAllEventsForAdmin();
+  } catch (error) {
+    if (isSupabaseQueryError(error)) {
+      loadError = error.userMessage;
+    } else {
+      throw error;
+    }
+  }
+
   const eventIds = events.map((event) => event.id);
   const [statsMap, financialMap, pendingSales] = await Promise.all([
     getAdminStatsByEventIds(eventIds),
@@ -47,7 +62,9 @@ export default async function AdminEventosPage() {
           <Button href={ROUTES.adminEventosCrear}>Crear evento</Button>
         </div>
 
-        {events.length === 0 ? (
+        {loadError ? (
+          <AdminQueryErrorCard message={loadError} />
+        ) : events.length === 0 ? (
           <Card padding="lg" className="text-center">
             <h2 className="text-xl font-bold text-white">Sin eventos todavía</h2>
             <p className="mt-2 text-zinc-400">

@@ -1,6 +1,7 @@
 import { EVENT_STATUS } from "@/lib/constants/event-status";
 import { getPublishedEventBySlug } from "@/lib/events/queries";
 import { requireAdminPage } from "@/lib/events/queries";
+import { throwSupabaseQueryError } from "@/lib/supabase/queryError";
 import type { TicketType } from "@/lib/tickets/types";
 import { getActiveTicketTypesForPublishedEvent } from "@/lib/tickets/queries";
 import type {
@@ -173,13 +174,11 @@ export async function getTicketsByEventIdForAdmin(
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error(
-      "getTicketsByEventIdForAdmin:",
-      error.message,
-      "eventId:",
-      eventId,
+    throwSupabaseQueryError(
+      "getTicketsByEventIdForAdmin",
+      error,
+      "No se pudieron cargar las ventas del evento. Revisá la conexión con Supabase.",
     );
-    return [];
   }
 
   if (!tickets?.length) {

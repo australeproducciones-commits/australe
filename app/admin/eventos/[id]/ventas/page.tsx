@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { AdminQueryErrorCard } from "@/components/admin/AdminQueryErrorCard";
 import { AdminHeader } from "@/components/layout/AdminHeader";
 import { AdminEventSalesDashboard } from "@/components/ticket-sales/AdminEventSalesDashboard";
 import { AdminEventVentasPanel } from "@/components/ticket-sales/AdminEventVentasPanel";
@@ -13,6 +14,7 @@ import {
   getTicketsByEventIdForAdmin,
 } from "@/lib/ticket-sales/queries";
 import { getTicketTypesByEventIdForAdmin } from "@/lib/tickets/queries";
+import { isSupabaseQueryError } from "@/lib/supabase/queryError";
 
 type AdminEventoVentasPageProps = {
   params: Promise<{ id: string }>;
@@ -44,11 +46,38 @@ export default async function AdminEventoVentasPage({
     notFound();
   }
 
-  const [event, tickets, ticketTypes] = await Promise.all([
-    getEventForAdminSales(id),
-    getTicketsByEventIdForAdmin(id),
-    getTicketTypesByEventIdForAdmin(id),
-  ]);
+  let event: Awaited<ReturnType<typeof getEventForAdminSales>> = null;
+  let tickets: Awaited<ReturnType<typeof getTicketsByEventIdForAdmin>> = [];
+  let ticketTypes: Awaited<ReturnType<typeof getTicketTypesByEventIdForAdmin>> = [];
+  let loadError: string | null = null;
+
+  try {
+    [event, tickets, ticketTypes] = await Promise.all([
+      getEventForAdminSales(id),
+      getTicketsByEventIdForAdmin(id),
+      getTicketTypesByEventIdForAdmin(id),
+    ]);
+  } catch (error) {
+    if (isSupabaseQueryError(error)) {
+      loadError = error.userMessage;
+    } else {
+      throw error;
+    }
+  }
+
+  if (loadError) {
+    return (
+      <>
+        <AdminHeader title="Ventas / reservas" description="Error al cargar datos." />
+        <div className="px-4 py-8 sm:px-8">
+          <AdminQueryErrorCard
+            title="No se pudieron cargar las ventas"
+            message={loadError}
+          />
+        </div>
+      </>
+    );
+  }
 
   if (!event) {
     notFound();

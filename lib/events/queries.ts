@@ -5,6 +5,11 @@ import { EVENT_AUDIENCE } from "@/lib/constants/event-audience";
 import { EVENT_STATUS } from "@/lib/constants/event-status";
 import type { Event } from "@/lib/events/types";
 import { isEventFeaturedActive } from "@/lib/events/utils";
+import {
+  EVENTS_LOAD_ERROR_MESSAGE,
+  PUBLIC_EVENTS_LOAD_ERROR_MESSAGE,
+  throwSupabaseQueryError,
+} from "@/lib/supabase/queryError";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 
@@ -33,8 +38,11 @@ export async function getPublishedEvents(): Promise<Event[]> {
     .order("event_date", { ascending: true });
 
   if (error) {
-    console.error("getPublishedEvents:", error);
-    return [];
+    throwSupabaseQueryError(
+      "getPublishedEvents",
+      error,
+      PUBLIC_EVENTS_LOAD_ERROR_MESSAGE,
+    );
   }
 
   return ((data ?? []) as Event[]).map(normalizeEventRow);
@@ -83,8 +91,7 @@ export async function getEventBySalesQrCode(code: string): Promise<Event | null>
     .maybeSingle();
 
   if (error) {
-    console.error("getEventBySalesQrCode:", error);
-    return null;
+    throwSupabaseQueryError("getEventBySalesQrCode", error);
   }
 
   return data ? normalizeEventRow(data as Event) : null;
@@ -103,8 +110,11 @@ export async function getPublishedEventBySlug(
     .maybeSingle();
 
   if (error) {
-    console.error("getPublishedEventBySlug:", error);
-    return null;
+    throwSupabaseQueryError(
+      "getPublishedEventBySlug",
+      error,
+      PUBLIC_EVENTS_LOAD_ERROR_MESSAGE,
+    );
   }
 
   return data ? normalizeEventRow(data as Event) : null;
@@ -129,8 +139,11 @@ export async function getFeaturedEventsForHome(): Promise<Event[]> {
     .order("start_time", { ascending: true });
 
   if (error) {
-    console.error("getFeaturedEventsForHome:", error);
-    return [];
+    throwSupabaseQueryError(
+      "getFeaturedEventsForHome",
+      error,
+      PUBLIC_EVENTS_LOAD_ERROR_MESSAGE,
+    );
   }
 
   return ((data ?? []) as Event[])
@@ -151,8 +164,11 @@ export async function getCommunityPublishedEvents(): Promise<Event[]> {
     .order("start_time", { ascending: true });
 
   if (error) {
-    console.error("getCommunityPublishedEvents:", error);
-    return [];
+    throwSupabaseQueryError(
+      "getCommunityPublishedEvents",
+      error,
+      PUBLIC_EVENTS_LOAD_ERROR_MESSAGE,
+    );
   }
 
   return ((data ?? []) as Event[]).map(normalizeEventRow);
@@ -172,8 +188,7 @@ export async function getAllEventsForAdmin(): Promise<Event[]> {
     .order("event_date", { ascending: false });
 
   if (error) {
-    console.error("getAllEventsForAdmin:", error);
-    return [];
+    throwSupabaseQueryError("getAllEventsForAdmin", error, EVENTS_LOAD_ERROR_MESSAGE);
   }
 
   return ((data ?? []) as Event[]).map(normalizeEventRow);
@@ -189,8 +204,7 @@ export async function getEventByIdForAdmin(id: string): Promise<Event | null> {
     .maybeSingle();
 
   if (error) {
-    console.error("getEventByIdForAdmin:", error);
-    return null;
+    throwSupabaseQueryError("getEventByIdForAdmin", error, EVENTS_LOAD_ERROR_MESSAGE);
   }
 
   return data ? normalizeEventRow(data as Event) : null;

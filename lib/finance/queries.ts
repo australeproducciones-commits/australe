@@ -5,6 +5,7 @@ import type {
   EventOtherIncome,
 } from "@/lib/finance/types";
 import { requireAdminPage } from "@/lib/events/queries";
+import { throwSupabaseQueryError } from "@/lib/supabase/queryError";
 import type { Event } from "@/lib/events/types";
 import { getEventByIdForAdmin } from "@/lib/events/queries";
 import { getPendingSalesSummary } from "@/lib/ticket-sales/pendingSales";
@@ -36,8 +37,7 @@ export async function getEventExpenses(
     if (error.code === "42P01") {
       return [];
     }
-    console.error("getEventExpenses:", error);
-    return [];
+    throwSupabaseQueryError("getEventExpenses", error);
   }
 
   return (data ?? []) as EventExpense[];
@@ -61,8 +61,7 @@ export async function getEventOtherIncome(
     if (error.code === "42P01") {
       return [];
     }
-    console.error("getEventOtherIncome:", error);
-    return [];
+    throwSupabaseQueryError("getEventOtherIncome", error);
   }
 
   return (data ?? []) as EventOtherIncome[];
@@ -83,8 +82,7 @@ export async function getExpenseCategories(): Promise<
     if (error.code === "42P01") {
       return [];
     }
-    console.error("getExpenseCategories:", error);
-    return [];
+    throwSupabaseQueryError("getExpenseCategories", error);
   }
 
   return (data ?? []) as Array<{ id: string; name: string }>;

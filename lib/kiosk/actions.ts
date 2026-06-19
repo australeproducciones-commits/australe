@@ -430,7 +430,7 @@ export async function createPublicKioskOrderAction(
 ): Promise<PublicKioskOrderResult> {
   const auth = await requireCustomerAction();
   if ("error" in auth) {
-    return { ok: false, message: auth.error };
+    return { ok: false, message: auth.error ?? "No tenés permiso para realizar esta acción." };
   }
 
   const profile = auth.profile;
@@ -537,7 +537,7 @@ export async function createPublicKioskOrderLinkedAction(
 ): Promise<PublicKioskOrderResult> {
   const auth = await requireCustomerAction();
   if ("error" in auth) {
-    return { ok: false, message: auth.error };
+    return { ok: false, message: auth.error ?? "No tenés permiso para realizar esta acción." };
   }
 
   const profile = auth.profile;

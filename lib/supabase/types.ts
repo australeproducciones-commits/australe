@@ -321,6 +321,67 @@ export type EventOtherIncomeRow = {
   updated_at: string;
 };
 
+export type SiteSettingsRow = {
+  id: number;
+  contact_email: string | null;
+  contact_phone: string | null;
+  contact_whatsapp: string | null;
+  contact_location: string | null;
+  instagram_url: string | null;
+  updated_at: string;
+  updated_by: string | null;
+};
+
+export type PartnerRow = {
+  id: string;
+  name: string;
+  description: string | null;
+  image_url: string;
+  destination_url: string | null;
+  label: string | null;
+  is_active: boolean;
+  starts_at: string | null;
+  ends_at: string | null;
+  sort_order: number;
+  open_in_new_tab: boolean;
+  view_count: number;
+  click_count: number;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AdvertisingCampaignRow = {
+  id: string;
+  internal_name: string;
+  title: string | null;
+  body: string | null;
+  image_url: string | null;
+  button_label: string | null;
+  destination_url: string | null;
+  is_active: boolean;
+  starts_at: string | null;
+  ends_at: string | null;
+  priority: number;
+  frequency: string;
+  open_in_new_tab: boolean;
+  view_count: number;
+  click_count: number;
+  dismiss_count: number;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AdvertisingImpressionRow = {
+  id: string;
+  campaign_id: string;
+  user_id: string;
+  viewed_at: string;
+  clicked_at: string | null;
+  dismissed_at: string | null;
+};
+
 export type Database = {
   public: {
     Tables: {
@@ -505,6 +566,55 @@ export type Database = {
         Update: Partial<AuditLogRow>;
         Relationships: [];
       };
+      site_settings: {
+        Row: SiteSettingsRow;
+        Insert: Omit<SiteSettingsRow, "updated_at"> & {
+          updated_at?: string;
+        };
+        Update: Partial<SiteSettingsRow>;
+        Relationships: [];
+      };
+      partners: {
+        Row: PartnerRow;
+        Insert: Omit<PartnerRow, "id" | "created_at" | "updated_at" | "view_count" | "click_count"> & {
+          id?: string;
+          view_count?: number;
+          click_count?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<PartnerRow>;
+        Relationships: [];
+      };
+      advertising_campaigns: {
+        Row: AdvertisingCampaignRow;
+        Insert: Omit<
+          AdvertisingCampaignRow,
+          "id" | "created_at" | "updated_at" | "view_count" | "click_count" | "dismiss_count"
+        > & {
+          id?: string;
+          view_count?: number;
+          click_count?: number;
+          dismiss_count?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<AdvertisingCampaignRow>;
+        Relationships: [];
+      };
+      advertising_impressions: {
+        Row: AdvertisingImpressionRow;
+        Insert: {
+          id?: string;
+          campaign_id: string;
+          user_id: string;
+          viewed_at?: string;
+          clicked_at?: string | null;
+          dismissed_at?: string | null;
+        };
+        Update: Partial<AdvertisingImpressionRow>;
+        Relationships: [];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -685,6 +795,26 @@ export type Database = {
           stock_reserved: number;
           stock_available: number;
         }[];
+      };
+      increment_partner_view_count: {
+        Args: { p_partner_id: string };
+        Returns: void;
+      };
+      increment_partner_click_count: {
+        Args: { p_partner_id: string };
+        Returns: void;
+      };
+      increment_advertising_view_count: {
+        Args: { p_campaign_id: string };
+        Returns: void;
+      };
+      increment_advertising_click_count: {
+        Args: { p_campaign_id: string };
+        Returns: void;
+      };
+      increment_advertising_dismiss_count: {
+        Args: { p_campaign_id: string };
+        Returns: void;
       };
     };
     Enums: Record<string, never>;

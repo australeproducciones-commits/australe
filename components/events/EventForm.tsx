@@ -1,6 +1,11 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useMemo, useState } from "react";
+import {
+  deriveInitialDurationParts,
+  EventFormScheduleFields,
+  FormSection,
+} from "@/components/events/EventFormScheduleFields";
 import { EventImageAdminPreview } from "@/components/events/EventImageAdminPreview";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -9,10 +14,9 @@ import {
   EVENT_AUDIENCE_VALUES,
 } from "@/lib/constants/event-audience";
 import {
+  EVENT_STATUS,
   EVENT_STATUS_LABELS,
   EVENT_STATUS_VALUES,
-  TICKET_SALE_MODE_LABELS,
-  TICKET_SALE_MODE_VALUES,
 } from "@/lib/constants/event-status";
 import type { EventFormInput } from "@/lib/events/types";
 import { slugifyName } from "@/lib/events/utils";
@@ -20,25 +24,6 @@ import { cn } from "@/lib/utils/cn";
 
 const inputClassName =
   "w-full rounded-2xl border border-white/10 bg-white/5 px-5 py-4 text-white outline-none placeholder:text-zinc-500 focus:border-purple-400/50 focus:ring-1 focus:ring-purple-400/30";
-
-const EVENT_IMAGE_GUIDELINES = {
-  main: {
-    hint: "Cartelera y miniaturas · proporción 4:3",
-    help: "Ideal 1600×1200 px (mín. 1200×900). JPG o WebP, ~200–800 KB. Dejá lo importante al centro: la web recorta bordes.",
-  },
-  banner: {
-    hint: "Header destacado en la home · proporción 12:5",
-    help: "Ideal 2400×1000 px (mín. 1920×800). Horizontal ancha; nombre y caras mejor en el centro.",
-  },
-  thumbnail: {
-    hint: "Fallback de miniatura · proporción 16:9",
-    help: "Ideal 1920×1080 px. Opcional si ya cargaste portada o banner.",
-  },
-  flyer: {
-    hint: "Afiche en detalle del evento · proporción 4:5",
-    help: "Ideal 1200×1500 px. Vertical. Opcional si usás imagen principal.",
-  },
-} as const;
 
 type EventFormProps = {
   initialValues?: EventFormInput;
@@ -48,6 +33,7 @@ type EventFormProps = {
   ) => Promise<{ success: boolean; error?: string }>;
   submitLabel: string;
   autoSlug?: boolean;
+  activeTicketTypeCount?: number;
 };
 
 const defaultValues: EventFormInput = {
@@ -58,9 +44,6 @@ const defaultValues: EventFormInput = {
   thumbnail_url: "",
   flyer_url: "",
   banner_url: "",
-  social_presale_price: "",
-  social_regular_price: "",
-  box_office_preview: "",
   event_date: "",
   start_time: "",
   end_time: "",
@@ -75,6 +58,12 @@ const defaultValues: EventFormInput = {
   home_order: "0",
   external_ticket_url: "",
   ticket_sale_mode: "internal",
+  sale_web_enabled: true,
+  external_sale_enabled: false,
+  sale_whatsapp_enabled: false,
+  reservation_enabled: true,
+  whatsapp_sale_number: "",
+  whatsapp_sale_message: "",
   qr_sell_tickets: false,
   qr_products_enabled: false,
   qr_show_price_list: false,
@@ -86,12 +75,33 @@ export function EventForm({
   action,
   submitLabel,
   autoSlug = false,
+  activeTicketTypeCount,
 }: EventFormProps) {
   const [state, formAction, pending] = useActionState(action, {
     success: false,
   });
   const [values, setValues] = useState(initialValues ?? defaultValues);
   const [slugTouched, setSlugTouched] = useState(!autoSlug);
+
+  const initialDuration = useMemo(
+    () =>
+      deriveInitialDurationParts(
+        initialValues?.start_time ?? "",
+        initialValues?.end_time ?? "",
+      ),
+    [initialValues?.end_time, initialValues?.start_time],
+  );
+
+  const [durationHours, setDurationHours] = useState(initialDuration.hours);
+  const [durationMinutes, setDurationMinutes] = useState(
+    initialDuration.minutes,
+  );
+
+  const needsTicketTypesWarning =
+    (values.sale_web_enabled || values.reservation_enabled) &&
+    (values.status === EVENT_STATUS.PUBLISHED ||
+      values.status === EVENT_STATUS.SOLD_OUT) &&
+    activeTicketTypeCount === 0;
 
   function updateField<K extends keyof EventFormInput>(
     key: K,
@@ -108,194 +118,108 @@ export function EventForm({
     });
   }
 
+  function updateImageField<
+    K extends "main_image_url" | "banner_url" | "flyer_url" | "thumbnail_url",
+  >(key: K, value: string) {
+    updateField(key, value);
+  }
+
   return (
     <Card padding="lg">
-      <form action={formAction} className="space-y-5">
-        <div className="grid gap-5 md:grid-cols-2">
-          <Field label="Nombre *">
-            <input
-              name="name"
-              value={values.name}
-              onChange={(e) => updateField("name", e.target.value)}
-              className={inputClassName}
-              required
-              disabled={pending}
-            />
-          </Field>
-
-          <Field label="Slug *">
-            <input
-              name="slug"
-              value={values.slug}
-              onChange={(e) => {
-                setSlugTouched(true);
-                updateField("slug", e.target.value.toLowerCase());
-              }}
-              className={inputClassName}
-              placeholder="noche-australe"
-              required
-              disabled={pending}
-            />
-          </Field>
-        </div>
-
-        <Field label="Descripción">
-          <textarea
-            name="description"
-            value={values.description}
-            onChange={(e) => updateField("description", e.target.value)}
-            rows={4}
-            className={cn(inputClassName, "resize-y")}
-            disabled={pending}
-          />
-        </Field>
-
-        <div className="rounded-2xl border border-purple-400/20 bg-purple-400/5 p-4">
-          <p className="text-sm font-medium text-zinc-200">Guía rápida de imágenes</p>
-          <ul className="mt-3 space-y-2 text-xs leading-5 text-zinc-400">
-            <li>
-              <span className="font-medium text-purple-300/90">Portada</span> →
-              cards de cartelera (4:3, 1600×1200 px)
-            </li>
-            <li>
-              <span className="font-medium text-purple-300/90">Banner</span> →
-              slider destacado de la home (12:5, 2400×1000 px)
-            </li>
-            <li>
-              <span className="font-medium text-purple-300/90">Miniatura</span>{" "}
-              → fallback 16:9 ·{" "}
-              <span className="font-medium text-purple-300/90">Flyer</span> →
-              afiche vertical 4:5
-            </li>
-          </ul>
-          <p className="mt-3 text-xs leading-5 text-zinc-500">
-            Con una sola imagen alcanza la portada (4:3). Para mejor resultado
-            en la home, sumá también un banner horizontal.
-          </p>
-        </div>
-
-        <Field
-          label="Imagen principal del evento"
-          hint={EVENT_IMAGE_GUIDELINES.main.hint}
-          help={EVENT_IMAGE_GUIDELINES.main.help}
+      <form action={formAction} className="space-y-8">
+        <FormSection
+          title="Información principal"
+          description="Datos básicos del evento y visibilidad."
         >
-          <input
-            name="main_image_url"
-            type="url"
-            value={values.main_image_url}
-            onChange={(e) => updateField("main_image_url", e.target.value)}
-            className={inputClassName}
-            placeholder="https://..."
-            disabled={pending}
-          />
-        </Field>
-
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-          <p className="mb-4 text-sm font-medium text-zinc-300">
-            Vista previa de recortes
-          </p>
-          <EventImageAdminPreview imageUrl={values.main_image_url} />
-        </div>
-
-        <div className="grid gap-5 md:grid-cols-3">
-          <Field label="Punto Social anticipado">
-            <input
-              name="social_presale_price"
-              type="number"
-              min={0}
-              step="0.01"
-              value={values.social_presale_price}
-              onChange={(e) =>
-                updateField("social_presale_price", e.target.value)
-              }
-              className={inputClassName}
-              placeholder="Ej. 15000"
-              disabled={pending}
-            />
-          </Field>
-          <Field label="Punto Social normal">
-            <input
-              name="social_regular_price"
-              type="number"
-              min={0}
-              step="0.01"
-              value={values.social_regular_price}
-              onChange={(e) =>
-                updateField("social_regular_price", e.target.value)
-              }
-              className={inputClassName}
-              placeholder="Ej. 18000"
-              disabled={pending}
-            />
-          </Field>
-          <Field label="Vista previa de mostrador">
-            <input
-              name="box_office_preview"
-              value={values.box_office_preview}
-              onChange={(e) =>
-                updateField("box_office_preview", e.target.value)
-              }
-              className={inputClassName}
-              placeholder="Ej. Desde $20.000 en puerta"
-              disabled={pending}
-            />
-          </Field>
-        </div>
-
-        <details className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
-          <summary className="cursor-pointer text-sm font-medium text-zinc-300">
-            Carga avanzada (flyer / banner / miniatura)
-          </summary>
-          <div className="mt-4 grid gap-5 md:grid-cols-3">
-            <Field
-              label="Banner URL (opcional)"
-              hint={EVENT_IMAGE_GUIDELINES.banner.hint}
-              help={EVENT_IMAGE_GUIDELINES.banner.help}
-            >
+          <div className="grid gap-5 md:grid-cols-2">
+            <Field label="Nombre *">
               <input
-                name="banner_url"
-                type="url"
-                value={values.banner_url}
-                onChange={(e) => updateField("banner_url", e.target.value)}
+                name="name"
+                value={values.name}
+                onChange={(e) => updateField("name", e.target.value)}
                 className={inputClassName}
-                placeholder="https://..."
+                required
                 disabled={pending}
               />
             </Field>
-            <Field
-              label="Flyer URL (opcional)"
-              hint={EVENT_IMAGE_GUIDELINES.flyer.hint}
-              help={EVENT_IMAGE_GUIDELINES.flyer.help}
-            >
+
+            <Field label="Slug *">
               <input
-                name="flyer_url"
-                type="url"
-                value={values.flyer_url}
-                onChange={(e) => updateField("flyer_url", e.target.value)}
+                name="slug"
+                value={values.slug}
+                onChange={(e) => {
+                  setSlugTouched(true);
+                  updateField("slug", e.target.value.toLowerCase());
+                }}
                 className={inputClassName}
-                placeholder="https://..."
-                disabled={pending}
-              />
-            </Field>
-            <Field
-              label="Miniatura URL (opcional)"
-              hint={EVENT_IMAGE_GUIDELINES.thumbnail.hint}
-              help={EVENT_IMAGE_GUIDELINES.thumbnail.help}
-            >
-              <input
-                name="thumbnail_url"
-                type="url"
-                value={values.thumbnail_url}
-                onChange={(e) => updateField("thumbnail_url", e.target.value)}
-                className={inputClassName}
-                placeholder="https://..."
+                placeholder="noche-australe"
+                required
                 disabled={pending}
               />
             </Field>
           </div>
-        </details>
 
-        <div className="grid gap-5 md:grid-cols-3">
+          <Field label="Descripción">
+            <textarea
+              name="description"
+              value={values.description}
+              onChange={(e) => updateField("description", e.target.value)}
+              rows={4}
+              className={cn(inputClassName, "resize-y")}
+              disabled={pending}
+            />
+          </Field>
+
+          <div className="grid gap-5 md:grid-cols-2">
+            <Field label="Visibilidad del evento">
+              <select
+                name="audience"
+                value={values.audience}
+                onChange={(e) =>
+                  updateField(
+                    "audience",
+                    e.target.value as EventFormInput["audience"],
+                  )
+                }
+                className={inputClassName}
+                disabled={pending}
+              >
+                {EVENT_AUDIENCE_VALUES.map((audience) => (
+                  <option key={audience} value={audience} className="bg-zinc-900">
+                    {EVENT_AUDIENCE_LABELS[audience]}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-2 text-xs text-zinc-500">
+                Público: visible para todos. Solo comunidad: requiere membresía
+                activa. Borrador u Oculto: no accesible por URL pública.
+              </p>
+            </Field>
+
+            <Field label="Estado">
+              <select
+                name="status"
+                value={values.status}
+                onChange={(e) =>
+                  updateField("status", e.target.value as EventFormInput["status"])
+                }
+                className={inputClassName}
+                disabled={pending}
+              >
+                {EVENT_STATUS_VALUES.map((status) => (
+                  <option key={status} value={status} className="bg-zinc-900">
+                    {EVENT_STATUS_LABELS[status]}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </div>
+        </FormSection>
+
+        <FormSection
+          title="Fecha y horario"
+          description="Horarios en zona horaria de Mendoza (UTC-3)."
+        >
           <Field label="Fecha *">
             <input
               name="event_date"
@@ -308,52 +232,173 @@ export function EventForm({
             />
           </Field>
 
-          <Field label="Hora inicio">
-            <input
-              name="start_time"
-              type="time"
-              value={values.start_time}
-              onChange={(e) => updateField("start_time", e.target.value)}
-              className={inputClassName}
-              disabled={pending}
-            />
-          </Field>
+          <EventFormScheduleFields
+            values={values}
+            durationHours={durationHours}
+            durationMinutes={durationMinutes}
+            disabled={pending}
+            inputClassName={inputClassName}
+            onStartTimeChange={(value) => updateField("start_time", value)}
+            onEndTimeChange={(value) => updateField("end_time", value)}
+            onDurationChange={(hours, minutes) => {
+              setDurationHours(hours);
+              setDurationMinutes(minutes);
+            }}
+          />
 
-          <Field label="Hora fin">
-            <input
-              name="end_time"
-              type="time"
-              value={values.end_time}
-              onChange={(e) => updateField("end_time", e.target.value)}
-              className={inputClassName}
-              disabled={pending}
-            />
-          </Field>
-        </div>
+          <div className="grid gap-5 md:grid-cols-2">
+            <Field label="Lugar">
+              <input
+                name="location_name"
+                value={values.location_name}
+                onChange={(e) => updateField("location_name", e.target.value)}
+                className={inputClassName}
+                disabled={pending}
+              />
+            </Field>
 
-        <div className="grid gap-5 md:grid-cols-2">
-          <Field label="Lugar">
-            <input
-              name="location_name"
-              value={values.location_name}
-              onChange={(e) => updateField("location_name", e.target.value)}
-              className={inputClassName}
-              disabled={pending}
-            />
-          </Field>
+            <Field label="Dirección">
+              <input
+                name="address"
+                value={values.address}
+                onChange={(e) => updateField("address", e.target.value)}
+                className={inputClassName}
+                disabled={pending}
+              />
+            </Field>
+          </div>
+        </FormSection>
 
-          <Field label="Dirección">
-            <input
-              name="address"
-              value={values.address}
-              onChange={(e) => updateField("address", e.target.value)}
-              className={inputClassName}
+        <FormSection
+          title="Venta"
+          description="Activá uno o más canales. Los precios se configuran en tipos de entrada."
+        >
+          <div className="space-y-3">
+            <SaleChannelCard
+              name="sale_web_enabled"
+              title="Venta desde la web"
+              description="Compra y pago mediante la plataforma."
+              checked={values.sale_web_enabled}
               disabled={pending}
+              onChange={(checked) => updateField("sale_web_enabled", checked)}
             />
-          </Field>
-        </div>
+            <SaleChannelCard
+              name="reservation_enabled"
+              title="Reserva desde la web"
+              description="El cliente reserva y el administrador confirma el pago."
+              checked={values.reservation_enabled}
+              disabled={pending}
+              onChange={(checked) => updateField("reservation_enabled", checked)}
+            />
+            <SaleChannelCard
+              name="sale_whatsapp_enabled"
+              title="Venta por WhatsApp"
+              description="La consulta se envía al número configurado."
+              checked={values.sale_whatsapp_enabled}
+              disabled={pending}
+              onChange={(checked) =>
+                updateField("sale_whatsapp_enabled", checked)
+              }
+            />
+            <SaleChannelCard
+              name="external_sale_enabled"
+              title="Link externo"
+              description="Envía al comprador a otra plataforma."
+              checked={values.external_sale_enabled}
+              disabled={pending}
+              onChange={(checked) =>
+                updateField("external_sale_enabled", checked)
+              }
+            />
+          </div>
 
-        <div className="grid gap-5 md:grid-cols-3">
+          {values.external_sale_enabled ? (
+            <Field label="URL externa de venta">
+              <input
+                name="external_ticket_url"
+                type="url"
+                value={values.external_ticket_url}
+                onChange={(e) =>
+                  updateField("external_ticket_url", e.target.value)
+                }
+                className={inputClassName}
+                placeholder="https://plataformaexterna.com/evento/entradas"
+                disabled={pending}
+                required={
+                  values.status === "published" ||
+                  values.status === "sold_out"
+                }
+              />
+            </Field>
+          ) : null}
+
+          {values.sale_whatsapp_enabled ? (
+            <div className="grid gap-5 md:grid-cols-2">
+              <Field label="Número de WhatsApp">
+                <input
+                  name="whatsapp_sale_number"
+                  type="tel"
+                  value={values.whatsapp_sale_number}
+                  onChange={(e) =>
+                    updateField("whatsapp_sale_number", e.target.value)
+                  }
+                  className={inputClassName}
+                  placeholder="+5492615551234"
+                  disabled={pending}
+                  required={
+                    values.status === "published" ||
+                    values.status === "sold_out"
+                  }
+                />
+              </Field>
+              <Field label="Mensaje inicial">
+                <textarea
+                  name="whatsapp_sale_message"
+                  value={values.whatsapp_sale_message}
+                  onChange={(e) =>
+                    updateField("whatsapp_sale_message", e.target.value)
+                  }
+                  className={cn(inputClassName, "min-h-[120px] resize-y")}
+                  placeholder="Hola, quiero consultar entradas para..."
+                  disabled={pending}
+                />
+              </Field>
+            </div>
+          ) : null}
+
+          {needsTicketTypesWarning ? (
+            <p className="rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
+              Activaste venta o reserva web pero este evento no tiene tipos de
+              entrada activos. Configuralos en Tipos de entradas antes de
+              publicar.
+            </p>
+          ) : null}
+
+          {(values.sale_web_enabled || values.reservation_enabled) &&
+          values.status === EVENT_STATUS.DRAFT ? (
+            <p className="text-xs text-zinc-500">
+              Recordá crear tipos de entrada activos antes de publicar con venta
+              o reserva web.
+            </p>
+          ) : null}
+        </FormSection>
+
+        <FormSection
+          title="Imagen del evento"
+          description="El banner principal se reutiliza en todo el sitio público."
+        >
+          <EventImageAdminPreview
+            values={values}
+            onChange={updateImageField}
+            disabled={pending}
+            inputClassName={inputClassName}
+          />
+        </FormSection>
+
+        <FormSection
+          title="Configuración adicional"
+          description="Capacidad, destacado en home y QR de ventas."
+        >
           <Field label="Capacidad">
             <input
               name="capacity"
@@ -366,195 +411,124 @@ export function EventForm({
             />
           </Field>
 
-          <Field label="Visibilidad del evento">
-            <select
-              name="audience"
-              value={values.audience}
-              onChange={(e) =>
-                updateField(
-                  "audience",
-                  e.target.value as EventFormInput["audience"],
-                )
-              }
-              className={inputClassName}
-              disabled={pending}
-            >
-              {EVENT_AUDIENCE_VALUES.map((audience) => (
-                <option key={audience} value={audience} className="bg-zinc-900">
-                  {EVENT_AUDIENCE_LABELS[audience]}
-                </option>
-              ))}
-            </select>
-            <p className="mt-2 text-xs text-zinc-500">
-              Público: visible para todos. Solo comunidad: requiere membresía activa.
-              Usá estado Borrador u Oculto para eventos privados no accesibles por URL.
-            </p>
-          </Field>
-
-          <Field label="Estado">
-            <select
-              name="status"
-              value={values.status}
-              onChange={(e) =>
-                updateField("status", e.target.value as EventFormInput["status"])
-              }
-              className={inputClassName}
-              disabled={pending}
-            >
-              {EVENT_STATUS_VALUES.map((status) => (
-                <option key={status} value={status} className="bg-zinc-900">
-                  {EVENT_STATUS_LABELS[status]}
-                </option>
-              ))}
-            </select>
-          </Field>
-
-          <Field label="Modo de venta">
-            <select
-              name="ticket_sale_mode"
-              value={values.ticket_sale_mode}
-              onChange={(e) =>
-                updateField(
-                  "ticket_sale_mode",
-                  e.target.value as EventFormInput["ticket_sale_mode"],
-                )
-              }
-              className={inputClassName}
-              disabled={pending}
-            >
-              {TICKET_SALE_MODE_VALUES.map((mode) => (
-                <option key={mode} value={mode} className="bg-zinc-900">
-                  {TICKET_SALE_MODE_LABELS[mode]}
-                </option>
-              ))}
-            </select>
-          </Field>
-        </div>
-
-        <Field label="Link externo de venta">
-          <input
-            name="external_ticket_url"
-            type="url"
-            value={values.external_ticket_url}
-            onChange={(e) => updateField("external_ticket_url", e.target.value)}
-            className={inputClassName}
-            placeholder="https://..."
-            disabled={pending}
-          />
-        </Field>
-
-        <div className="space-y-4 rounded-2xl border border-white/10 bg-white/5 p-5">
-          <div>
-            <h3 className="text-sm font-semibold text-white">
-              QR de ventas del evento
-            </h3>
-            <p className="mt-1 text-xs leading-5 text-zinc-500">
-              Un único QR para vender entradas y/o consumiciones. El código se
-              genera al guardar cuando activás al menos una opción.
-            </p>
-          </div>
-
-          <ChecklistItem
-            name="qr_sell_tickets"
-            label="Vender entradas desde el QR"
-            checked={values.qr_sell_tickets}
-            disabled={pending}
-            onChange={(checked) => updateField("qr_sell_tickets", checked)}
-          />
-
-          <div className="space-y-3 rounded-xl border border-white/10 bg-black/20 p-4">
-            <ChecklistItem
-              name="qr_products_enabled"
-              label="Habilitar productos / consumiciones QR"
-              checked={values.qr_products_enabled}
-              disabled={pending}
-              onChange={(checked) => {
-                setValues((prev) => ({
-                  ...prev,
-                  qr_products_enabled: checked,
-                  qr_show_price_list: checked ? prev.qr_show_price_list : false,
-                  qr_sell_products: checked ? prev.qr_sell_products : false,
-                }));
-              }}
-            />
-
-            <div
-              className={cn(
-                "ml-6 space-y-3 border-l border-white/10 pl-4",
-                !values.qr_products_enabled && "opacity-50",
-              )}
-            >
-              <ChecklistItem
-                name="qr_show_price_list"
-                label="Mostrar lista de precios"
-                checked={values.qr_show_price_list}
-                disabled={pending || !values.qr_products_enabled}
-                onChange={(checked) =>
-                  updateField("qr_show_price_list", checked)
-                }
+          <div className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+            <label className="flex items-center gap-3">
+              <input
+                name="is_featured"
+                type="checkbox"
+                checked={values.is_featured}
+                onChange={(e) => updateField("is_featured", e.target.checked)}
+                disabled={pending}
+                className="h-5 w-5 rounded border-white/20 bg-zinc-900"
               />
-              <ChecklistItem
-                name="qr_sell_products"
-                label="Vender productos / consumiciones"
-                checked={values.qr_sell_products}
-                disabled={pending || !values.qr_products_enabled}
-                onChange={(checked) => updateField("qr_sell_products", checked)}
-              />
+              <span className="text-sm text-zinc-300">
+                Destacar en página principal
+              </span>
+            </label>
+
+            <div className="grid gap-5 md:grid-cols-3">
+              <Field label="Ticket destacado">
+                <input
+                  name="featured_ticket_label"
+                  value={values.featured_ticket_label}
+                  onChange={(e) =>
+                    updateField("featured_ticket_label", e.target.value)
+                  }
+                  className={inputClassName}
+                  placeholder="Ej. Preventa abierta"
+                  disabled={pending}
+                />
+              </Field>
+              <Field label="Destacar hasta">
+                <input
+                  name="featured_until"
+                  type="datetime-local"
+                  value={values.featured_until}
+                  onChange={(e) =>
+                    updateField("featured_until", e.target.value)
+                  }
+                  className={inputClassName}
+                  disabled={pending}
+                />
+              </Field>
+              <Field label="Orden en home">
+                <input
+                  name="home_order"
+                  type="number"
+                  min={0}
+                  value={values.home_order}
+                  onChange={(e) => updateField("home_order", e.target.value)}
+                  className={inputClassName}
+                  disabled={pending}
+                />
+              </Field>
             </div>
           </div>
-        </div>
 
-        <div className="space-y-4 rounded-2xl border border-white/10 bg-white/5 p-5">
-          <label className="flex items-center gap-3">
-            <input
-              name="is_featured"
-              type="checkbox"
-              checked={values.is_featured}
-              onChange={(e) => updateField("is_featured", e.target.checked)}
+          <div className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+            <div>
+              <h3 className="text-sm font-semibold text-white">
+                QR de ventas del evento
+              </h3>
+              <p className="mt-1 text-xs leading-5 text-zinc-500">
+                Un único QR para vender entradas y/o consumiciones.
+              </p>
+            </div>
+
+            <ChecklistItem
+              name="qr_sell_tickets"
+              label="Vender entradas desde el QR"
+              checked={values.qr_sell_tickets}
               disabled={pending}
-              className="h-5 w-5 rounded border-white/20 bg-zinc-900"
+              onChange={(checked) => updateField("qr_sell_tickets", checked)}
             />
-            <span className="text-sm text-zinc-300">
-              Destacar en página principal
-            </span>
-          </label>
 
-          <div className="grid gap-5 md:grid-cols-3">
-            <Field label="Ticket destacado">
-              <input
-                name="featured_ticket_label"
-                value={values.featured_ticket_label}
-                onChange={(e) =>
-                  updateField("featured_ticket_label", e.target.value)
-                }
-                className={inputClassName}
-                placeholder="Ej. Preventa abierta"
+            <div className="space-y-3 rounded-xl border border-white/10 bg-black/20 p-4">
+              <ChecklistItem
+                name="qr_products_enabled"
+                label="Habilitar productos / consumiciones QR"
+                checked={values.qr_products_enabled}
                 disabled={pending}
+                onChange={(checked) => {
+                  setValues((prev) => ({
+                    ...prev,
+                    qr_products_enabled: checked,
+                    qr_show_price_list: checked
+                      ? prev.qr_show_price_list
+                      : false,
+                    qr_sell_products: checked ? prev.qr_sell_products : false,
+                  }));
+                }}
               />
-            </Field>
-            <Field label="Destacar hasta">
-              <input
-                name="featured_until"
-                type="datetime-local"
-                value={values.featured_until}
-                onChange={(e) => updateField("featured_until", e.target.value)}
-                className={inputClassName}
-                disabled={pending}
-              />
-            </Field>
-            <Field label="Orden en home">
-              <input
-                name="home_order"
-                type="number"
-                min={0}
-                value={values.home_order}
-                onChange={(e) => updateField("home_order", e.target.value)}
-                className={inputClassName}
-                disabled={pending}
-              />
-            </Field>
+
+              <div
+                className={cn(
+                  "ml-6 space-y-3 border-l border-white/10 pl-4",
+                  !values.qr_products_enabled && "opacity-50",
+                )}
+              >
+                <ChecklistItem
+                  name="qr_show_price_list"
+                  label="Mostrar lista de precios"
+                  checked={values.qr_show_price_list}
+                  disabled={pending || !values.qr_products_enabled}
+                  onChange={(checked) =>
+                    updateField("qr_show_price_list", checked)
+                  }
+                />
+                <ChecklistItem
+                  name="qr_sell_products"
+                  label="Vender productos / consumiciones"
+                  checked={values.qr_sell_products}
+                  disabled={pending || !values.qr_products_enabled}
+                  onChange={(checked) =>
+                    updateField("qr_sell_products", checked)
+                  }
+                />
+              </div>
+            </div>
           </div>
-        </div>
+        </FormSection>
 
         {state.error ? (
           <p className="rounded-2xl border border-red-400/30 bg-red-400/10 px-4 py-3 text-sm text-red-200">
@@ -573,6 +547,58 @@ export function EventForm({
         </Button>
       </form>
     </Card>
+  );
+}
+
+function SaleChannelCard({
+  name,
+  title,
+  description,
+  checked,
+  disabled,
+  onChange,
+}: {
+  name: string;
+  title: string;
+  description: string;
+  checked: boolean;
+  disabled?: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <label
+      className={cn(
+        "flex cursor-pointer items-start gap-4 rounded-2xl border p-4 transition",
+        checked
+          ? "border-purple-400/40 bg-purple-500/10 ring-1 ring-purple-400/30"
+          : "border-white/10 bg-white/5 hover:border-white/20",
+        disabled && "cursor-not-allowed opacity-60",
+      )}
+    >
+      <input
+        name={name}
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.checked)}
+        className="mt-1 h-5 w-5 shrink-0 rounded border-white/20 bg-zinc-900"
+        aria-describedby={`${name}-desc`}
+      />
+      <span className="min-w-0">
+        <span className="block text-sm font-semibold text-white">{title}</span>
+        <span
+          id={`${name}-desc`}
+          className="mt-1 block text-xs leading-5 text-zinc-400"
+        >
+          {description}
+        </span>
+        {checked ? (
+          <span className="mt-2 inline-flex rounded-full bg-purple-500/20 px-2 py-0.5 text-[11px] font-medium text-purple-200">
+            Activo
+          </span>
+        ) : null}
+      </span>
+    </label>
   );
 }
 
@@ -625,7 +651,9 @@ function Field({
       ) : null}
       {children}
       {help ? (
-        <span className="mt-2 block text-xs leading-5 text-zinc-500">{help}</span>
+        <span className="mt-2 block text-xs leading-5 text-zinc-500">
+          {help}
+        </span>
       ) : null}
     </label>
   );

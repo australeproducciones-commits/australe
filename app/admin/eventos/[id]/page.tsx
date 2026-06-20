@@ -11,6 +11,7 @@ import { updateEventFormAction } from "@/lib/events/actions";
 import { isReservedEventAdminSegment, isUuid } from "@/lib/events/adminRoutes";
 import { getEventByIdForAdmin } from "@/lib/events/queries";
 import { eventToFormInput } from "@/lib/events/utils";
+import { getActiveTicketTypesByEventId } from "@/lib/tickets/queries";
 
 type AdminEditEventoPageProps = {
   params: Promise<{ id: string }>;
@@ -47,6 +48,8 @@ export default async function AdminEditEventoPage({
   if (!event) {
     notFound();
   }
+
+  const activeTicketTypes = await getActiveTicketTypesByEventId(event.id);
 
   const updateAction = updateEventFormAction.bind(null, event.id);
 
@@ -118,6 +121,7 @@ export default async function AdminEditEventoPage({
           initialValues={eventToFormInput(event)}
           action={updateAction}
           submitLabel="Guardar cambios"
+          activeTicketTypeCount={activeTicketTypes.length}
         />
       </div>
     </>

@@ -36,6 +36,12 @@ export type Event = {
   home_order: number;
   external_ticket_url: string | null;
   ticket_sale_mode: TicketSaleMode;
+  sale_web_enabled: boolean;
+  external_sale_enabled: boolean;
+  sale_whatsapp_enabled: boolean;
+  reservation_enabled: boolean;
+  whatsapp_sale_number: string | null;
+  whatsapp_sale_message: string | null;
   sales_qr_enabled: boolean;
   sales_qr_code: string | null;
   sales_qr_url: string | null;
@@ -56,9 +62,6 @@ export type EventFormInput = {
   thumbnail_url: string;
   flyer_url: string;
   banner_url: string;
-  social_presale_price: string;
-  social_regular_price: string;
-  box_office_preview: string;
   event_date: string;
   start_time: string;
   end_time: string;
@@ -73,6 +76,12 @@ export type EventFormInput = {
   home_order: string;
   external_ticket_url: string;
   ticket_sale_mode: TicketSaleMode;
+  sale_web_enabled: boolean;
+  external_sale_enabled: boolean;
+  sale_whatsapp_enabled: boolean;
+  reservation_enabled: boolean;
+  whatsapp_sale_number: string;
+  whatsapp_sale_message: string;
   qr_sell_tickets: boolean;
   qr_products_enabled: boolean;
   qr_show_price_list: boolean;

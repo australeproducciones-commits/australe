@@ -14,7 +14,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 
 const EVENT_COLUMNS =
-  "id, name, slug, description, main_image_url, thumbnail_url, flyer_url, banner_url, social_presale_price, social_regular_price, box_office_preview, event_date, start_time, end_time, location_name, address, capacity, status, audience, financial_management_status, financial_closed_at, financial_closed_by, ticket_sale_mode, external_ticket_url, is_featured, featured_ticket_label, featured_until, home_order, sales_qr_enabled, sales_qr_code, sales_qr_url, qr_sell_tickets, qr_products_enabled, qr_show_price_list, qr_sell_products, created_by, created_at, updated_at";
+  "id, name, slug, description, main_image_url, thumbnail_url, flyer_url, banner_url, social_presale_price, social_regular_price, box_office_preview, event_date, start_time, end_time, location_name, address, capacity, status, audience, financial_management_status, financial_closed_at, financial_closed_by, ticket_sale_mode, external_ticket_url, sale_web_enabled, external_sale_enabled, sale_whatsapp_enabled, reservation_enabled, whatsapp_sale_number, whatsapp_sale_message, is_featured, featured_ticket_label, featured_until, home_order, sales_qr_enabled, sales_qr_code, sales_qr_url, qr_sell_tickets, qr_products_enabled, qr_show_price_list, qr_sell_products, created_by, created_at, updated_at";
 
 export async function requireAdminPage() {
   const supabase = await createClient();
@@ -72,6 +72,12 @@ function normalizeEventRow(row: Event): Event {
     qr_products_enabled: row.qr_products_enabled ?? false,
     qr_show_price_list: row.qr_show_price_list ?? false,
     qr_sell_products: row.qr_sell_products ?? false,
+    sale_web_enabled: row.sale_web_enabled ?? true,
+    external_sale_enabled: row.external_sale_enabled ?? false,
+    sale_whatsapp_enabled: row.sale_whatsapp_enabled ?? false,
+    reservation_enabled: row.reservation_enabled ?? true,
+    whatsapp_sale_number: row.whatsapp_sale_number ?? null,
+    whatsapp_sale_message: row.whatsapp_sale_message ?? null,
   };
 }
 

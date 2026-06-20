@@ -4,9 +4,7 @@ import { AdminQueryErrorCard } from "@/components/admin/AdminQueryErrorCard";
 import { AdminHeader } from "@/components/layout/AdminHeader";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import {
-  TICKET_SALE_MODE_LABELS,
-} from "@/lib/constants/event-status";
+import { formatSaleChannelsSummary } from "@/lib/events/saleChannels";
 import {
   formatEventSoldStockLabel,
   getAdminStatsByEventIds,
@@ -119,7 +117,7 @@ export default async function AdminEventosPage() {
                         {getEventVisibilityBadge(event)}
                       </span>
                       <span className="rounded-full bg-white/10 px-3 py-1 text-zinc-300">
-                        {TICKET_SALE_MODE_LABELS[event.ticket_sale_mode]}
+                        {formatSaleChannelsSummary(event)}
                       </span>
                       <span className="rounded-full bg-white/10 px-3 py-1 text-zinc-400">
                         /{event.slug}

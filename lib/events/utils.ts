@@ -6,69 +6,54 @@ import {
 } from "@/lib/constants/event-audience";
 import {
   EVENT_STATUS_VALUES,
-  TICKET_SALE_MODE_VALUES,
   type EventStatus,
   type TicketSaleMode,
 } from "@/lib/constants/event-status";
 import type { EventFormInput, Event } from "@/lib/events/types";
+import {
+  deriveTicketSaleMode,
+  hasAnySaleChannel,
+  isPublishingStatus,
+  isValidExternalTicketUrl,
+  isValidWhatsAppNumber,
+  resolveSaleChannels,
+} from "@/lib/events/saleChannels";
 
-export type EventImageFields = Pick<
-  Event,
-  "main_image_url" | "thumbnail_url" | "flyer_url" | "banner_url"
->;
+import type { EventImageFields } from "@/lib/events/getEventImage";
+import {
+  getEventImage,
+  getEventImageSource,
+  hasCustomEventImage,
+} from "@/lib/events/getEventImage";
 
-/** Imagen principal con fallback a banner, flyer o miniatura. */
+export type { EventImageFields } from "@/lib/events/getEventImage";
+
+/** @deprecated Usar getEventImageSource */
 export function getEventPrimaryImageUrl(event: EventImageFields): string | null {
-  return (
-    event.main_image_url ||
-    event.banner_url ||
-    event.flyer_url ||
-    event.thumbnail_url ||
-    null
-  );
+  return getEventImageSource(event);
 }
 
-/** Imagen para hero/home: banner primero, luego portada y miniatura. */
+/** @deprecated Usar getEventImage */
 export function getEventHeroBannerUrl(event: EventImageFields): string | null {
-  return (
-    event.banner_url ||
-    event.main_image_url ||
-    event.thumbnail_url ||
-    event.flyer_url ||
-    null
-  );
+  return getEventImageSource(event);
 }
 
-/** @deprecated Usar getEventPrimaryImageUrl + EventImage variant="card" */
+/** @deprecated Usar getEventImage + variant card */
 export function getEventCardImageUrl(event: EventImageFields): string | null {
-  return getEventPrimaryImageUrl(event);
+  return getEventImageSource(event);
 }
 
-/** @deprecated Usar getEventPrimaryImageUrl + EventImage variant="banner" */
+/** @deprecated Usar getEventImage + variant banner */
 export function getEventHeroImageUrl(event: EventImageFields): string | null {
-  return getEventPrimaryImageUrl(event);
+  return getEventImageSource(event);
 }
 
-/** Afiche en detalle: flyer legacy si difiere de la portada unificada. */
-export function getEventDetailPosterUrl(event: EventImageFields): string | null {
-  if (event.main_image_url) {
-    return null;
-  }
-
-  if (!event.flyer_url) {
-    return null;
-  }
-
-  if (event.banner_url && event.flyer_url !== event.banner_url) {
-    return event.flyer_url;
-  }
-
-  if (!event.banner_url) {
-    return event.flyer_url;
-  }
-
+/** Ya no se muestra afiche separado: el banner unificado cubre el detalle. */
+export function getEventDetailPosterUrl(_event: EventImageFields): string | null {
   return null;
 }
+
+export { getEventImage, getEventImageSource, hasCustomEventImage };
 
 export function isEventFeaturedActive(
   event: Pick<Event, "is_featured" | "featured_until">,
@@ -92,6 +77,22 @@ export function formatEventDateShort(dateStr: string): string {
     day: "numeric",
     month: "short",
   }).format(date);
+}
+
+/** Formato compacto para badges: "5 JUL 2026" */
+export function formatEventDateCompact(dateStr: string): string {
+  const [year, month, day] = dateStr.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+
+  const dayPart = new Intl.DateTimeFormat("es-AR", { day: "numeric" }).format(
+    date,
+  );
+  const monthPart = new Intl.DateTimeFormat("es-AR", { month: "short" })
+    .format(date)
+    .replace(/\./g, "")
+    .toUpperCase();
+
+  return `${dayPart} ${monthPart} ${year}`;
 }
 
 export function slugifyName(name: string): string {
@@ -140,7 +141,7 @@ export function formatEventDateTime(
   const end = formatTime(endTime);
 
   if (start && end) {
-    return `${dateLabel} · ${start} – ${end}`;
+    return `${dateLabel} · ${start} a ${end}`;
   }
 
   if (start) {
@@ -179,9 +180,6 @@ export function parseEventFormData(formData: FormData): EventFormInput {
     thumbnail_url: String(formData.get("thumbnail_url") ?? "").trim(),
     flyer_url: String(formData.get("flyer_url") ?? "").trim(),
     banner_url: String(formData.get("banner_url") ?? "").trim(),
-    social_presale_price: String(formData.get("social_presale_price") ?? "").trim(),
-    social_regular_price: String(formData.get("social_regular_price") ?? "").trim(),
-    box_office_preview: String(formData.get("box_office_preview") ?? "").trim(),
     event_date: String(formData.get("event_date") ?? "").trim(),
     start_time: String(formData.get("start_time") ?? "").trim(),
     end_time: String(formData.get("end_time") ?? "").trim(),
@@ -197,9 +195,17 @@ export function parseEventFormData(formData: FormData): EventFormInput {
     featured_until: String(formData.get("featured_until") ?? "").trim(),
     home_order: String(formData.get("home_order") ?? "0").trim(),
     external_ticket_url: String(formData.get("external_ticket_url") ?? "").trim(),
-    ticket_sale_mode: String(
-      formData.get("ticket_sale_mode") ?? "internal",
-    ) as TicketSaleMode,
+    sale_web_enabled: formData.get("sale_web_enabled") === "on",
+    external_sale_enabled: formData.get("external_sale_enabled") === "on",
+    sale_whatsapp_enabled: formData.get("sale_whatsapp_enabled") === "on",
+    reservation_enabled: formData.get("reservation_enabled") === "on",
+    whatsapp_sale_number: String(
+      formData.get("whatsapp_sale_number") ?? "",
+    ).trim(),
+    whatsapp_sale_message: String(
+      formData.get("whatsapp_sale_message") ?? "",
+    ).trim(),
+    ticket_sale_mode: "internal" as TicketSaleMode,
     qr_sell_tickets: formData.get("qr_sell_tickets") === "on",
     qr_products_enabled: formData.get("qr_products_enabled") === "on",
     qr_show_price_list: formData.get("qr_show_price_list") === "on",
@@ -248,39 +254,44 @@ export function validateEventForm(input: EventFormInput): string | null {
     return capacityError;
   }
 
-  const presaleError = validateOptionalNonNegativeNumber(
-    input.social_presale_price,
-    "El precio Punto Social anticipado",
-  );
-  if (presaleError) {
-    return presaleError;
-  }
-
-  const regularError = validateOptionalNonNegativeNumber(
-    input.social_regular_price,
-    "El precio Punto Social normal",
-  );
-  if (regularError) {
-    return regularError;
-  }
-
   if (!EVENT_STATUS_VALUES.includes(input.status)) {
     return "El estado seleccionado no es válido.";
-  }
-
-  if (!TICKET_SALE_MODE_VALUES.includes(input.ticket_sale_mode)) {
-    return "El modo de venta seleccionado no es válido.";
   }
 
   if (!EVENT_AUDIENCE_VALUES.includes(input.audience)) {
     return "La visibilidad seleccionada no es válida.";
   }
 
+  if (input.external_ticket_url && !isValidExternalTicketUrl(input.external_ticket_url)) {
+    return "La URL externa debe ser válida y usar https://.";
+  }
+
   if (
-    (input.ticket_sale_mode === "external" || input.ticket_sale_mode === "both") &&
-    !input.external_ticket_url
+    input.sale_whatsapp_enabled &&
+    input.whatsapp_sale_number &&
+    !isValidWhatsAppNumber(input.whatsapp_sale_number)
   ) {
-    return "Indicá el link externo de entradas para este modo de venta.";
+    return "El número de WhatsApp debe incluir código de país y ser válido.";
+  }
+
+  if (isPublishingStatus(input.status)) {
+    if (!hasAnySaleChannel(input)) {
+      return "Seleccioná al menos un canal de venta o reserva antes de publicar el evento.";
+    }
+
+    if (
+      input.external_sale_enabled &&
+      !isValidExternalTicketUrl(input.external_ticket_url)
+    ) {
+      return "Indicá una URL externa válida (https://) para publicar con link externo.";
+    }
+
+    if (
+      input.sale_whatsapp_enabled &&
+      !isValidWhatsAppNumber(input.whatsapp_sale_number)
+    ) {
+      return "Indicá un número de WhatsApp válido para publicar con venta por WhatsApp.";
+    }
   }
 
   return null;
@@ -295,9 +306,6 @@ export function eventFormToPayload(input: EventFormInput) {
     thumbnail_url: input.thumbnail_url || null,
     flyer_url: input.flyer_url || null,
     banner_url: input.banner_url || null,
-    social_presale_price: parseNullableNumber(input.social_presale_price),
-    social_regular_price: parseNullableNumber(input.social_regular_price),
-    box_office_preview: input.box_office_preview || null,
     event_date: input.event_date,
     start_time: input.start_time || null,
     end_time: input.end_time || null,
@@ -306,8 +314,14 @@ export function eventFormToPayload(input: EventFormInput) {
     capacity: parseNullableNumber(input.capacity),
     status: input.status,
     audience: input.audience,
-    ticket_sale_mode: input.ticket_sale_mode,
+    ticket_sale_mode: deriveTicketSaleMode(input),
     external_ticket_url: input.external_ticket_url || null,
+    sale_web_enabled: input.sale_web_enabled,
+    external_sale_enabled: input.external_sale_enabled,
+    sale_whatsapp_enabled: input.sale_whatsapp_enabled,
+    reservation_enabled: input.reservation_enabled,
+    whatsapp_sale_number: input.whatsapp_sale_number || null,
+    whatsapp_sale_message: input.whatsapp_sale_message || null,
     is_featured: input.is_featured,
     featured_ticket_label: input.featured_ticket_label || null,
     featured_until: input.featured_until || null,
@@ -325,6 +339,9 @@ export function eventFormToInsertPayload(
     financial_management_status: FINANCIAL_MANAGEMENT_STATUS.OPEN,
     financial_closed_at: null,
     financial_closed_by: null,
+    social_presale_price: null,
+    social_regular_price: null,
+    box_office_preview: null,
   };
 }
 
@@ -337,15 +354,6 @@ export function eventToFormInput(event: Event): EventFormInput {
     thumbnail_url: event.thumbnail_url ?? "",
     flyer_url: event.flyer_url ?? "",
     banner_url: event.banner_url ?? "",
-    social_presale_price:
-      event.social_presale_price != null
-        ? String(event.social_presale_price)
-        : "",
-    social_regular_price:
-      event.social_regular_price != null
-        ? String(event.social_regular_price)
-        : "",
-    box_office_preview: event.box_office_preview ?? "",
     event_date: event.event_date,
     start_time: formatTime(event.start_time) ?? "",
     end_time: formatTime(event.end_time) ?? "",
@@ -362,6 +370,12 @@ export function eventToFormInput(event: Event): EventFormInput {
     home_order: String(event.home_order ?? 0),
     external_ticket_url: event.external_ticket_url ?? "",
     ticket_sale_mode: event.ticket_sale_mode,
+    sale_web_enabled: resolveSaleChannels(event).saleWebEnabled,
+    external_sale_enabled: resolveSaleChannels(event).externalSaleEnabled,
+    sale_whatsapp_enabled: resolveSaleChannels(event).saleWhatsappEnabled,
+    reservation_enabled: resolveSaleChannels(event).reservationEnabled,
+    whatsapp_sale_number: event.whatsapp_sale_number ?? "",
+    whatsapp_sale_message: event.whatsapp_sale_message ?? "",
     qr_sell_tickets: event.qr_sell_tickets ?? false,
     qr_products_enabled: event.qr_products_enabled ?? false,
     qr_show_price_list: event.qr_show_price_list ?? false,

@@ -61,6 +61,8 @@ async function syncKioskPresaleForQr(
       event_id: eventId,
       presale_enabled: true,
       manual_sales_enabled: true,
+      qr_sale_enabled: true,
+      show_price_list: true,
       notes: null,
     },
     { onConflict: "event_id" },
@@ -142,6 +144,9 @@ export async function updateEventAction(
   const payload = {
     ...eventFormToPayload(input),
     ...qrPayload,
+    social_presale_price: existing?.social_presale_price ?? null,
+    social_regular_price: existing?.social_regular_price ?? null,
+    box_office_preview: existing?.box_office_preview ?? null,
   };
 
   const { data, error } = await auth.supabase

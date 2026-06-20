@@ -109,6 +109,36 @@ export function getKioskOrderSourceLabel(
 export const PUBLIC_KIOSK_QUANTITY_NOT_ALLOWED =
   "La cantidad seleccionada no está permitida. Ajustá tu pedido e intentá nuevamente.";
 
+type KioskCatalogStockSource = {
+  product_stock_on_hand?: number | null;
+  product_stock_reserved?: number | null;
+};
+
+type KioskProductStockSource = {
+  stock_total: number | null;
+  stock_sold: number;
+} & KioskCatalogStockSource;
+
+type KioskProductAvailabilityStockSource = KioskProductStockSource & {
+  is_available: boolean;
+};
+
+type NormalizedKioskCatalogStock = {
+  product_stock_on_hand?: number;
+  product_stock_reserved?: number;
+};
+
+function withUndefinedCatalogStock<T extends KioskCatalogStockSource>(
+  product: T,
+): Omit<T, "product_stock_on_hand" | "product_stock_reserved"> &
+  NormalizedKioskCatalogStock {
+  return {
+    ...product,
+    product_stock_on_hand: product.product_stock_on_hand ?? undefined,
+    product_stock_reserved: product.product_stock_reserved ?? undefined,
+  };
+}
+
 export function exceedsKioskMaxPerOrder(
   maxPerOrder: number | null | undefined,
   quantity: number,
@@ -141,13 +171,9 @@ export function getKioskCommunityPriceLabel(
   return formatCommunityPriceLabel(communityPrice);
 }
 
-export function getKioskStockLabel(product: {
-  stock_total: number | null;
-  stock_sold: number;
-  product_stock_on_hand?: number;
-  product_stock_reserved?: number;
-}): string {
-  const available = getKioskStockAvailable(product);
+export function getKioskStockLabel(product: KioskProductStockSource): string {
+  const normalizedProduct = withUndefinedCatalogStock(product);
+  const available = getKioskStockAvailable(normalizedProduct);
 
   if (available != null) {
     return `${product.stock_sold} vendidas en evento · ${available} disponibles en catálogo`;
@@ -161,13 +187,9 @@ export function getKioskStockLabel(product: {
   return `${product.stock_sold} / ${product.stock_total} vendidas · ${remaining} disponibles`;
 }
 
-export function isKioskProductSoldOut(product: {
-  stock_total: number | null;
-  stock_sold: number;
-  is_available: boolean;
-  product_stock_on_hand?: number;
-  product_stock_reserved?: number;
-}): boolean {
+export function isKioskProductSoldOut(
+  product: KioskProductAvailabilityStockSource & NormalizedKioskCatalogStock,
+): boolean {
   if (!product.is_available) {
     return true;
   }
@@ -188,12 +210,9 @@ export function isKioskProductSoldOut(product: {
   return product.stock_sold >= product.stock_total;
 }
 
-export function getKioskStockAvailable(product: {
-  stock_total: number | null;
-  stock_sold: number;
-  product_stock_on_hand?: number;
-  product_stock_reserved?: number;
-}): number | null {
+export function getKioskStockAvailable(
+  product: KioskProductStockSource & NormalizedKioskCatalogStock,
+): number | null {
   if (
     product.product_stock_on_hand != null &&
     product.product_stock_reserved != null
@@ -209,6 +228,18 @@ export function getKioskStockAvailable(product: {
   }
 
   return Math.max(0, product.stock_total - product.stock_sold);
+}
+
+export function getKioskCatalogStockAvailable(
+  product: KioskProductStockSource,
+): number | null {
+  return getKioskStockAvailable(withUndefinedCatalogStock(product));
+}
+
+export function isKioskCatalogProductSoldOut(
+  product: KioskProductAvailabilityStockSource,
+): boolean {
+  return isKioskProductSoldOut(withUndefinedCatalogStock(product));
 }
 
 export function validateKioskPrice(price: number): string | null {
@@ -277,18 +308,16 @@ export function parseOptionalNumber(
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-export function getEventKioskProductStatus(product: {
-  stock_total: number | null;
-  stock_sold: number;
-  is_available: boolean;
-  product_stock_on_hand?: number;
-  product_stock_reserved?: number;
-}): EventKioskProductStatus {
-  if (!product.is_available) {
+export function getEventKioskProductStatus(
+  product: KioskProductAvailabilityStockSource,
+): EventKioskProductStatus {
+  const normalizedProduct = withUndefinedCatalogStock(product);
+
+  if (!normalizedProduct.is_available) {
     return "paused";
   }
 
-  if (isKioskProductSoldOut(product)) {
+  if (isKioskProductSoldOut(normalizedProduct)) {
     return "sold_out";
   }
 
@@ -318,9 +347,11 @@ export function getEventKioskSummary(
   let estimatedRevenue = 0;
 
   for (const product of eventProducts) {
+    const normalizedProduct = withUndefinedCatalogStock(product);
+
     if (
-      product.is_available &&
-      !isKioskProductSoldOut(product)
+      normalizedProduct.is_available &&
+      !isKioskProductSoldOut(normalizedProduct)
     ) {
       activeProducts += 1;
     }
@@ -340,10 +371,12 @@ export function getEventKioskSummary(
 export function isEventKioskProductSellable(
   product: EventKioskProductWithCatalog,
 ): boolean {
+  const normalizedProduct = withUndefinedCatalogStock(product);
+
   return (
-    product.is_available &&
-    product.product_is_active &&
-    !isKioskProductSoldOut(product)
+    normalizedProduct.is_available &&
+    normalizedProduct.product_is_active &&
+    !isKioskProductSoldOut(normalizedProduct)
   );
 }
 
@@ -707,13 +740,9 @@ export function parseKioskReservationItemsFromFormData(
   }
 }
 
-export function formatKioskStockRemaining(product: {
-  stock_total: number | null;
-  stock_sold: number;
-  product_stock_on_hand?: number;
-  product_stock_reserved?: number;
-}): string {
-  const available = getKioskStockAvailable(product);
+export function formatKioskStockRemaining(product: KioskProductStockSource): string {
+  const normalizedProduct = withUndefinedCatalogStock(product);
+  const available = getKioskStockAvailable(normalizedProduct);
 
   if (available != null) {
     return String(available);

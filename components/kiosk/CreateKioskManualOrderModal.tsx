@@ -9,7 +9,7 @@ import type { EventKioskProductWithCatalog } from "@/lib/kiosk/types";
 import {
   formatKioskMoney,
   formatKioskStockRemaining,
-  getKioskStockAvailable,
+  getKioskCatalogStockAvailable,
 } from "@/lib/kiosk/utils";
 import {
   adminInputClassName,
@@ -215,7 +215,7 @@ export function CreateKioskManualOrderModal({
             </p>
             <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
               {sellableProducts.map((product) => {
-                const available = getKioskStockAvailable(product);
+                const available = getKioskCatalogStockAvailable(product);
                 const quantity = quantities[product.id] ?? 0;
                 const subtotal = product.price * quantity;
 

@@ -1,13 +1,24 @@
 import type { PublicEventKioskProduct } from "@/lib/kiosk/types";
-import { formatKioskMoney, getKioskStockAvailable } from "@/lib/kiosk/utils";
+import {
+  formatKioskMoney,
+  getKioskCommunityPriceLabel,
+  getKioskPublicUnitPrice,
+  getKioskCatalogStockAvailable,
+} from "@/lib/kiosk/utils";
 import { PublicCard } from "@/components/ui/public/PublicCard";
 import { SectionHeading } from "@/components/ui/public/SectionHeading";
 
 type EventSalesQrPriceListProps = {
   products: PublicEventKioskProduct[];
+  isCommunityMember?: boolean;
+  showHeading?: boolean;
 };
 
-export function EventSalesQrPriceList({ products }: EventSalesQrPriceListProps) {
+export function EventSalesQrPriceList({
+  products,
+  isCommunityMember = false,
+  showHeading = true,
+}: EventSalesQrPriceListProps) {
   if (products.length === 0) {
     return (
       <PublicCard padding="lg" className="text-center">
@@ -21,12 +32,19 @@ export function EventSalesQrPriceList({ products }: EventSalesQrPriceListProps) 
 
   return (
     <section className="space-y-4">
-      <SectionHeading label="Consumiciones" title="Lista de precios" />
+      {showHeading ? (
+        <SectionHeading label="Consumiciones" title="Lista de precios" />
+      ) : null}
 
       <PublicCard padding="sm" className="overflow-hidden p-0">
         <ul className="divide-y" style={{ borderColor: "var(--public-border)" }}>
           {products.map((product) => {
-            const stock = getKioskStockAvailable(product);
+            const stock = getKioskCatalogStockAvailable(product);
+            const unitPrice = getKioskPublicUnitPrice(product, isCommunityMember);
+            const communityLabel = getKioskCommunityPriceLabel(
+              product.community_price,
+              isCommunityMember,
+            );
 
             return (
               <li
@@ -35,7 +53,9 @@ export function EventSalesQrPriceList({ products }: EventSalesQrPriceListProps) 
                 style={{ borderColor: "var(--public-border)" }}
               >
                 <div className="min-w-0">
-                  <p className="public-heading font-semibold">{product.product_name}</p>
+                  <p className="public-heading font-semibold">
+                    {product.product_name}
+                  </p>
                   {product.product_category ? (
                     <p className="text-xs uppercase tracking-wider public-text-soft">
                       {product.product_category}
@@ -48,9 +68,22 @@ export function EventSalesQrPriceList({ products }: EventSalesQrPriceListProps) 
                   ) : null}
                 </div>
                 <div className="shrink-0 text-right">
-                  <p className="public-label text-lg font-bold">
-                    {formatKioskMoney(product.price)}
-                  </p>
+                  {communityLabel ? (
+                    <div className="space-y-0.5">
+                      <p className="public-label text-lg font-bold text-[var(--public-community)]">
+                        Comunidad: {communityLabel}
+                      </p>
+                      {product.price !== unitPrice ? (
+                        <p className="text-xs public-text-soft">
+                          Público: {formatKioskMoney(product.price)}
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <p className="public-label text-lg font-bold">
+                      {formatKioskMoney(product.price)}
+                    </p>
+                  )}
                   {stock != null ? (
                     <p className="text-xs public-text-soft">
                       {stock > 0 ? `${stock} disponibles` : "Agotado"}

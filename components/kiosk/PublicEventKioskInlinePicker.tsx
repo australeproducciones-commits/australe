@@ -7,7 +7,9 @@ import type { PublicEventKioskProduct } from "@/lib/kiosk/types";
 import {
   formatKioskMoney,
   formatKioskStockRemaining,
-  getKioskStockAvailable,
+  getKioskCommunityPriceLabel,
+  getKioskPublicUnitPrice,
+  getKioskCatalogStockAvailable,
 } from "@/lib/kiosk/utils";
 
 export type PublicKioskPickerLine = {
@@ -21,11 +23,13 @@ type PublicEventKioskInlinePickerProps = {
   value: Record<string, number>;
   onChange: (value: Record<string, number>) => void;
   disabled?: boolean;
+  isCommunityMember?: boolean;
 };
 
 export function buildPublicKioskPickerLines(
   products: PublicEventKioskProduct[],
   value: Record<string, number>,
+  isCommunityMember = false,
 ): PublicKioskPickerLine[] {
   return products
     .map((product) => {
@@ -34,10 +38,12 @@ export function buildPublicKioskPickerLines(
         return null;
       }
 
+      const unitPrice = getKioskPublicUnitPrice(product, isCommunityMember);
+
       return {
         product,
         quantity,
-        subtotal: product.price * quantity,
+        subtotal: unitPrice * quantity,
       };
     })
     .filter((line): line is PublicKioskPickerLine => line != null);
@@ -48,10 +54,11 @@ export function PublicEventKioskInlinePicker({
   value,
   onChange,
   disabled = false,
+  isCommunityMember = false,
 }: PublicEventKioskInlinePickerProps) {
   const lines = useMemo(
-    () => buildPublicKioskPickerLines(products, value),
-    [products, value],
+    () => buildPublicKioskPickerLines(products, value, isCommunityMember),
+    [products, value, isCommunityMember],
   );
 
   const total = lines.reduce((sum, line) => sum + line.subtotal, 0);
@@ -86,8 +93,13 @@ export function PublicEventKioskInlinePicker({
       </div>
 
       {products.map((product) => {
-        const stockAvailable = getKioskStockAvailable(product);
+        const stockAvailable = getKioskCatalogStockAvailable(product);
         const maxQuantity = stockAvailable ?? 99;
+        const unitPrice = getKioskPublicUnitPrice(product, isCommunityMember);
+        const communityLabel = getKioskCommunityPriceLabel(
+          product.community_price,
+          isCommunityMember,
+        );
 
         return (
           <PublicCard key={product.id} padding="md">
@@ -107,10 +119,23 @@ export function PublicEventKioskInlinePicker({
                       {product.product_category}
                     </StatusBadge>
                   ) : null}
-                  <StatusBadge tone="primary">
-                    {formatKioskMoney(product.price)}
-                  </StatusBadge>
-                  {product.stock_total != null ? (
+                  {communityLabel ? (
+                    <>
+                      <StatusBadge tone="community">
+                        Comunidad: {communityLabel}
+                      </StatusBadge>
+                      {product.price !== unitPrice ? (
+                        <StatusBadge tone="neutral">
+                          Público: {formatKioskMoney(product.price)}
+                        </StatusBadge>
+                      ) : null}
+                    </>
+                  ) : (
+                    <StatusBadge tone="primary">
+                      {formatKioskMoney(product.price)}
+                    </StatusBadge>
+                  )}
+                  {stockAvailable != null ? (
                     <StatusBadge tone="neutral">
                       Disponibles: {formatKioskStockRemaining(product)}
                     </StatusBadge>

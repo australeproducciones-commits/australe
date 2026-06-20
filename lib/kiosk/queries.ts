@@ -8,11 +8,14 @@ import type {
   PublicEventKioskData,
   PublicEventKioskProduct,
 } from "@/lib/kiosk/types";
-import { isKioskProductSoldOut } from "@/lib/kiosk/utils";
+import { isKioskCatalogProductSoldOut } from "@/lib/kiosk/utils";
 import { createClient } from "@/lib/supabase/server";
 
 const KIOSK_PRODUCT_COLUMNS =
   "id, name, slug, description, image_url, default_price, category, is_active, created_at, updated_at";
+
+const KIOSK_PRODUCT_JOIN_COLUMNS =
+  "name, slug, description, category, image_url, is_active, stock_on_hand, stock_reserved";
 
 const EVENT_KIOSK_SETTINGS_COLUMNS =
   "event_id, presale_enabled, manual_sales_enabled, qr_sale_enabled, show_price_list, notes, created_at, updated_at";
@@ -52,6 +55,9 @@ function mapEventKioskProductWithCatalog(
     product_category: catalog?.category ?? null,
     product_image_url: catalog?.image_url ?? null,
     product_is_active: catalog?.is_active ?? true,
+    product_stock_on_hand: (catalog?.stock_on_hand as number | null | undefined) ?? null,
+    product_stock_reserved:
+      (catalog?.stock_reserved as number | null | undefined) ?? null,
   };
 }
 
@@ -90,6 +96,25 @@ export async function getEventKioskSettings(
   return (data as EventKioskSettings | null) ?? null;
 }
 
+export async function getEventKioskSettingsPublic(
+  eventId: string,
+): Promise<EventKioskSettings | null> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("event_kiosk_settings")
+    .select(EVENT_KIOSK_SETTINGS_COLUMNS)
+    .eq("event_id", eventId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("getEventKioskSettingsPublic:", error.message);
+    return null;
+  }
+
+  return (data as EventKioskSettings | null) ?? null;
+}
+
 export async function getEventKioskProducts(
   eventId: string,
 ): Promise<EventKioskProductWithCatalog[]> {
@@ -98,7 +123,7 @@ export async function getEventKioskProducts(
   const { data, error } = await supabase
     .from("event_kiosk_products")
     .select(
-      `${EVENT_KIOSK_PRODUCT_COLUMNS}, kiosk_products ( name, slug, category, image_url, is_active )`,
+      `${EVENT_KIOSK_PRODUCT_COLUMNS}, kiosk_products ( ${KIOSK_PRODUCT_JOIN_COLUMNS} )`,
     )
     .eq("event_id", eventId)
     .order("sort_order", { ascending: true })
@@ -158,7 +183,7 @@ export async function getEventKioskProductByIdForAdmin(
   const { data, error } = await supabase
     .from("event_kiosk_products")
     .select(
-      `${EVENT_KIOSK_PRODUCT_COLUMNS}, kiosk_products ( name, slug, category, image_url, is_active )`,
+      `${EVENT_KIOSK_PRODUCT_COLUMNS}, kiosk_products ( ${KIOSK_PRODUCT_JOIN_COLUMNS} )`,
     )
     .eq("id", eventKioskProductId)
     .maybeSingle();
@@ -207,7 +232,7 @@ export async function getPublicEventKiosk(
   const { data, error } = await supabase
     .from("event_kiosk_products")
     .select(
-      `${EVENT_KIOSK_PRODUCT_COLUMNS}, kiosk_products ( name, slug, description, category, image_url, is_active )`,
+      `${EVENT_KIOSK_PRODUCT_COLUMNS}, kiosk_products ( ${KIOSK_PRODUCT_JOIN_COLUMNS} )`,
     )
     .eq("event_id", eventId)
     .eq("is_available", true)
@@ -251,7 +276,7 @@ export async function getPublicEventKiosk(
       return left.product_name.localeCompare(right.product_name, "es");
     });
 
-  const sellable = listed.filter((product) => !isKioskProductSoldOut(product));
+  const sellable = listed.filter((product) => !isKioskCatalogProductSoldOut(product));
 
   return {
     settings: settings as EventKioskSettings,
@@ -271,7 +296,7 @@ export async function getEventKioskCatalogForQr(
   const { data, error } = await supabase
     .from("event_kiosk_products")
     .select(
-      `${EVENT_KIOSK_PRODUCT_COLUMNS}, kiosk_products ( name, slug, description, category, image_url, is_active )`,
+      `${EVENT_KIOSK_PRODUCT_COLUMNS}, kiosk_products ( ${KIOSK_PRODUCT_JOIN_COLUMNS} )`,
     )
     .eq("event_id", eventId)
     .eq("is_available", true)

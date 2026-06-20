@@ -49,6 +49,8 @@ export type EventKioskProductWithCatalog = EventKioskProduct & {
   product_category: string | null;
   product_image_url: string | null;
   product_is_active: boolean;
+  product_stock_on_hand?: number | null;
+  product_stock_reserved?: number | null;
 };
 
 export type PublicEventKioskProduct = EventKioskProductWithCatalog & {

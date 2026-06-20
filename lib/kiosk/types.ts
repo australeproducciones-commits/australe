@@ -80,13 +80,21 @@ export type KioskProductInput = {
 export type EventKioskSettingsInput = {
   presale_enabled?: boolean;
   manual_sales_enabled?: boolean;
+  qr_sale_enabled?: boolean;
+  show_price_list?: boolean;
   notes?: string | null;
 };
 
 export type EventKioskProductInput = {
   price: number;
+  community_price?: number | null;
   stock_total?: number | null;
   is_available?: boolean;
+  is_visible?: boolean;
+  presale_enabled?: boolean;
+  qr_sale_enabled?: boolean;
+  cashier_sale_enabled?: boolean;
+  max_per_order?: number | null;
   sort_order?: number;
 };
 

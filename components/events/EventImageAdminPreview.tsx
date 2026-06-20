@@ -1,40 +1,128 @@
 "use client";
 
 import { EventImage } from "@/components/events/EventImage";
-import type { EventImageFields } from "@/lib/events/utils";
+import type { EventFormInput } from "@/lib/events/types";
+import type { EventImageFields } from "@/lib/events/getEventImage";
+import { hasCustomEventImage } from "@/lib/events/getEventImage";
 
 type EventImageAdminPreviewProps = {
-  imageUrl: string;
+  values: Pick<
+    EventFormInput,
+    "main_image_url" | "banner_url" | "flyer_url" | "thumbnail_url"
+  >;
+  onChange: <K extends keyof EventImageAdminPreviewProps["values"]>(
+    key: K,
+    value: EventFormInput[K],
+  ) => void;
+  disabled?: boolean;
+  inputClassName: string;
 };
 
-function previewEvent(imageUrl: string): EventImageFields {
-  return {
-    main_image_url: imageUrl || null,
-    thumbnail_url: null,
-    flyer_url: null,
-    banner_url: null,
-  };
-}
-
 export function EventImageAdminPreview({
-  imageUrl,
+  values,
+  onChange,
+  disabled,
+  inputClassName,
 }: EventImageAdminPreviewProps) {
-  if (!imageUrl.trim()) {
-    return (
-      <p className="text-sm text-zinc-500">
-        Cargá una URL de imagen para ver las vistas automáticas.
-      </p>
-    );
-  }
+  const previewEvent: EventImageFields = {
+    banner_url: values.banner_url.trim() || null,
+    main_image_url: values.main_image_url.trim() || null,
+    flyer_url: values.flyer_url.trim() || null,
+    thumbnail_url: values.thumbnail_url.trim() || null,
+  };
 
-  const event = previewEvent(imageUrl.trim());
+  const hasBanner = Boolean(values.banner_url.trim());
+  const hasAnyImage = hasCustomEventImage(previewEvent);
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
-      <PreviewBlock label="Banner (12:5)" variant="banner" event={event} />
-      <PreviewBlock label="Flyer (4:5)" variant="flyer" event={event} />
-      <PreviewBlock label="Miniatura (16:9)" variant="thumbnail" event={event} />
-      <PreviewBlock label="Card mobile (4:3)" variant="card" event={event} />
+    <div className="space-y-5">
+      <div className="rounded-2xl border border-purple-400/20 bg-purple-400/5 p-4">
+        <Field
+          label="Banner principal del evento"
+          hint="Medida recomendada: 2400 × 1000 px · proporción 12:5 · JPG, PNG o WebP"
+        >
+          <input
+            name="banner_url"
+            type="url"
+            value={values.banner_url}
+            onChange={(e) => onChange("banner_url", e.target.value)}
+            className={inputClassName}
+            placeholder="https://..."
+            disabled={disabled}
+          />
+        </Field>
+        <p className="mt-3 text-xs leading-relaxed text-zinc-400">
+          Esta imagen se utilizará automáticamente en el hero, la cartelera, las
+          cards, las miniaturas y la página de detalle. Se mostrará completa y no
+          será recortada.
+        </p>
+      </div>
+
+      <details className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+        <summary className="cursor-pointer text-sm font-medium text-zinc-300">
+          Campos avanzados (compatibilidad con eventos anteriores)
+        </summary>
+        <div className="mt-4 grid gap-4 md:grid-cols-3">
+          <Field label="Imagen principal (legacy)" hint="Solo si no hay banner">
+            <input
+              name="main_image_url"
+              type="url"
+              value={values.main_image_url}
+              onChange={(e) => onChange("main_image_url", e.target.value)}
+              className={inputClassName}
+              placeholder="https://..."
+              disabled={disabled}
+            />
+          </Field>
+          <Field label="Flyer (legacy)" hint="Respaldo si no hay banner">
+            <input
+              name="flyer_url"
+              type="url"
+              value={values.flyer_url}
+              onChange={(e) => onChange("flyer_url", e.target.value)}
+              className={inputClassName}
+              placeholder="https://..."
+              disabled={disabled}
+            />
+          </Field>
+          <Field label="Miniatura (legacy)" hint="Respaldo si no hay banner">
+            <input
+              name="thumbnail_url"
+              type="url"
+              value={values.thumbnail_url}
+              onChange={(e) => onChange("thumbnail_url", e.target.value)}
+              className={inputClassName}
+              placeholder="https://..."
+              disabled={disabled}
+            />
+          </Field>
+        </div>
+      </details>
+
+      {!hasAnyImage ? (
+        <p className="text-sm text-zinc-500">
+          Cargá la URL del banner para ver la vista previa.
+        </p>
+      ) : (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <PreviewBlock
+            label="Hero / detalle (12:5)"
+            variant="banner"
+            event={previewEvent}
+          />
+          <PreviewBlock
+            label="Card de cartelera"
+            variant="card"
+            event={previewEvent}
+          />
+          {!hasBanner ? (
+            <p className="lg:col-span-2 text-xs text-amber-200/90">
+              Sin banner cargado: se usará la imagen legacy según el orden de
+              fallback hasta que definas un banner principal.
+            </p>
+          ) : null}
+        </div>
+      )}
     </div>
   );
 }
@@ -45,15 +133,37 @@ function PreviewBlock({
   event,
 }: {
   label: string;
-  variant: "banner" | "flyer" | "thumbnail" | "card";
+  variant: "banner" | "card";
   event: EventImageFields;
 }) {
   return (
     <div>
-      <p className="mb-2 text-xs font-medium uppercase tracking-wider text-zinc-500">
-        {label}
-      </p>
-      <EventImage event={event} alt={label} variant={variant} />
+      <p className="mb-2 text-xs font-medium text-zinc-400">{label}</p>
+      <EventImage
+        event={event}
+        alt={label}
+        variant={variant}
+      />
     </div>
+  );
+}
+
+function Field({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-sm text-zinc-300">{label}</span>
+      {hint ? (
+        <span className="mb-2 block text-xs text-purple-300/80">{hint}</span>
+      ) : null}
+      {children}
+    </label>
   );
 }

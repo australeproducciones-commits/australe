@@ -15,13 +15,45 @@ const KIOSK_PRODUCT_COLUMNS =
   "id, name, slug, description, image_url, default_price, category, is_active, created_at, updated_at";
 
 const EVENT_KIOSK_SETTINGS_COLUMNS =
-  "event_id, presale_enabled, manual_sales_enabled, notes, created_at, updated_at";
+  "event_id, presale_enabled, manual_sales_enabled, qr_sale_enabled, show_price_list, notes, created_at, updated_at";
 
 const EVENT_KIOSK_PRODUCT_COLUMNS =
-  "id, event_id, product_id, price, stock_total, stock_sold, is_available, sort_order, created_at, updated_at";
+  "id, event_id, product_id, price, community_price, stock_total, stock_sold, is_available, is_visible, presale_enabled, qr_sale_enabled, cashier_sale_enabled, max_per_order, sort_order, created_at, updated_at";
 
 const KIOSK_ORDER_COLUMNS =
   "id, event_id, buyer_name, buyer_whatsapp, buyer_dni, buyer_email, ticket_id, order_code, source, payment_status, pickup_status, total_amount, paid_at, delivered_at, notes, created_by, created_at, updated_at";
+
+function mapEventKioskProductWithCatalog(
+  row: Record<string, unknown>,
+): EventKioskProductWithCatalog {
+  const catalog = Array.isArray(row.kiosk_products)
+    ? row.kiosk_products[0]
+    : row.kiosk_products;
+
+  return {
+    id: row.id as string,
+    event_id: row.event_id as string,
+    product_id: row.product_id as string,
+    price: row.price as number,
+    community_price: (row.community_price as number | null) ?? null,
+    stock_total: (row.stock_total as number | null) ?? null,
+    stock_sold: (row.stock_sold as number) ?? 0,
+    is_available: (row.is_available as boolean) ?? true,
+    is_visible: (row.is_visible as boolean) ?? true,
+    presale_enabled: (row.presale_enabled as boolean) ?? true,
+    qr_sale_enabled: (row.qr_sale_enabled as boolean) ?? true,
+    cashier_sale_enabled: (row.cashier_sale_enabled as boolean) ?? true,
+    max_per_order: (row.max_per_order as number | null) ?? null,
+    sort_order: (row.sort_order as number) ?? 0,
+    created_at: row.created_at as string,
+    updated_at: row.updated_at as string,
+    product_name: catalog?.name ?? "Producto",
+    product_slug: catalog?.slug ?? "",
+    product_category: catalog?.category ?? null,
+    product_image_url: catalog?.image_url ?? null,
+    product_is_active: catalog?.is_active ?? true,
+  };
+}
 
 export async function getKioskProducts(): Promise<KioskProduct[]> {
   const { supabase } = await requireAdminPage();
@@ -77,29 +109,9 @@ export async function getEventKioskProducts(
     return [];
   }
 
-  return (data ?? []).map((row) => {
-    const catalog = Array.isArray(row.kiosk_products)
-      ? row.kiosk_products[0]
-      : row.kiosk_products;
-
-    return {
-      id: row.id,
-      event_id: row.event_id,
-      product_id: row.product_id,
-      price: row.price,
-      stock_total: row.stock_total,
-      stock_sold: row.stock_sold,
-      is_available: row.is_available,
-      sort_order: row.sort_order,
-      created_at: row.created_at,
-      updated_at: row.updated_at,
-      product_name: catalog?.name ?? "Producto",
-      product_slug: catalog?.slug ?? "",
-      product_category: catalog?.category ?? null,
-      product_image_url: catalog?.image_url ?? null,
-      product_is_active: catalog?.is_active ?? true,
-    } satisfies EventKioskProductWithCatalog;
-  });
+  return (data ?? []).map((row) =>
+    mapEventKioskProductWithCatalog(row as Record<string, unknown>),
+  );
 }
 
 export async function getEventKioskOrders(eventId: string): Promise<KioskOrder[]> {
@@ -158,27 +170,7 @@ export async function getEventKioskProductByIdForAdmin(
     return null;
   }
 
-  const catalog = Array.isArray(data.kiosk_products)
-    ? data.kiosk_products[0]
-    : data.kiosk_products;
-
-  return {
-    id: data.id,
-    event_id: data.event_id,
-    product_id: data.product_id,
-    price: data.price,
-    stock_total: data.stock_total,
-    stock_sold: data.stock_sold,
-    is_available: data.is_available,
-    sort_order: data.sort_order,
-    created_at: data.created_at,
-    updated_at: data.updated_at,
-    product_name: catalog?.name ?? "Producto",
-    product_slug: catalog?.slug ?? "",
-    product_category: catalog?.category ?? null,
-    product_image_url: catalog?.image_url ?? null,
-    product_is_active: catalog?.is_active ?? true,
-  };
+  return mapEventKioskProductWithCatalog(data as Record<string, unknown>);
 }
 
 const KIOSK_ORDER_ITEM_COLUMNS =
@@ -233,31 +225,21 @@ export async function getPublicEventKiosk(
 
   const listed = (data ?? [])
     .map((row) => {
+      const mapped = mapEventKioskProductWithCatalog(
+        row as Record<string, unknown>,
+      );
+
+      if (!mapped.product_is_active) {
+        return null;
+      }
+
       const catalog = Array.isArray(row.kiosk_products)
         ? row.kiosk_products[0]
         : row.kiosk_products;
 
-      if (!catalog?.is_active) {
-        return null;
-      }
-
       return {
-        id: row.id,
-        event_id: row.event_id,
-        product_id: row.product_id,
-        price: row.price,
-        stock_total: row.stock_total,
-        stock_sold: row.stock_sold,
-        is_available: row.is_available,
-        sort_order: row.sort_order,
-        created_at: row.created_at,
-        updated_at: row.updated_at,
-        product_name: catalog.name ?? "Producto",
-        product_slug: catalog.slug ?? "",
-        product_category: catalog.category ?? null,
-        product_image_url: catalog.image_url ?? null,
-        product_is_active: catalog.is_active ?? true,
-        product_description: catalog.description ?? null,
+        ...mapped,
+        product_description: catalog?.description ?? null,
       } satisfies PublicEventKioskProduct;
     })
     .filter((product): product is PublicEventKioskProduct => product != null)
@@ -303,31 +285,21 @@ export async function getEventKioskCatalogForQr(
 
   return (data ?? [])
     .map((row) => {
+      const mapped = mapEventKioskProductWithCatalog(
+        row as Record<string, unknown>,
+      );
+
+      if (!mapped.product_is_active) {
+        return null;
+      }
+
       const catalog = Array.isArray(row.kiosk_products)
         ? row.kiosk_products[0]
         : row.kiosk_products;
 
-      if (!catalog?.is_active) {
-        return null;
-      }
-
       return {
-        id: row.id,
-        event_id: row.event_id,
-        product_id: row.product_id,
-        price: row.price,
-        stock_total: row.stock_total,
-        stock_sold: row.stock_sold,
-        is_available: row.is_available,
-        sort_order: row.sort_order,
-        created_at: row.created_at,
-        updated_at: row.updated_at,
-        product_name: catalog.name ?? "Producto",
-        product_slug: catalog.slug ?? "",
-        product_category: catalog.category ?? null,
-        product_image_url: catalog.image_url ?? null,
-        product_is_active: catalog.is_active ?? true,
-        product_description: catalog.description ?? null,
+        ...mapped,
+        product_description: catalog?.description ?? null,
       } satisfies PublicEventKioskProduct;
     })
     .filter((product): product is PublicEventKioskProduct => product != null);

@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 export default async function ComunidadPage() {
   const supabase = await createClient();
   const profile = await getProfile(supabase);
-  const isMember = await isActiveCommunityMember(profile?.id ?? null);
+  const isMember = await isActiveCommunityMember(profile?.id);
   const communityEvents = isMember ? await getCommunityPublishedEvents() : [];
 
   return (

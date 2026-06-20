@@ -5,6 +5,8 @@ export const ROUTES = {
   eventos: "/eventos",
   evento: (slug: string) => `/eventos/${slug}`,
   eventoEntradas: (slug: string) => `/eventos/${slug}/entradas`,
+  eventoEntradasCanal: (slug: string, canal: "web" | "reserva") =>
+    `/eventos/${slug}/entradas?canal=${canal}`,
   eventoEntradasTipo: (slug: string, ticketTypeId: string) =>
     `/eventos/${slug}/entradas?ticketType=${encodeURIComponent(ticketTypeId)}`,
   eventoEntradaDirecta: (slug: string, entradaSlug: string) =>

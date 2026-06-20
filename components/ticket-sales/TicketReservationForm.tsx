@@ -47,6 +47,7 @@ type TicketReservationFormProps = {
   isLoggedIn: boolean;
   defaultBuyerName?: string;
   initialTicketTypeId?: string;
+  purchaseChannel?: "web" | "reserva";
 };
 
 const initialState: ReservationActionResult = { success: false };
@@ -70,6 +71,7 @@ function TicketReservationFormSession({
   isLoggedIn,
   defaultBuyerName = "",
   initialTicketTypeId,
+  purchaseChannel = "web",
   onMakeAnother,
 }: TicketReservationFormProps & { onMakeAnother: () => void }) {
   const hasKiosk = kioskProducts.length > 0;
@@ -438,9 +440,13 @@ function TicketReservationFormSession({
       >
         {pending
           ? "Confirmando…"
-          : kioskLines.length > 0
-            ? "Reservar entrada y consumisiones"
-            : "Reservar entrada"}
+          : purchaseChannel === "web"
+            ? kioskLines.length > 0
+              ? "Comprar entrada y consumisiones"
+              : "Comprar en la web"
+            : kioskLines.length > 0
+              ? "Reservar entrada y consumisiones"
+              : "Reservar entrada"}
       </PublicButton>
 
       <p className="text-xs public-text-soft">

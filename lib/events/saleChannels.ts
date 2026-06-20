@@ -154,17 +154,21 @@ export function buildWhatsAppSaleUrl(
 }
 
 export function getWhatsAppSaleUrl(
-  event: Partial<EventSaleChannelFields>,
+  event: Partial<EventSaleChannelFields & { name?: string | null }>,
 ): string | null {
   const channels = resolveSaleChannels(event);
   if (!channels.saleWhatsappEnabled || !channels.whatsappSaleNumber) {
     return null;
   }
 
-  return buildWhatsAppSaleUrl(
-    channels.whatsappSaleNumber,
-    channels.whatsappSaleMessage ?? "",
-  );
+  const configuredMessage = channels.whatsappSaleMessage?.trim();
+  const message =
+    configuredMessage ||
+    (event.name?.trim()
+      ? `Hola, quiero consultar entradas para ${event.name.trim()}.`
+      : "");
+
+  return buildWhatsAppSaleUrl(channels.whatsappSaleNumber, message);
 }
 
 export function deriveTicketSaleMode(

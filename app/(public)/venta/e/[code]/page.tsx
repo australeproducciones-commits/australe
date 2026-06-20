@@ -14,8 +14,8 @@ import { getProfile } from "@/lib/auth/getProfile";
 import {
   EVENT_STATUS,
   EVENT_STATUS_LABELS,
-  TICKET_SALE_MODE,
 } from "@/lib/constants/event-status";
+import { getValidExternalTicketUrl } from "@/lib/events/saleChannels";
 import { getEventBySalesQrCode } from "@/lib/events/queries";
 import { formatEventDateTime } from "@/lib/events/utils";
 import {
@@ -60,7 +60,7 @@ export default async function VentaEventoPage({ params }: VentaEventoPageProps) 
   const showTickets =
     event.qr_sell_tickets &&
     event.status === EVENT_STATUS.PUBLISHED &&
-    isInternalSaleEnabled(event.ticket_sale_mode);
+    isInternalSaleEnabled(event);
 
   const showPriceList =
     event.qr_products_enabled &&
@@ -73,6 +73,7 @@ export default async function VentaEventoPage({ params }: VentaEventoPageProps) 
     event.status === EVENT_STATUS.PUBLISHED;
 
   const hasActiveModule = showTickets || showPriceList || showSellProducts;
+  const externalTicketUrl = getValidExternalTicketUrl(event);
 
   const [supabase, ticketTypes, catalogProducts, publicKiosk] =
     await Promise.all([
@@ -125,21 +126,19 @@ export default async function VentaEventoPage({ params }: VentaEventoPageProps) 
               ? "Este evento todavía no está publicado o las opciones del QR no están activas."
               : "No hay módulos de venta habilitados para este código."}
           </p>
-          {event.qr_sell_tickets &&
-          !isInternalSaleEnabled(event.ticket_sale_mode) ? (
+          {event.qr_sell_tickets && !isInternalSaleEnabled(event) ? (
             <p className="mt-3 text-sm public-text-soft">
-              La venta de entradas por QR requiere venta interna habilitada.
+              La venta de entradas por QR requiere venta web o reserva habilitada.
             </p>
           ) : null}
-          {event.ticket_sale_mode === TICKET_SALE_MODE.EXTERNAL &&
-          event.external_ticket_url ? (
+          {externalTicketUrl ? (
             <PublicButton
-              href={event.external_ticket_url}
+              href={externalTicketUrl}
               className="mt-6"
               target="_blank"
               rel="noopener noreferrer"
             >
-              Comprar entradas externas
+              Comprar en sitio externo
             </PublicButton>
           ) : null}
         </PublicCard>

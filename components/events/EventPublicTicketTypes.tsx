@@ -2,13 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PublicButton } from "@/components/ui/public/PublicButton";
-import { PublicCard } from "@/components/ui/public/PublicCard";
 import { StatusBadge } from "@/components/ui/public/StatusBadge";
-import {
-  TICKET_SALE_MODE,
-  type TicketSaleMode,
-} from "@/lib/constants/event-status";
 import { ROUTES } from "@/lib/constants/routes";
+import type { Event } from "@/lib/events/types";
+import {
+  getValidExternalTicketUrl,
+  resolveSaleChannels,
+} from "@/lib/events/saleChannels";
 import { trackAnalyticsEvent } from "@/lib/analytics/client";
 import { ANALYTICS_EVENT_NAMES } from "@/lib/analytics/types";
 import type { TicketType } from "@/lib/tickets/types";
@@ -26,16 +26,27 @@ import { cn } from "@/lib/utils/cn";
 type EventPublicTicketTypesProps = {
   eventId: string;
   eventSlug: string;
-  ticketSaleMode: string;
-  externalTicketUrl: string | null;
+  event: Pick<
+    Event,
+    | "sale_web_enabled"
+    | "external_sale_enabled"
+    | "sale_whatsapp_enabled"
+    | "reservation_enabled"
+    | "external_ticket_url"
+    | "whatsapp_sale_number"
+    | "whatsapp_sale_message"
+    | "ticket_sale_mode"
+  >;
   ticketTypes: TicketType[];
+  embedded?: boolean;
 };
 
 type TicketTypeCardProps = {
   eventId: string;
   ticketType: TicketType;
   display: PublicTicketTypeDisplay;
-  purchaseHref: string | null;
+  webHref: string | null;
+  reservationHref: string | null;
   externalHref: string | null;
   cardRef: (node: HTMLElement | null) => void;
   onCopyLink: () => void;
@@ -45,19 +56,16 @@ type TicketTypeCardProps = {
 export function EventPublicTicketTypes({
   eventId,
   eventSlug,
-  ticketSaleMode,
-  externalTicketUrl,
+  event,
   ticketTypes,
+  embedded = false,
 }: EventPublicTicketTypesProps) {
   const cardRefs = useRef(new Map<string, HTMLElement>());
   const highlightTimerRef = useRef<number | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  const mode = ticketSaleMode as TicketSaleMode;
-  const internalEnabled =
-    mode === TICKET_SALE_MODE.INTERNAL || mode === TICKET_SALE_MODE.BOTH;
-  const externalEnabled =
-    mode === TICKET_SALE_MODE.EXTERNAL || mode === TICKET_SALE_MODE.BOTH;
+  const channels = resolveSaleChannels(event);
+  const externalUrl = getValidExternalTicketUrl(event);
 
   const displays = useMemo(
     () => buildPublicTicketTypeDisplays(ticketTypes),
@@ -169,31 +177,25 @@ export function EventPublicTicketTypes({
   );
 
   if (ticketTypes.length === 0) {
-    if (mode === TICKET_SALE_MODE.DISABLED) {
-      return (
-        <PublicCard padding="lg" className="mt-8">
-          <p className="public-muted-box">Entradas no disponibles</p>
-        </PublicCard>
-      );
-    }
-
     return null;
   }
 
   return (
-    <section id="entradas" className="mt-8 scroll-mt-28">
-      <div className="mb-6">
-        <p className="public-label text-xs font-semibold uppercase tracking-[0.35em]">
-          Entradas
-        </p>
-        <h2 className="public-heading mt-2 text-2xl font-black sm:text-3xl">
-          Elegí tu entrada
-        </h2>
-        <p className="mt-2 text-sm public-text-muted">
-          Todas las opciones activas para este evento. Elegí la que prefieras y
-          continuá con la reserva o compra.
-        </p>
-      </div>
+    <section id="entradas" className={embedded ? "scroll-mt-28" : "mt-8 scroll-mt-28"}>
+      {!embedded ? (
+        <div className="mb-6">
+          <p className="public-label text-xs font-semibold uppercase tracking-[0.35em]">
+            Entradas
+          </p>
+          <h2 className="public-heading mt-2 text-2xl font-black sm:text-3xl">
+            Elegí tu entrada
+          </h2>
+          <p className="mt-2 text-sm public-text-muted">
+            Todas las opciones activas para este evento. Elegí la que prefieras y
+            continuá con la compra o reserva.
+          </p>
+        </div>
+      ) : null}
 
       {quickNavItems.length > 1 ? (
         <div className="mb-6 flex flex-wrap gap-2">
@@ -213,13 +215,20 @@ export function EventPublicTicketTypes({
       <div className="space-y-4">
         {ticketTypes.map((ticketType, index) => {
           const display = displays[index]!;
-          const purchaseHref =
-            display.canPurchase && internalEnabled
-              ? ROUTES.eventoEntradasTipo(eventSlug, ticketType.id)
+          const baseHref = ROUTES.eventoEntradasTipo(eventSlug, ticketType.id);
+          const webHref =
+            display.canPurchase && channels.saleWebEnabled
+              ? `${baseHref}&canal=web`
+              : null;
+          const reservationHref =
+            display.canPurchase && channels.reservationEnabled
+              ? `${baseHref}&canal=reserva`
               : null;
           const externalHref =
-            display.canPurchase && externalEnabled && externalTicketUrl
-              ? externalTicketUrl
+            display.canPurchase &&
+            channels.externalSaleEnabled &&
+            externalUrl
+              ? externalUrl
               : null;
 
           return (
@@ -228,7 +237,8 @@ export function EventPublicTicketTypes({
               eventId={eventId}
               ticketType={ticketType}
               display={display}
-              purchaseHref={purchaseHref}
+              webHref={webHref}
+              reservationHref={reservationHref}
               externalHref={externalHref}
               cardRef={(node) => {
                 if (node) {
@@ -243,12 +253,6 @@ export function EventPublicTicketTypes({
           );
         })}
       </div>
-
-      {mode === TICKET_SALE_MODE.DISABLED ? (
-        <p className="public-muted-box mt-4">
-          La venta de entradas no está habilitada para este evento.
-        </p>
-      ) : null}
     </section>
   );
 }
@@ -257,7 +261,8 @@ function EventPublicTicketTypeCard({
   eventId,
   ticketType,
   display,
-  purchaseHref,
+  webHref,
+  reservationHref,
   externalHref,
   cardRef,
   onCopyLink,
@@ -315,6 +320,8 @@ function EventPublicTicketTypeCard({
     label: "Máximo por persona",
     value: String(ticketType.max_per_order),
   });
+
+  const hasAction = webHref || reservationHref || externalHref;
 
   return (
     <article
@@ -379,34 +386,38 @@ function EventPublicTicketTypeCard({
         </div>
 
         <div className="flex w-full shrink-0 flex-col gap-2 lg:w-56">
-          {purchaseHref ? (
-            <PublicButton href={purchaseHref} className="w-full" onClick={trackTicketClick}>
-              {display.buttonLabel}
+          {webHref ? (
+            <PublicButton href={webHref} className="w-full" onClick={trackTicketClick}>
+              Comprar en la web
             </PublicButton>
-          ) : externalHref ? (
-            <PublicButton
-              href={externalHref}
-              className="w-full"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              {display.buttonLabel}
-            </PublicButton>
-          ) : (
-            <PublicButton className="w-full" disabled>
-              {display.buttonLabel}
-            </PublicButton>
-          )}
+          ) : null}
 
-          {purchaseHref && externalHref ? (
+          {reservationHref ? (
+            <PublicButton
+              href={reservationHref}
+              variant={webHref ? "outline" : "primary"}
+              className="w-full public-btn-reservation"
+              onClick={trackTicketClick}
+            >
+              Reserva desde la web
+            </PublicButton>
+          ) : null}
+
+          {externalHref ? (
             <PublicButton
               href={externalHref}
               variant="outline"
-              className="w-full"
+              className="w-full public-btn-external"
               target="_blank"
               rel="noopener noreferrer"
             >
-              Comprar en link externo
+              Comprar en sitio externo
+            </PublicButton>
+          ) : null}
+
+          {!hasAction ? (
+            <PublicButton className="w-full" disabled>
+              {display.buttonLabel}
             </PublicButton>
           ) : null}
 

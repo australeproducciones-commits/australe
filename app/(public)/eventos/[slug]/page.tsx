@@ -2,9 +2,14 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { EventPageAnalytics } from "@/components/analytics/EventPageAnalytics";
 import { EventPublicTicketTypes } from "@/components/events/EventPublicTicketTypes";
+import { EventSaleChannelPicker } from "@/components/events/EventSaleChannelPicker";
 import { PublicEventKioskSection } from "@/components/kiosk/PublicEventKioskSection";
 import { EventFlyer, EventPoster } from "@/components/events/EventFlyer";
-import { EventPriceListLink } from "@/components/events/EventTicketActions";
+import {
+  EventPriceListLink,
+  EventTicketActions,
+  hasPublicSaleChannels,
+} from "@/components/events/EventTicketActions";
 import {
   PageContainer,
   PublicButton,
@@ -19,6 +24,7 @@ import { CommunityEventGate } from "@/components/events/CommunityEventGate";
 import { createClient } from "@/lib/supabase/server";
 import { getPublicEventKiosk } from "@/lib/kiosk/queries";
 import { formatEventDateTime } from "@/lib/events/utils";
+import { getWhatsAppSaleUrl } from "@/lib/events/saleChannels";
 import { getActiveTicketTypesForPublishedEvent } from "@/lib/tickets/queries";
 import {
   formatTicketPrice,
@@ -69,6 +75,8 @@ export default async function EventoPage({ params }: EventoPageProps) {
     getPublicEventKiosk(event.id),
   ]);
   const minPrice = getMinPublicPrice(activeTicketTypes);
+  const hasTicketTypes = activeTicketTypes.length > 0;
+  const whatsappUrl = getWhatsAppSaleUrl(event);
 
   return (
     <PageContainer>
@@ -123,28 +131,43 @@ export default async function EventoPage({ params }: EventoPageProps) {
           </p>
         ) : null}
 
-        {minPrice != null && activeTicketTypes.length > 0 ? (
+        {minPrice != null && hasTicketTypes ? (
           <p className="public-price-banner mt-4">
             Entradas disponibles desde {formatTicketPrice(minPrice)}
           </p>
         ) : null}
 
-        {activeTicketTypes.length === 0 ? (
+        {!hasTicketTypes && hasPublicSaleChannels(event, false) ? (
+          <div className="mt-8">
+            <EventTicketActions event={event} hasTicketTypes={false} />
+          </div>
+        ) : null}
+
+        {!hasTicketTypes ? (
           <div className="mt-8">
             <EventPriceListLink slug={event.slug} />
           </div>
         ) : null}
       </PublicCard>
 
-      <EventPublicTicketTypes
-        eventId={event.id}
-        eventSlug={event.slug}
-        ticketSaleMode={event.ticket_sale_mode}
-        externalTicketUrl={event.external_ticket_url}
-        ticketTypes={activeTicketTypes}
-      />
+      {hasTicketTypes ? (
+        <EventPublicTicketTypes
+          eventId={event.id}
+          eventSlug={event.slug}
+          event={event}
+          ticketTypes={activeTicketTypes}
+        />
+      ) : null}
 
-      {activeTicketTypes.length > 0 ? (
+      {hasTicketTypes && whatsappUrl ? (
+        <EventSaleChannelPicker
+          event={event}
+          hasTicketTypes
+          onlyChannels={["whatsapp"]}
+        />
+      ) : null}
+
+      {hasTicketTypes ? (
         <div className="mt-4">
           <EventPriceListLink slug={event.slug} />
         </div>

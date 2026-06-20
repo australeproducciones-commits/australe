@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import type { Profile } from "@/lib/auth/types";
 import { ROLES } from "@/lib/constants/roles";
 import type {
   AssignedEventSummary,
@@ -26,6 +27,101 @@ export type InternalUsersFilters = {
   status?: "active" | "inactive" | "all";
   eventId?: string;
 };
+
+export type StaffAccessibleEvent = {
+  id: string;
+  name: string;
+  event_date: string;
+  status: string;
+};
+
+export async function getStaffAccessibleEvents(
+  profile: Profile,
+  options?: {
+    staffRole?: typeof ROLES.CASHIER | typeof ROLES.DOOR;
+  },
+): Promise<StaffAccessibleEvent[]> {
+  if (!profile.is_active) {
+    return [];
+  }
+
+  const supabase = await createClient();
+  const eventColumns = "id, name, event_date, status";
+
+  if (profile.role === ROLES.ADMIN) {
+    const { data, error } = await supabase
+      .from("events")
+      .select(eventColumns)
+      .order("event_date", { ascending: false });
+
+    if (error) {
+      console.error("getStaffAccessibleEvents admin:", error);
+      return [];
+    }
+
+    return data ?? [];
+  }
+
+  const staffRole = options?.staffRole ?? profile.role;
+  if (staffRole !== ROLES.CASHIER && staffRole !== ROLES.DOOR) {
+    return [];
+  }
+
+  if (profile.role !== staffRole) {
+    return [];
+  }
+
+  if (profile.staff_all_events) {
+    const { data, error } = await supabase
+      .from("events")
+      .select(eventColumns)
+      .order("event_date", { ascending: false });
+
+    if (error) {
+      console.error("getStaffAccessibleEvents global:", error);
+      return [];
+    }
+
+    return data ?? [];
+  }
+
+  const { data, error } = await supabase
+    .from("event_staff")
+    .select(`event_id, events (${eventColumns})`)
+    .eq("user_id", profile.id)
+    .eq("role", staffRole)
+    .eq("is_active", true);
+
+  if (error) {
+    console.error("getStaffAccessibleEvents assignments:", error);
+    return [];
+  }
+
+  const events = (data ?? [])
+    .map((row) => {
+      const event = Array.isArray(row.events) ? row.events[0] : row.events;
+      if (!event) {
+        return null;
+      }
+
+      return event as StaffAccessibleEvent;
+    })
+    .filter((event): event is StaffAccessibleEvent => event != null)
+    .sort((left, right) => right.event_date.localeCompare(left.event_date));
+
+  return events;
+}
+
+export async function getStaffAccessibleEventById(
+  profile: Profile,
+  eventId: string,
+  options?: {
+    staffRole?: typeof ROLES.CASHIER | typeof ROLES.DOOR;
+  },
+): Promise<StaffAccessibleEvent | null> {
+  const events = await getStaffAccessibleEvents(profile, options);
+  return events.find((event) => event.id === eventId) ?? null;
+}
 
 export async function getInternalUsersForAdmin(
   filters: InternalUsersFilters = {},

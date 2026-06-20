@@ -7,6 +7,7 @@ import {
   resolveMiddlewareRedirect,
 } from "@/lib/auth/routeAccess";
 import { ROLES, type Role } from "@/lib/constants/roles";
+import { ROUTES } from "@/lib/constants/routes";
 import { getSupabaseEnv } from "@/lib/supabase/env";
 import type { Database } from "@/lib/supabase/types";
 
@@ -52,11 +53,20 @@ export async function middleware(request: NextRequest) {
   const redirectPath = resolveMiddlewareRedirect(pathname, {
     isAuthenticated,
     role,
+    returnTo: request.nextUrl.searchParams.get("returnTo"),
   });
 
   if (redirectPath) {
     const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = redirectPath;
+    if (redirectPath.startsWith("/login")) {
+      redirectUrl.pathname = ROUTES.login;
+      redirectUrl.search = redirectPath.includes("?")
+        ? redirectPath.slice(redirectPath.indexOf("?"))
+        : "";
+    } else {
+      redirectUrl.pathname = redirectPath;
+      redirectUrl.search = "";
+    }
     const redirectResponse = NextResponse.redirect(redirectUrl);
 
     supabaseResponse.cookies.getAll().forEach((cookie) => {

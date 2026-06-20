@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { AdminUsersPanel } from "@/components/admin/users/AdminUsersPanel";
 import { AdminHeader } from "@/components/layout/AdminHeader";
-import { requireAdminPage } from "@/lib/events/queries";
+import { requireAdminUsersPage } from "@/lib/auth/requirePage";
 import {
   getEventsForStaffAssignment,
   getInternalUsersForAdmin,
@@ -24,7 +24,7 @@ type AdminUsuariosPageProps = {
 export default async function AdminUsuariosPage({
   searchParams,
 }: AdminUsuariosPageProps) {
-  await requireAdminPage();
+  await requireAdminUsersPage();
   const params = await searchParams;
 
   const filters = {

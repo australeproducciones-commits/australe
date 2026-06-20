@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { InternalUserForm } from "@/components/admin/users/InternalUserForm";
 import { StaffRoleBadge } from "@/components/admin/users/StaffRoleBadge";
 import { AdminHeader } from "@/components/layout/AdminHeader";
-import { requireAdminPage } from "@/lib/events/queries";
+import { requireAdminUsersPage } from "@/lib/auth/requirePage";
 import {
   getEventsForStaffAssignment,
   getInternalUserById,
@@ -26,7 +26,7 @@ export async function generateMetadata({
 }
 
 export default async function AdminUsuarioPage({ params }: AdminUsuarioPageProps) {
-  await requireAdminPage();
+  await requireAdminUsersPage();
   const { id } = await params;
 
   const [user, events] = await Promise.all([

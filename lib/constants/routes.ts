@@ -31,6 +31,8 @@ export const ROUTES = {
   adminCaja: "/admin/caja",
   adminCajero: "/admin/cajero",
   adminPuerta: "/admin/puerta",
+  cajero: "/cajero",
+  portero: "/portero",
   adminUsuarios: "/admin/usuarios",
   adminUsuarioNuevo: "/admin/usuarios/nuevo",
   adminUsuario: (id: string) => `/admin/usuarios/${id}`,

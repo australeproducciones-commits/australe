@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { InternalUserForm } from "@/components/admin/users/InternalUserForm";
 import { AdminHeader } from "@/components/layout/AdminHeader";
-import { requireAdminPage } from "@/lib/events/queries";
+import { requireAdminUsersPage } from "@/lib/auth/requirePage";
 import { getEventsForStaffAssignment } from "@/lib/users/queries";
 
 export const metadata: Metadata = {
@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminUsuarioNuevoPage() {
-  await requireAdminPage();
+  await requireAdminUsersPage();
   const events = await getEventsForStaffAssignment();
 
   return (

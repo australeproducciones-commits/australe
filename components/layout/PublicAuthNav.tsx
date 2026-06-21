@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { LogoutButton } from "@/components/auth/LogoutButton";
+import { getPublicNavAuthLink } from "@/lib/auth/getPublicNavAuth";
+import { resolvePublicSessionUser } from "@/lib/auth/resolvePublicSessionUser";
 import { ROUTES } from "@/lib/constants/routes";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils/cn";
@@ -16,7 +18,9 @@ export function PublicAuthNav({
   surface = "dark",
   stacked = false,
 }: PublicAuthNavProps) {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authHref, setAuthHref] = useState<string>(ROUTES.miCuenta);
+  const [authLabel, setAuthLabel] = useState("Mi cuenta");
   const isLight = surface === "light";
 
   const linkClass = cn(
@@ -29,27 +33,47 @@ export function PublicAuthNav({
 
   useEffect(() => {
     const supabase = createClient();
+    let active = true;
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setIsLoggedIn(!!session);
-    });
+    async function syncSession() {
+      const sessionUser = await resolvePublicSessionUser(supabase);
+
+      if (!active) {
+        return;
+      }
+
+      if (!sessionUser) {
+        setIsAuthenticated(false);
+        return;
+      }
+
+      const link = getPublicNavAuthLink(sessionUser);
+      setIsAuthenticated(true);
+      setAuthHref(link.href);
+      setAuthLabel(link.label);
+    }
+
+    void syncSession();
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setIsLoggedIn(!!session);
+    } = supabase.auth.onAuthStateChange(() => {
+      void syncSession();
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
-  if (isLoggedIn) {
+  if (isAuthenticated) {
     return (
       <div className={cn("flex items-center gap-2", stacked && "flex-col")}>
-        <Link href={ROUTES.miCuenta} className={linkClass}>
-          Mi cuenta
+        <Link href={authHref} className={linkClass}>
+          {authLabel}
         </Link>
-        <LogoutButton variant="header" />
+        <LogoutButton variant="header" redirectTo={ROUTES.login} />
       </div>
     );
   }

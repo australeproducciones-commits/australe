@@ -36,13 +36,18 @@ export async function middleware(request: NextRequest) {
 
   const {
     data: { user },
+    error: authError,
   } = await supabase.auth.getUser();
+
+  if (authError) {
+    await supabase.auth.signOut({ scope: "global" });
+  }
 
   if (!requiresAuthCheck(pathname)) {
     return supabaseResponse;
   }
 
-  const isAuthenticated = !!user;
+  const isAuthenticated = !!user && !authError;
   let role: Role = ROLES.CUSTOMER;
 
   if (isAuthenticated) {

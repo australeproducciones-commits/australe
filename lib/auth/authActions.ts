@@ -1,6 +1,17 @@
 import { getProfile } from "@/lib/auth/getProfile";
 import { getRedirectPathForRole } from "@/lib/auth/redirectByRole";
+import { getEffectiveRole } from "@/lib/auth/routeAccess";
+import { POST_LOGIN_AD_SESSION_KEY } from "@/lib/auth/loginRedirect";
 import { createClient } from "@/lib/supabase/client";
+
+export function clearClientAuthState() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  sessionStorage.removeItem(POST_LOGIN_AD_SESSION_KEY);
+  sessionStorage.removeItem("australe-session-only");
+}
 
 function mapAuthError(message: string): string {
   const lower = message.toLowerCase();
@@ -56,7 +67,7 @@ export async function completeAuthFlow(
     throw new Error("Error al cargar el perfil. Intentá de nuevo.");
   }
 
-  return getRedirectPathForRole(profile.role);
+  return getRedirectPathForRole(getEffectiveRole(profile));
 }
 
 export async function signInWithEmail(email: string, password: string) {
@@ -102,9 +113,11 @@ export async function signUpWithEmail(
 
 export async function signOut() {
   const supabase = createClient();
-  const { error } = await supabase.auth.signOut();
+  const { error } = await supabase.auth.signOut({ scope: "global" });
 
   if (error) {
     throw new Error("No se pudo cerrar sesión. Intentá de nuevo.");
   }
+
+  clearClientAuthState();
 }

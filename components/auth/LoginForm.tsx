@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { PublicButton } from "@/components/ui/public/PublicButton";
 import { PublicCard } from "@/components/ui/public/PublicCard";
@@ -10,6 +10,10 @@ import {
   signInWithEmail,
   signUpWithEmail,
 } from "@/lib/auth/authActions";
+import {
+  getReturnToFromSearchParams,
+  POST_LOGIN_AD_SESSION_KEY,
+} from "@/lib/auth/loginRedirect";
 import { ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils/cn";
 
@@ -17,11 +21,16 @@ type AuthMode = "login" | "signup";
 
 export function LoginForm() {
   const router = useRouter();
-  const [mode, setMode] = useState<AuthMode>("login");
+  const searchParams = useSearchParams();
+  const returnTo = getReturnToFromSearchParams(searchParams);
+  const initialMode = searchParams.get("mode") === "signup" ? "signup" : "login";
+  const [mode, setMode] = useState<AuthMode>(initialMode);
   const [fullName, setFullName] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberSession, setRememberSession] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -63,8 +72,15 @@ export function LoginForm() {
     try {
       if (mode === "login") {
         await signInWithEmail(email.trim(), password);
-        const redirectPath = await completeAuthFlow();
-        router.push(redirectPath);
+        if (!rememberSession) {
+          sessionStorage.setItem("australe-session-only", "1");
+        } else {
+          sessionStorage.removeItem("australe-session-only");
+        }
+        const rolePath = await completeAuthFlow();
+        const finalPath = returnTo ?? rolePath;
+        sessionStorage.setItem(POST_LOGIN_AD_SESSION_KEY, "1");
+        router.push(finalPath);
         router.refresh();
         return;
       }
@@ -84,11 +100,13 @@ export function LoginForm() {
         return;
       }
 
-      const redirectPath = await completeAuthFlow(
+      const rolePath = await completeAuthFlow(
         fullName.trim(),
         whatsapp.trim(),
       );
-      router.push(redirectPath);
+      const finalPath = returnTo ?? rolePath;
+      sessionStorage.setItem(POST_LOGIN_AD_SESSION_KEY, "1");
+      router.push(finalPath);
       router.refresh();
     } catch (err) {
       setError(
@@ -190,21 +208,72 @@ export function LoginForm() {
           <label htmlFor="password" className="mb-2 block text-sm public-text-muted">
             Contraseña
           </label>
-          <input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
-            className="public-input"
-            autoComplete={mode === "login" ? "current-password" : "new-password"}
-            disabled={loading}
-            minLength={6}
-          />
+          <div className="relative">
+            <input
+              id="password"
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              className="public-input pr-11"
+              autoComplete={mode === "login" ? "current-password" : "new-password"}
+              disabled={loading}
+              minLength={6}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((value) => !value)}
+              disabled={loading}
+              aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+              className="absolute inset-y-0 right-0 flex items-center px-3 public-text-muted transition hover:public-heading disabled:opacity-50"
+            >
+              {showPassword ? (
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.75"
+                  className="h-5 w-5"
+                  aria-hidden
+                >
+                  <path d="M3 3l18 18" />
+                  <path d="M10.58 10.58a2 2 0 0 0 2.84 2.84" />
+                  <path d="M9.88 4.24A10.94 10.94 0 0 1 12 4c5 0 9.27 3.11 11 7.5a11.62 11.62 0 0 1-2.12 3.17M6.12 6.12A11.8 11.8 0 0 0 1 11.5C2.73 15.89 7 19 12 19a10.9 10.9 0 0 0 5.05-1.23" />
+                </svg>
+              ) : (
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.75"
+                  className="h-5 w-5"
+                  aria-hidden
+                >
+                  <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              )}
+            </button>
+          </div>
         </div>
 
         {error ? <p className="public-alert-error">{error}</p> : null}
         {info ? <p className="public-alert-warning">{info}</p> : null}
+
+        {mode === "login" ? (
+          <label className="flex items-start gap-3 text-sm public-text-muted">
+            <input
+              type="checkbox"
+              checked={rememberSession}
+              onChange={(event) => setRememberSession(event.target.checked)}
+              disabled={loading}
+              className="mt-0.5 h-4 w-4 rounded border-[var(--public-border)]"
+            />
+            <span>Mantener mi sesión iniciada</span>
+          </label>
+        ) : null}
 
         <PublicButton type="submit" className="w-full" size="lg" disabled={loading}>
           {loading

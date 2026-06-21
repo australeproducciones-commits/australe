@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
+import { PublicUserMenu } from "@/components/layout/PublicUserMenu";
 import { BRAND_LOGO_ON_LIGHT } from "@/lib/constants/branding";
 import { PUBLIC_NAV_LINKS, ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils/cn";
@@ -30,17 +31,20 @@ export function PublicHeader() {
           />
         </Link>
 
-        <nav className="hidden items-center gap-1 lg:flex">
-          {PUBLIC_NAV_LINKS.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="rounded-xl px-3 py-2 text-sm font-medium transition public-text-muted hover:bg-[var(--public-header-hover)] hover:public-heading"
-            >
-              {link.label}
-            </Link>
-          ))}
-        </nav>
+        <div className="hidden items-center gap-1 lg:flex">
+          <nav className="flex items-center gap-1">
+            {PUBLIC_NAV_LINKS.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="rounded-xl px-3 py-2 text-sm font-medium transition public-text-muted hover:bg-[var(--public-header-hover)] hover:public-heading"
+              >
+                {link.label}
+              </Link>
+            ))}
+          </nav>
+          <PublicUserMenu />
+        </div>
 
         <button
           type="button"
@@ -77,6 +81,9 @@ export function PublicHeader() {
               {link.label}
             </Link>
           ))}
+          <div className="mt-2 border-t pt-3" style={{ borderColor: "var(--public-border)" }}>
+            <PublicUserMenu stacked />
+          </div>
         </nav>
       </div>
     </header>

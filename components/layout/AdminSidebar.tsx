@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { LogoutButton } from "@/components/auth/LogoutButton";
 import { ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils/cn";
 
@@ -81,7 +82,7 @@ export function AdminSidebar({
 
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-40 w-64 border-r border-white/10 bg-zinc-950 transition-transform lg:static lg:translate-x-0",
+          "fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-white/10 bg-zinc-950 transition-transform lg:static lg:translate-x-0",
           open ? "translate-x-0" : "-translate-x-full",
         )}
       >
@@ -89,7 +90,10 @@ export function AdminSidebar({
           <p className="text-sm font-bold text-white">Panel Admin</p>
           <p className="text-xs text-purple-300">Australe Producciones</p>
         </div>
-        {navContent}
+        <div className="flex-1 overflow-y-auto">{navContent}</div>
+        <div className="border-t border-white/10 p-4">
+          <LogoutButton variant="admin-sidebar" redirectTo={ROUTES.login} />
+        </div>
       </aside>
     </>
   );

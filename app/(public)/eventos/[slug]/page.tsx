@@ -19,6 +19,7 @@ import {
 import { ROUTES } from "@/lib/constants/routes";
 import { getPublishedEventBySlug } from "@/lib/events/queries";
 import { getProfile } from "@/lib/auth/getProfile";
+import { isActiveCommunityMember } from "@/lib/community/membership";
 import { resolveEventPublicAccess } from "@/lib/events/access";
 import { CommunityEventGate } from "@/components/events/CommunityEventGate";
 import { createClient } from "@/lib/supabase/server";
@@ -70,10 +71,12 @@ export default async function EventoPage({ params }: EventoPageProps) {
     event.end_time,
   );
 
-  const [activeTicketTypes, publicKiosk] = await Promise.all([
+  const [activeTicketTypes, publicKiosk, isCommunityMember] = await Promise.all([
     getActiveTicketTypesForPublishedEvent(event.id, event.status),
     getPublicEventKiosk(event.id),
+    isActiveCommunityMember(profile?.id),
   ]);
+  const isLoggedIn = profile !== null;
   const minPrice = getMinPublicPrice(activeTicketTypes);
   const hasTicketTypes = activeTicketTypes.length > 0;
   const whatsappUrl = getWhatsAppSaleUrl(event);
@@ -178,6 +181,8 @@ export default async function EventoPage({ params }: EventoPageProps) {
           eventId={event.id}
           eventSlug={event.slug}
           products={publicKiosk.products}
+          isLoggedIn={isLoggedIn}
+          isCommunityMember={isCommunityMember}
         />
       ) : publicKiosk.presaleEnabled && publicKiosk.hasListedProducts ? (
         <PublicCard padding="lg" className="mt-8 text-center">

@@ -11,6 +11,7 @@ import {
   StatusBadge,
 } from "@/components/ui/public";
 import { getProfile } from "@/lib/auth/getProfile";
+import { isActiveCommunityMember } from "@/lib/community/membership";
 import {
   EVENT_STATUS,
   EVENT_STATUS_LABELS,
@@ -96,6 +97,8 @@ export default async function VentaEventoPage({ params }: VentaEventoPageProps) 
     ]);
 
   const profile = await getProfile(supabase);
+  const isCommunityMember = await isActiveCommunityMember(profile?.id);
+  const isLoggedIn = profile !== null;
   const sellableTicketTypes = filterTicketTypesOnSale(ticketTypes);
 
   return (
@@ -178,6 +181,8 @@ export default async function VentaEventoPage({ params }: VentaEventoPageProps) 
                   eventId={event.id}
                   eventSlug={event.slug}
                   products={publicKiosk.products}
+                  isLoggedIn={isLoggedIn}
+                  isCommunityMember={isCommunityMember}
                 />
               ) : (
                 <PublicCard padding="lg" className="text-center">

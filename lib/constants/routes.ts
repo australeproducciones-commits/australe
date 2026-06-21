@@ -41,10 +41,15 @@ export const ROUTES = {
   adminPublicidad: "/admin/publicidad",
 } as const;
 
-export const PUBLIC_NAV_LINKS = [
+/** Enlaces del header público (sin Contacto; el contacto vive en el footer). */
+export const PUBLIC_HEADER_LINKS = [
   { href: ROUTES.home, label: "Inicio" },
   { href: ROUTES.eventos, label: "Eventos" },
   { href: ROUTES.comunidad, label: "Comunidad" },
+] as const;
+
+export const PUBLIC_NAV_LINKS = [
+  ...PUBLIC_HEADER_LINKS,
   { href: ROUTES.contacto, label: "Contacto" },
 ] as const;
 

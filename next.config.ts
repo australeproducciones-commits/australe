@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { getNextImageRemotePatterns } from "@/lib/utils/imageHosts";
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 
@@ -9,12 +10,7 @@ const nextConfig: NextConfig = {
     root: projectRoot,
   },
   images: {
-    remotePatterns: [
-      { protocol: "https", hostname: "i.postimg.cc" },
-      { protocol: "https", hostname: "postimg.cc" },
-      { protocol: "https", hostname: "**.postimg.cc" },
-      { protocol: "https", hostname: "res.cloudinary.com" },
-    ],
+    remotePatterns: getNextImageRemotePatterns(),
   },
 };
 

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { PublicUserMenu } from "@/components/layout/PublicUserMenu";
 import { BRAND_LOGO_ON_LIGHT } from "@/lib/constants/branding";
-import { PUBLIC_NAV_LINKS, ROUTES } from "@/lib/constants/routes";
+import { PUBLIC_HEADER_LINKS, ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils/cn";
 
 export function PublicHeader() {
@@ -33,7 +33,7 @@ export function PublicHeader() {
 
         <div className="hidden items-center gap-1 lg:flex">
           <nav className="flex items-center gap-1">
-            {PUBLIC_NAV_LINKS.map((link) => (
+            {PUBLIC_HEADER_LINKS.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
@@ -71,7 +71,7 @@ export function PublicHeader() {
         }}
       >
         <nav className="flex flex-col gap-1">
-          {PUBLIC_NAV_LINKS.map((link) => (
+          {PUBLIC_HEADER_LINKS.map((link) => (
             <Link
               key={link.href}
               href={link.href}

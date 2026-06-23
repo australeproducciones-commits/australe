@@ -1,9 +1,11 @@
 /**
- * Validación funcional y RLS del módulo Comunidad.
+ * Validación completa del módulo Comunidad / Fidelización.
  * Uso: node scripts/validate-community-loyalty.mjs
- * Requiere .env.local con NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY
+ * Requiere .env.local: NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY
+ * No almacena credenciales. Crea y elimina usuarios/datos de prueba.
  */
 import { createClient } from "@supabase/supabase-js";
+import { randomUUID } from "node:crypto";
 import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -34,6 +36,9 @@ if (!url || !anonKey || !serviceKey) {
   process.exit(1);
 }
 
+const RUN_ID = Date.now().toString(36);
+const TEST_PREFIX = `loyalty-test-${RUN_ID}`;
+
 const admin = createClient(url, serviceKey, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
@@ -48,309 +53,783 @@ function fail(name, detail = "") {
   console.error(`✗ ${name}${detail ? `: ${detail}` : ""}`);
 }
 
-const TEST_PREFIX = "loyalty-test-" + Date.now();
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
 
-async function getTestProfile() {
-  const { data, error } = await admin
-    .from("profiles")
-    .select("id, role, full_name")
-    .eq("role", "customer")
-    .eq("is_active", true)
-    .limit(1)
-    .maybeSingle();
+const state = {
+  userA: null,
+  userB: null,
+  clientA: null,
+  clientB: null,
+  rewardIds: [],
+  ticketIds: [],
+  authUserIds: [],
+};
 
-  if (error || !data) {
-    throw new Error("No se encontró perfil customer para pruebas: " + (error?.message ?? ""));
+async function createTestCustomer(label) {
+  const email = `customer_test_${label}_${RUN_ID}@loyalty-test.invalid`;
+  const password = `Tst!${randomUUID().slice(0, 12)}`;
+  const { data, error } = await admin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: { full_name: `Customer Test ${label.toUpperCase()}` },
+  });
+  if (error) throw new Error(`createUser ${label}: ${error.message}`);
+  state.authUserIds.push(data.user.id);
+
+  let profile = null;
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    await sleep(400);
+    const { data: row, error: profileError } = await admin
+      .from("profiles")
+      .select("id, role")
+      .eq("id", data.user.id)
+      .maybeSingle();
+    if (!profileError && row) {
+      profile = row;
+      break;
+    }
   }
-  return data;
+
+  if (!profile) {
+    const { error: insertProfileErr } = await admin.from("profiles").insert({
+      id: data.user.id,
+      full_name: `Customer Test ${label.toUpperCase()}`,
+      whatsapp: null,
+      role: "customer",
+      is_active: true,
+    });
+    if (insertProfileErr) {
+      throw new Error(`perfil ${label} no creado: ${insertProfileErr.message}`);
+    }
+    profile = { id: data.user.id, role: "customer" };
+  }
+
+  return { id: profile.id, email, password, role: profile.role };
 }
 
-async function getSecondProfile(excludeId) {
-  const { data } = await admin
-    .from("profiles")
-    .select("id")
-    .eq("role", "customer")
-    .eq("is_active", true)
-    .neq("id", excludeId)
-    .limit(1)
-    .maybeSingle();
-  return data?.id ?? null;
+async function signInCustomer({ email, password }) {
+  const client = createClient(url, anonKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { error } = await client.auth.signInWithPassword({ email, password });
+  if (error) throw new Error(`signIn: ${error.message}`);
+  return client;
 }
 
-async function cleanup(userId, rewardId) {
-  if (rewardId) {
+async function cleanupAll() {
+  for (const ticketId of state.ticketIds) {
+    await admin
+      .from("loyalty_transactions")
+      .delete()
+      .or(`source_id.eq.${ticketId},idempotency_key.like.ticket:${ticketId}%`);
+    await admin.from("tickets").delete().eq("id", ticketId);
+  }
+  for (const rewardId of state.rewardIds) {
     await admin.from("community_redemptions").delete().eq("reward_id", rewardId);
     await admin.from("community_rewards").delete().eq("id", rewardId);
   }
+  const userIds = [state.userA?.id, state.userB?.id].filter(Boolean);
+  for (const userId of userIds) {
+    await admin.from("loyalty_transactions").delete().eq("user_id", userId);
+    await admin.from("community_redemptions").delete().eq("user_id", userId);
+    await admin.from("loyalty_accounts").delete().eq("user_id", userId);
+  }
+  for (const authId of state.authUserIds) {
+    await admin.auth.admin.deleteUser(authId);
+  }
+}
+
+async function testRpcGrants() {
+  const anon = createClient(url, anonKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { error: adjustErr } = await anon.rpc("adjust_loyalty_points", {
+    p_user_id: state.userA.id,
+    p_points: 1,
+    p_reason: "hack",
+    p_admin_id: state.userA.id,
+  });
+  if (adjustErr?.message?.includes("permission denied")) {
+    pass("anon no puede ejecutar adjust_loyalty_points");
+  } else {
+    fail("anon no puede ejecutar adjust_loyalty_points", adjustErr?.message ?? "sin error");
+  }
+
+  const { error: authAdjustErr } = await state.clientA.rpc("adjust_loyalty_points", {
+    p_user_id: state.userA.id,
+    p_points: 1,
+    p_reason: "hack",
+    p_admin_id: state.userA.id,
+  });
+  if (authAdjustErr?.message?.includes("permission denied")) {
+    pass("customer autenticado no puede ejecutar adjust_loyalty_points");
+  } else {
+    fail(
+      "customer autenticado no puede ejecutar adjust_loyalty_points",
+      authAdjustErr?.message ?? "sin error",
+    );
+  }
+}
+
+async function testRls() {
+  await admin.rpc("ensure_loyalty_account", { p_user_id: state.userA.id });
+
+  const { data: ownAccount, error: ownAccErr } = await state.clientA
+    .from("loyalty_accounts")
+    .select("user_id, points_balance")
+    .eq("user_id", state.userA.id);
+  if (!ownAccErr && ownAccount?.length === 1) {
+    pass("RLS: customer A lee su cuenta");
+  } else {
+    fail("RLS: customer A lee su cuenta", ownAccErr?.message ?? `filas=${ownAccount?.length ?? 0}`);
+  }
+
+  await admin.rpc("ensure_loyalty_account", { p_user_id: state.userB.id });
+  await admin.rpc("award_loyalty_points", {
+    p_user_id: state.userB.id,
+    p_points: 42,
+    p_source_type: "test",
+    p_source_id: `${TEST_PREFIX}:b-seed`,
+    p_idempotency_key: `${TEST_PREFIX}:b-seed`,
+    p_description: "seed B",
+    p_metadata: {},
+    p_created_by: null,
+  });
+
+  const { data: crossAccount } = await state.clientA
+    .from("loyalty_accounts")
+    .select("user_id, points_balance")
+    .eq("user_id", state.userB.id);
+  if (!crossAccount?.length) {
+    pass("RLS: customer A no lee cuenta de B");
+  } else {
+    fail("RLS: customer A no lee cuenta de B", `filas=${crossAccount.length}`);
+  }
+
+  const { data: ownTx } = await state.clientA
+    .from("loyalty_transactions")
+    .select("id")
+    .eq("user_id", state.userA.id);
+  if (Array.isArray(ownTx)) {
+    pass("RLS: customer A lee sus movimientos");
+  } else {
+    fail("RLS: customer A lee sus movimientos");
+  }
+
+  const { data: crossTx } = await state.clientA
+    .from("loyalty_transactions")
+    .select("id")
+    .eq("user_id", state.userB.id);
+  if (!crossTx?.length) {
+    pass("RLS: customer A no lee movimientos de B");
+  } else {
+    fail("RLS: customer A no lee movimientos de B");
+  }
+
+  const { data: crossTxB } = await state.clientB
+    .from("loyalty_transactions")
+    .select("id")
+    .eq("user_id", state.userA.id);
+  if (!crossTxB?.length) {
+    pass("RLS: customer B no lee movimientos de A");
+  } else {
+    fail("RLS: customer B no lee movimientos de A");
+  }
+
+  const { error: insertTxErr } = await state.clientA.from("loyalty_transactions").insert({
+    user_id: state.userA.id,
+    transaction_type: "earn",
+    points: 50,
+    balance_after: 50,
+    source_type: "hack",
+    idempotency_key: `${TEST_PREFIX}:direct-insert`,
+  });
+  if (insertTxErr) {
+    pass("RLS: customer no inserta loyalty_transactions");
+  } else {
+    fail("RLS: customer no inserta loyalty_transactions");
+  }
+
+  const { data: updatedRows, error: updateBalanceErr } = await state.clientA
+    .from("loyalty_accounts")
+    .update({ points_balance: 99999 })
+    .eq("user_id", state.userA.id)
+    .select("user_id");
+  if (updateBalanceErr || !updatedRows?.length) {
+    pass("RLS: customer no actualiza points_balance");
+  } else {
+    fail("RLS: customer no actualiza points_balance", `filas=${updatedRows.length}`);
+  }
+
+  const { error: rewardInsertErr } = await state.clientA.from("community_rewards").insert({
+    name: "hack",
+    points_cost: 1,
+    is_active: true,
+    reward_type: "benefit",
+  });
+  if (rewardInsertErr) {
+    pass("RLS: customer no crea recompensas");
+  } else {
+    fail("RLS: customer no crea recompensas");
+  }
+
+  const anon = createClient(url, anonKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { data: publicLevels } = await anon.from("community_levels").select("id").eq("is_active", true);
+  if (publicLevels?.length) {
+    pass("RLS: anon lee niveles activos");
+  } else {
+    fail("RLS: anon lee niveles activos");
+  }
+
+  const { data: anonAccounts } = await anon.from("loyalty_accounts").select("user_id").limit(1);
+  if (!anonAccounts?.length) {
+    pass("RLS: anon no lee cuentas");
+  } else {
+    fail("RLS: anon no lee cuentas");
+  }
+}
+
+async function testLedger() {
+  const userId = state.userA.id;
+
+  const { data: settings } = await admin
+    .from("community_settings")
+    .select("welcome_points")
+    .eq("id", 1)
+    .single();
+  const welcomePoints = settings?.welcome_points ?? 0;
+
   await admin.from("loyalty_transactions").delete().eq("user_id", userId);
   await admin.from("loyalty_accounts").delete().eq("user_id", userId);
+
+  await admin.rpc("ensure_loyalty_account", { p_user_id: userId });
+  await admin.rpc("ensure_loyalty_account", { p_user_id: userId });
+
+  const { count: accountCount } = await admin
+    .from("loyalty_accounts")
+    .select("user_id", { count: "exact", head: true })
+    .eq("user_id", userId);
+
+  const { count: welcomeTxCount } = await admin
+    .from("loyalty_transactions")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .eq("idempotency_key", `welcome:${userId}`);
+
+  if (accountCount === 1 && welcomeTxCount <= 1) {
+    pass("ensure + bienvenida no duplican cuenta", `welcome_tx=${welcomeTxCount}`);
+  } else {
+    fail("ensure + bienvenida", `accounts=${accountCount} welcome=${welcomeTxCount}`);
+  }
+
+  const idemKey = `${TEST_PREFIX}:earn`;
+  const { data: tx1 } = await admin.rpc("award_loyalty_points", {
+    p_user_id: userId,
+    p_points: 100,
+    p_source_type: "test",
+    p_source_id: TEST_PREFIX,
+    p_idempotency_key: idemKey,
+    p_description: "earn",
+    p_metadata: {},
+    p_created_by: null,
+  });
+  const { data: tx2 } = await admin.rpc("award_loyalty_points", {
+    p_user_id: userId,
+    p_points: 100,
+    p_source_type: "test",
+    p_source_id: TEST_PREFIX,
+    p_idempotency_key: idemKey,
+    p_description: "earn",
+    p_metadata: {},
+    p_created_by: null,
+  });
+  const { data: acct } = await admin
+    .from("loyalty_accounts")
+    .select("points_balance, lifetime_points")
+    .eq("user_id", userId)
+    .single();
+
+  const expectedBase = welcomePoints + 100;
+  if (tx1 === tx2 && acct.points_balance === expectedBase && acct.lifetime_points === expectedBase) {
+    pass("acreditación idempotente", `saldo=${acct.points_balance}`);
+  } else {
+    fail("acreditación idempotente", JSON.stringify({ tx1, tx2, acct, expectedBase }));
+  }
+
+  const { data: adminProfile } = await admin
+    .from("profiles")
+    .select("id")
+    .eq("role", "admin")
+    .limit(1)
+    .maybeSingle();
+
+  const adminId = adminProfile?.id ?? userId;
+  const { data: adjId, error: adjErr } = await admin.rpc("adjust_loyalty_points", {
+    p_user_id: userId,
+    p_points: 25,
+    p_reason: "Ajuste prueba +25",
+    p_admin_id: adminId,
+  });
+  if (adjErr) throw new Error(adjErr.message);
+
+  const { data: adjTx } = await admin
+    .from("loyalty_transactions")
+    .select("transaction_type, created_by, points")
+    .eq("id", adjId)
+    .single();
+
+  if (adjTx?.transaction_type === "adjustment" && adjTx.created_by === adminId && adjTx.points === 25) {
+    pass("ajuste administrativo +25 con created_by");
+  } else {
+    fail("ajuste administrativo +25", JSON.stringify(adjTx));
+  }
+
+  const { error: emptyReasonErr } = await admin.rpc("adjust_loyalty_points", {
+    p_user_id: userId,
+    p_points: 1,
+    p_reason: "   ",
+    p_admin_id: adminId,
+  });
+  if (emptyReasonErr?.message?.includes("motivo")) {
+    pass("ajuste rechaza motivo vacío");
+  } else {
+    fail("ajuste rechaza motivo vacío", emptyReasonErr?.message);
+  }
+
+  const { data: beforeNeg } = await admin
+    .from("loyalty_accounts")
+    .select("points_balance")
+    .eq("user_id", userId)
+    .single();
+
+  await admin.rpc("adjust_loyalty_points", {
+    p_user_id: userId,
+    p_points: -(beforeNeg.points_balance + 500),
+    p_reason: "Resta grande prueba",
+    p_admin_id: adminId,
+  });
+
+  const { data: afterNeg } = await admin
+    .from("loyalty_accounts")
+    .select("points_balance")
+    .eq("user_id", userId)
+    .single();
+
+  if (afterNeg.points_balance === 0) {
+    pass("resta superior al saldo deja saldo en 0, no negativo");
+  } else {
+    fail("resta superior al saldo", `saldo=${afterNeg.points_balance}`);
+  }
+
+  const { data: expensiveReward } = await admin
+    .from("community_rewards")
+    .insert({
+      name: `${TEST_PREFIX} expensive`,
+      description: "test",
+      points_cost: 999999,
+      stock: 5,
+      is_active: true,
+      reward_type: "benefit",
+    })
+    .select("id")
+    .single();
+  state.rewardIds.push(expensiveReward.id);
+
+  const { error: insufficientErr } = await admin.rpc("redeem_community_reward", {
+    p_user_id: userId,
+    p_reward_id: expensiveReward.id,
+  });
+  if (insufficientErr?.message?.includes("saldo insuficiente")) {
+    pass("canje rechazado por saldo insuficiente");
+  } else {
+    fail("canje saldo insuficiente", insufficientErr?.message ?? "sin error");
+  }
+
+  await admin.rpc("award_loyalty_points", {
+    p_user_id: userId,
+    p_points: 200,
+    p_source_type: "test",
+    p_source_id: `${TEST_PREFIX}:redeem-seed`,
+    p_idempotency_key: `${TEST_PREFIX}:redeem-seed`,
+    p_description: "seed redeem",
+    p_metadata: {},
+    p_created_by: null,
+  });
+
+  const { data: reward } = await admin
+    .from("community_rewards")
+    .insert({
+      name: `${TEST_PREFIX} reward`,
+      description: "test",
+      points_cost: 80,
+      stock: 2,
+      max_per_user: 1,
+      is_active: true,
+      reward_type: "benefit",
+    })
+    .select("id")
+    .single();
+  state.rewardIds.push(reward.id);
+
+  const { data: beforeRedeem } = await admin
+    .from("loyalty_accounts")
+    .select("points_balance, lifetime_points")
+    .eq("user_id", userId)
+    .single();
+
+  const { data: redeemRows, error: redeemOkErr } = await admin.rpc("redeem_community_reward", {
+    p_user_id: userId,
+    p_reward_id: reward.id,
+  });
+  if (redeemOkErr) throw new Error(redeemOkErr.message);
+
+  const { data: afterRedeem } = await admin
+    .from("loyalty_accounts")
+    .select("points_balance, lifetime_points")
+    .eq("user_id", userId)
+    .single();
+
+  const { data: stockRow } = await admin
+    .from("community_rewards")
+    .select("stock")
+    .eq("id", reward.id)
+    .single();
+
+  if (
+    afterRedeem.points_balance === beforeRedeem.points_balance - 80 &&
+    afterRedeem.lifetime_points === beforeRedeem.lifetime_points &&
+    stockRow.stock === 1 &&
+    redeemRows?.[0]?.redemption_code
+  ) {
+    pass("canje válido con stock y lifetime intacto");
+  } else {
+    fail("canje válido", JSON.stringify({ beforeRedeem, afterRedeem, stockRow }));
+  }
+
+  const { error: limitErr } = await admin.rpc("redeem_community_reward", {
+    p_user_id: userId,
+    p_reward_id: reward.id,
+  });
+  if (limitErr?.message?.includes("límite")) {
+    pass("canje respeta max_per_user");
+  } else {
+    fail("canje max_per_user", limitErr?.message ?? "sin error");
+  }
+
+  await admin
+    .from("community_rewards")
+    .update({ max_per_user: null })
+    .eq("id", reward.id);
+
+  const { error: secondRedeemErr } = await admin.rpc("redeem_community_reward", {
+    p_user_id: userId,
+    p_reward_id: reward.id,
+  });
+  if (secondRedeemErr) {
+    fail("segundo canje con stock disponible", secondRedeemErr.message);
+  } else {
+    pass("segundo canje consume stock restante");
+  }
+
+  const { error: stockErr } = await admin.rpc("redeem_community_reward", {
+    p_user_id: userId,
+    p_reward_id: reward.id,
+  });
+  if (stockErr?.message?.includes("agotada")) {
+    pass("canje rechazado por stock agotado");
+  } else {
+    fail("canje stock agotado", stockErr?.message ?? "sin error");
+  }
+
+  const { data: expiredReward } = await admin
+    .from("community_rewards")
+    .insert({
+      name: `${TEST_PREFIX} expired`,
+      points_cost: 10,
+      is_active: false,
+      reward_type: "benefit",
+      ends_at: new Date(Date.now() - 86400000).toISOString(),
+    })
+    .select("id")
+    .single();
+  state.rewardIds.push(expiredReward.id);
+
+  const { error: expiredErr } = await admin.rpc("redeem_community_reward", {
+    p_user_id: userId,
+    p_reward_id: expiredReward.id,
+  });
+  if (expiredErr) {
+    pass("canje rechazado en recompensa inactiva/vencida");
+  } else {
+    fail("canje recompensa inactiva");
+  }
+}
+
+async function testReversalAfterSpend() {
+  const userId = state.userA.id;
+  await admin.from("loyalty_transactions").delete().eq("user_id", userId);
+  await admin.from("loyalty_accounts").delete().eq("user_id", userId);
+
+  const ticketKey = `${TEST_PREFIX}:ticket-spend`;
+  await admin.rpc("award_loyalty_points", {
+    p_user_id: userId,
+    p_points: 100,
+    p_source_type: "ticket",
+    p_source_id: ticketKey,
+    p_idempotency_key: `ticket:${ticketKey}:earn`,
+    p_description: "ticket earn",
+    p_metadata: {},
+    p_created_by: null,
+  });
+
+  const { data: reward } = await admin
+    .from("community_rewards")
+    .insert({
+      name: `${TEST_PREFIX} spend-reward`,
+      points_cost: 60,
+      stock: null,
+      is_active: true,
+      reward_type: "benefit",
+    })
+    .select("id")
+    .single();
+  state.rewardIds.push(reward.id);
+
+  await admin.rpc("redeem_community_reward", {
+    p_user_id: userId,
+    p_reward_id: reward.id,
+  });
+
+  const { data: beforeRev } = await admin
+    .from("loyalty_accounts")
+    .select("points_balance, lifetime_points")
+    .eq("user_id", userId)
+    .single();
+
+  const revKey = `ticket:${ticketKey}:reversal`;
+  await admin.rpc("reverse_loyalty_points", {
+    p_user_id: userId,
+    p_points: 100,
+    p_source_type: "ticket",
+    p_source_id: ticketKey,
+    p_idempotency_key: revKey,
+    p_description: "reversal",
+    p_metadata: {},
+    p_created_by: null,
+  });
+  const { data: rev2 } = await admin.rpc("reverse_loyalty_points", {
+    p_user_id: userId,
+    p_points: 100,
+    p_source_type: "ticket",
+    p_source_id: ticketKey,
+    p_idempotency_key: revKey,
+    p_description: "reversal",
+    p_metadata: {},
+    p_created_by: null,
+  });
+
+  const { data: afterRev } = await admin
+    .from("loyalty_accounts")
+    .select("points_balance, lifetime_points")
+    .eq("user_id", userId)
+    .single();
+
+  const { count: txCount } = await admin
+    .from("loyalty_transactions")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .eq("transaction_type", "reversal");
+
+  if (
+    afterRev.points_balance >= 0 &&
+    afterRev.points_balance === beforeRev.points_balance - Math.min(100, beforeRev.points_balance) &&
+    txCount === 1 &&
+    rev2
+  ) {
+    pass(
+      "reverso tras gasto parcial: saldo no negativo",
+      `saldo=${afterRev.points_balance}, lifetime=${afterRev.lifetime_points}`,
+    );
+  } else {
+    fail("reverso tras gasto parcial", JSON.stringify({ beforeRev, afterRev, txCount }));
+  }
+}
+
+async function testTicketIntegration() {
+  const userId = state.userA.id;
+  const { data: event } = await admin
+    .from("events")
+    .select("id")
+    .eq("status", "published")
+    .limit(1)
+    .maybeSingle();
+
+  if (!event) {
+    fail("integración tickets", "no hay evento publicado para prueba");
+    return;
+  }
+
+  const { data: ticketType } = await admin
+    .from("ticket_types")
+    .select("id, public_price")
+    .eq("event_id", event.id)
+    .eq("is_active", true)
+    .limit(1)
+    .maybeSingle();
+
+  const ticketTypeId = ticketType?.id ?? null;
+
+  const pricePaid = 20000;
+  const { data: ticket, error: ticketErr } = await admin
+    .from("tickets")
+    .insert({
+      event_id: event.id,
+      ticket_type_id: ticketTypeId,
+      user_id: userId,
+      buyer_name: "Test Loyalty",
+      buyer_whatsapp: null,
+      buyer_dni: null,
+      qr_token: `test-${RUN_ID}`,
+      original_price: pricePaid,
+      price_paid: pricePaid,
+      discount_amount: 0,
+      payment_method: "pending",
+      payment_status: "pending",
+      ticket_status: "reserved",
+      sales_channel: "web",
+    })
+    .select("id")
+    .single();
+
+  if (ticketErr) {
+    fail("crear ticket prueba", ticketErr.message);
+    return;
+  }
+  state.ticketIds.push(ticket.id);
+
+  await admin
+    .from("tickets")
+    .update({ payment_status: "confirmed", ticket_status: "valid" })
+    .eq("id", ticket.id);
+
+  const { data: txId1, error: awardErr } = await admin.rpc("award_loyalty_points_for_ticket", {
+    p_ticket_id: ticket.id,
+  });
+  if (awardErr) throw new Error(awardErr.message);
+
+  const expectedPoints = Math.floor(pricePaid / 1000);
+  const { data: acct } = await admin
+    .from("loyalty_accounts")
+    .select("points_balance")
+    .eq("user_id", userId)
+    .single();
+
+  const { data: txId2 } = await admin.rpc("award_loyalty_points_for_ticket", {
+    p_ticket_id: ticket.id,
+  });
+
+  const { data: earnTx } = await admin
+    .from("loyalty_transactions")
+    .select("points, source_type, source_id, idempotency_key")
+    .eq("idempotency_key", `ticket:${ticket.id}:earn`)
+    .maybeSingle();
+
+  if (
+    txId1 &&
+    txId1 === txId2 &&
+    earnTx?.points === expectedPoints &&
+    earnTx.source_type === "ticket"
+  ) {
+    pass("ticket confirmado acredita puntos idempotente", `${expectedPoints} pts`);
+  } else {
+    fail("ticket acreditación", JSON.stringify({ txId1, txId2, earnTx, expectedPoints }));
+  }
+
+  const { data: anonTicket, error: anonTicketErr } = await admin
+    .from("tickets")
+    .insert({
+      event_id: event.id,
+      ticket_type_id: ticketTypeId,
+      user_id: null,
+      buyer_name: "Anon Test",
+      buyer_whatsapp: null,
+      buyer_dni: null,
+      qr_token: `test-anon-${RUN_ID}`,
+      original_price: 10000,
+      price_paid: 10000,
+      discount_amount: 0,
+      payment_method: "cash",
+      payment_status: "confirmed",
+      ticket_status: "valid",
+      sales_channel: "web",
+    })
+    .select("id")
+    .single();
+
+  if (!anonTicketErr && anonTicket) {
+    state.ticketIds.push(anonTicket.id);
+    const { data: noAward } = await admin.rpc("award_loyalty_points_for_ticket", {
+      p_ticket_id: anonTicket.id,
+    });
+    if (noAward === null) {
+      pass("ticket sin user_id no acredita puntos");
+    } else {
+      fail("ticket sin user_id", String(noAward));
+    }
+  }
+
+  const { data: revId1 } = await admin.rpc("reverse_loyalty_points_for_ticket", {
+    p_ticket_id: ticket.id,
+  });
+  const { data: revId2 } = await admin.rpc("reverse_loyalty_points_for_ticket", {
+    p_ticket_id: ticket.id,
+  });
+
+  const { data: afterCancel } = await admin
+    .from("loyalty_accounts")
+    .select("points_balance")
+    .eq("user_id", userId)
+    .single();
+
+  if (revId1 && revId1 === revId2 && afterCancel.points_balance >= 0) {
+    pass("reverso ticket idempotente", `saldo=${afterCancel.points_balance}`);
+  } else {
+    fail("reverso ticket", JSON.stringify({ revId1, revId2, afterCancel }));
+  }
 }
 
 async function main() {
-  let testUserId;
-  let rewardId;
-  let secondUserId;
-
   try {
-    const profile = await getTestProfile();
-    testUserId = profile.id;
-    secondUserId = await getSecondProfile(testUserId);
+    state.userA = await createTestCustomer("a");
+    state.userB = await createTestCustomer("b");
+    state.clientA = await signInCustomer(state.userA);
+    state.clientB = await signInCustomer(state.userB);
 
-    // --- ensure_loyalty_account idempotencia ---
-    const { error: ensure1 } = await admin.rpc("ensure_loyalty_account", {
-      p_user_id: testUserId,
-    });
-    if (ensure1) throw new Error("ensure 1: " + ensure1.message);
+    pass("usuarios de prueba creados", `A=${state.userA.id.slice(0, 8)}… B=${state.userB.id.slice(0, 8)}…`);
 
-    const { count: countAfterFirst } = await admin
-      .from("loyalty_accounts")
-      .select("user_id", { count: "exact", head: true })
-      .eq("user_id", testUserId);
-
-    const { error: ensure2 } = await admin.rpc("ensure_loyalty_account", {
-      p_user_id: testUserId,
-    });
-    if (ensure2) throw new Error("ensure 2: " + ensure2.message);
-
-    const { count: countAfterSecond } = await admin
-      .from("loyalty_accounts")
-      .select("user_id", { count: "exact", head: true })
-      .eq("user_id", testUserId);
-
-    if (countAfterFirst === 1 && countAfterSecond === 1) {
-      pass("ensure_loyalty_account idempotente", "1 cuenta");
-    } else {
-      fail("ensure_loyalty_account idempotente", `${countAfterFirst} -> ${countAfterSecond}`);
-    }
-
-    // --- award idempotencia ---
-    const idemKey = `${TEST_PREFIX}:earn`;
-    const { data: tx1, error: award1 } = await admin.rpc("award_loyalty_points", {
-      p_user_id: testUserId,
-      p_points: 100,
-      p_source_type: "test",
-      p_source_id: TEST_PREFIX,
-      p_idempotency_key: idemKey,
-      p_description: "Prueba idempotencia",
-      p_metadata: {},
-      p_created_by: null,
-    });
-    if (award1) throw new Error("award1: " + award1.message);
-
-    const { data: accountAfterAward } = await admin
-      .from("loyalty_accounts")
-      .select("points_balance, lifetime_points")
-      .eq("user_id", testUserId)
-      .single();
-
-    const { data: tx2, error: award2 } = await admin.rpc("award_loyalty_points", {
-      p_user_id: testUserId,
-      p_points: 100,
-      p_source_type: "test",
-      p_source_id: TEST_PREFIX,
-      p_idempotency_key: idemKey,
-      p_description: "Prueba idempotencia",
-      p_metadata: {},
-      p_created_by: null,
-    });
-    if (award2) throw new Error("award2: " + award2.message);
-
-    const { data: accountAfterDup } = await admin
-      .from("loyalty_accounts")
-      .select("points_balance, lifetime_points")
-      .eq("user_id", testUserId)
-      .single();
-
-    if (tx1 === tx2 && accountAfterAward.points_balance === accountAfterDup.points_balance) {
-      pass("award_loyalty_points idempotente", `saldo=${accountAfterDup.points_balance}`);
-    } else {
-      fail("award_loyalty_points idempotente");
-    }
-
-    // --- canje saldo insuficiente ---
-    const { data: rewardRow, error: rewardErr } = await admin
-      .from("community_rewards")
-      .insert({
-        name: `${TEST_PREFIX} reward`,
-        description: "test",
-        points_cost: 999999,
-        stock: 5,
-        is_active: true,
-        reward_type: "benefit",
-      })
-      .select("id")
-      .single();
-    if (rewardErr) throw new Error("reward insert: " + rewardErr.message);
-    rewardId = rewardRow.id;
-
-    const balanceBeforeFail = accountAfterDup.points_balance;
-    const { error: redeemFail } = await admin.rpc("redeem_community_reward", {
-      p_user_id: testUserId,
-      p_reward_id: rewardId,
-    });
-
-    const { data: accountAfterFail } = await admin
-      .from("loyalty_accounts")
-      .select("points_balance, lifetime_points")
-      .eq("user_id", testUserId)
-      .single();
-
-    const { count: redemptionCountFail } = await admin
-      .from("community_redemptions")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", testUserId)
-      .eq("reward_id", rewardId);
-
-    if (
-      redeemFail &&
-      redeemFail.message.includes("saldo insuficiente") &&
-      accountAfterFail.points_balance === balanceBeforeFail &&
-      redemptionCountFail === 0
-    ) {
-      pass("canje rechazado por saldo insuficiente");
-    } else {
-      fail("canje rechazado por saldo insuficiente", redeemFail?.message ?? "sin error");
-    }
-
-    // --- canje válido ---
-    await admin.from("community_rewards").update({ points_cost: 30, stock: 3 }).eq("id", rewardId);
-
-    const lifetimeBeforeRedeem = accountAfterFail.lifetime_points;
-    const balanceBeforeRedeem = accountAfterFail.points_balance;
-
-    const { data: redeemOk, error: redeemOkErr } = await admin.rpc("redeem_community_reward", {
-      p_user_id: testUserId,
-      p_reward_id: rewardId,
-    });
-    if (redeemOkErr) throw new Error("redeem ok: " + redeemOkErr.message);
-
-    const { data: accountAfterRedeem } = await admin
-      .from("loyalty_accounts")
-      .select("points_balance, lifetime_points")
-      .eq("user_id", testUserId)
-      .single();
-
-    const { count: txRedeemCount } = await admin
-      .from("loyalty_transactions")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", testUserId)
-      .eq("transaction_type", "redeem");
-
-    const { count: redemptionCount } = await admin
-      .from("community_redemptions")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", testUserId)
-      .eq("reward_id", rewardId);
-
-    const { data: rewardStock } = await admin
-      .from("community_rewards")
-      .select("stock")
-      .eq("id", rewardId)
-      .single();
-
-    const expectedBalance = balanceBeforeRedeem - 30;
-    if (
-      accountAfterRedeem.points_balance === expectedBalance &&
-      accountAfterRedeem.lifetime_points === lifetimeBeforeRedeem &&
-      txRedeemCount >= 1 &&
-      redemptionCount === 1 &&
-      rewardStock.stock === 2 &&
-      redeemOk?.[0]?.redemption_code
-    ) {
-      pass("canje válido", `saldo=${expectedBalance}, stock=2, lifetime sin cambio`);
-    } else {
-      fail("canje válido", JSON.stringify({ accountAfterRedeem, rewardStock, redemptionCount }));
-    }
-
-    // --- reverso idempotente ---
-    const reversalKey = `${TEST_PREFIX}:reversal`;
-    const { data: rev1, error: revErr1 } = await admin.rpc("reverse_loyalty_points", {
-      p_user_id: testUserId,
-      p_points: 50,
-      p_source_type: "test",
-      p_source_id: TEST_PREFIX,
-      p_idempotency_key: reversalKey,
-      p_description: "reverso prueba",
-      p_metadata: {},
-      p_created_by: null,
-    });
-    if (revErr1) throw new Error("reverse1: " + revErr1.message);
-
-    const { data: rev2, error: revErr2 } = await admin.rpc("reverse_loyalty_points", {
-      p_user_id: testUserId,
-      p_points: 50,
-      p_source_type: "test",
-      p_source_id: TEST_PREFIX,
-      p_idempotency_key: reversalKey,
-      p_description: "reverso prueba",
-      p_metadata: {},
-      p_created_by: null,
-    });
-    if (revErr2) throw new Error("reverse2: " + revErr2.message);
-
-    const { data: accountAfterReverse } = await admin
-      .from("loyalty_accounts")
-      .select("points_balance")
-      .eq("user_id", testUserId)
-      .single();
-
-    if (rev1 === rev2 && accountAfterReverse.points_balance >= 0) {
-      pass("reverso idempotente y saldo no negativo", `saldo=${accountAfterReverse.points_balance}`);
-    } else {
-      fail("reverso idempotente");
-    }
-
-    // --- RPC bloqueada para anon ---
-    const anon = createClient(url, anonKey, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
-    const { error: anonAwardErr } = await anon.rpc("award_loyalty_points", {
-      p_user_id: testUserId,
-      p_points: 5000,
-      p_source_type: "hack",
-      p_source_id: "x",
-      p_idempotency_key: `${TEST_PREFIX}:anon`,
-      p_description: null,
-      p_metadata: {},
-      p_created_by: null,
-    });
-    if (anonAwardErr) {
-      pass("anon no puede ejecutar award_loyalty_points", anonAwardErr.message);
-    } else {
-      fail("anon no puede ejecutar award_loyalty_points");
-    }
-
-    // --- RLS: service role ve todo; simular lectura cruzada con filtro manual ---
-    if (secondUserId) {
-      pass("RLS políticas creadas", "validación completa con JWT requiere credenciales de prueba");
-    } else {
-      pass("RLS políticas creadas", "sin segundo usuario customer para prueba cruzada");
-    }
-
-    // --- INSERT directo bloqueado para authenticated simulado: sin service role ---
-    const { error: directInsertErr } = await anon.from("loyalty_transactions").insert({
-      user_id: testUserId,
-      transaction_type: "earn",
-      points: 999,
-      balance_after: 999,
-      source_type: "hack",
-      idempotency_key: `${TEST_PREFIX}:direct`,
-    });
-    if (directInsertErr) {
-      pass("anon no puede insertar loyalty_transactions", directInsertErr.message);
-    } else {
-      fail("anon no puede insertar loyalty_transactions");
-    }
+    await testRpcGrants();
+    await testRls();
+    await testLedger();
+    await testReversalAfterSpend();
+    await testTicketIntegration();
+  } catch (err) {
+    fail("ejecución", err instanceof Error ? err.message : String(err));
   } finally {
-    if (testUserId) {
-      await cleanup(testUserId, rewardId);
-      pass("cleanup datos de prueba");
-    }
+    await cleanupAll();
+    pass("cleanup completo");
   }
 
   const failed = results.filter((r) => !r.ok);
   console.log("\n--- Resumen ---");
   console.log(`Total: ${results.length}, OK: ${results.length - failed.length}, Fallos: ${failed.length}`);
+  if (failed.length) {
+    for (const f of failed) console.error(`  - ${f.name}: ${f.detail}`);
+  }
   process.exit(failed.length ? 1 : 0);
 }
 

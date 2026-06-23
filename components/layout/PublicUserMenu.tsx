@@ -15,18 +15,14 @@ import { ROUTES } from "@/lib/constants/routes";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils/cn";
 
-type AuthView = "pending" | "guest" | "authenticated";
-
 type PublicUserMenuProps = {
   stacked?: boolean;
 };
 
-const SESSION_SYNC_TIMEOUT_MS = 4000;
-
 export function PublicUserMenu({ stacked = false }: PublicUserMenuProps) {
   const menuId = useId();
-  const [authView, setAuthView] = useState<AuthView>("pending");
   const [sessionUser, setSessionUser] = useState<PublicSessionUser | null>(null);
+  const [sessionReady, setSessionReady] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -43,24 +39,18 @@ export function PublicUserMenu({ stacked = false }: PublicUserMenuProps) {
         }
 
         setSessionUser(resolved);
-        setAuthView(resolved ? "authenticated" : "guest");
       } catch {
         if (!active) {
           return;
         }
 
         setSessionUser(null);
-        setAuthView("guest");
+      } finally {
+        if (active) {
+          setSessionReady(true);
+        }
       }
     }
-
-    const timeoutId = window.setTimeout(() => {
-      if (!active) {
-        return;
-      }
-
-      setAuthView((current) => (current === "pending" ? "guest" : current));
-    }, SESSION_SYNC_TIMEOUT_MS);
 
     void syncSession();
 
@@ -72,7 +62,6 @@ export function PublicUserMenu({ stacked = false }: PublicUserMenuProps) {
 
     return () => {
       active = false;
-      window.clearTimeout(timeoutId);
       subscription.unsubscribe();
     };
   }, []);
@@ -110,19 +99,9 @@ export function PublicUserMenu({ stacked = false }: PublicUserMenuProps) {
       : "public-text-muted hover:bg-[var(--public-header-hover)] hover:public-heading",
   );
 
-  if (authView === "pending") {
-    return (
-      <span
-        className={cn(linkClass, "pointer-events-none select-none opacity-0")}
-        aria-busy="true"
-        aria-label="Cargando acceso"
-      >
-        Iniciar sesión
-      </span>
-    );
-  }
+  const isAuthenticated = sessionReady && sessionUser !== null;
 
-  if (authView !== "authenticated" || !sessionUser) {
+  if (!isAuthenticated) {
     return (
       <Link href={ROUTES.login} className={linkClass}>
         Iniciar sesión
@@ -154,7 +133,7 @@ export function PublicUserMenu({ stacked = false }: PublicUserMenuProps) {
           redirectTo={ROUTES.login}
           onSignedOut={() => {
             setSessionUser(null);
-            setAuthView("guest");
+            setSessionReady(true);
             setMenuOpen(false);
           }}
           className="w-full justify-start"
@@ -218,7 +197,7 @@ export function PublicUserMenu({ stacked = false }: PublicUserMenuProps) {
             redirectTo={ROUTES.login}
             onSignedOut={() => {
               setSessionUser(null);
-              setAuthView("guest");
+              setSessionReady(true);
               setMenuOpen(false);
             }}
             className="w-full justify-start rounded-none px-4"

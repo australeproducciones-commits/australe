@@ -119,6 +119,87 @@ export type CommunityMemberRow = {
   birth_date: string;
   status: string;
   community_code: string;
+  suspended_at?: string | null;
+  suspension_reason?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CommunitySettingsRow = {
+  id: number;
+  community_enabled: boolean;
+  ticket_points_enabled: boolean;
+  consumption_points_enabled: boolean;
+  amount_per_point: number;
+  welcome_points: number;
+  public_title: string;
+  public_description: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CommunityLevelRow = {
+  id: string;
+  name: string;
+  minimum_lifetime_points: number;
+  description: string | null;
+  benefits: Json;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type LoyaltyAccountRow = {
+  user_id: string;
+  points_balance: number;
+  lifetime_points: number;
+  current_level_id: string | null;
+  updated_at: string;
+};
+
+export type LoyaltyTransactionRow = {
+  id: string;
+  user_id: string;
+  transaction_type: string;
+  points: number;
+  balance_after: number;
+  source_type: string;
+  source_id: string | null;
+  idempotency_key: string;
+  description: string | null;
+  metadata: Json;
+  created_by: string | null;
+  created_at: string;
+};
+
+export type CommunityRewardRow = {
+  id: string;
+  name: string;
+  description: string | null;
+  image_url: string | null;
+  points_cost: number;
+  stock: number | null;
+  event_id: string | null;
+  reward_type: string;
+  reward_value: Json | null;
+  starts_at: string | null;
+  ends_at: string | null;
+  max_per_user: number | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CommunityRedemptionRow = {
+  id: string;
+  user_id: string;
+  reward_id: string;
+  points_spent: number;
+  redemption_code: string;
+  status: string;
+  redeemed_at: string | null;
+  cancelled_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -416,13 +497,66 @@ export type Database = {
         Row: CommunityMemberRow;
         Insert: Omit<
           CommunityMemberRow,
-          "id" | "created_at" | "updated_at"
+          "id" | "created_at" | "updated_at" | "suspended_at" | "suspension_reason"
         > & {
           id?: string;
+          suspended_at?: string | null;
+          suspension_reason?: string | null;
           created_at?: string;
           updated_at?: string;
         };
         Update: Partial<CommunityMemberRow>;
+        Relationships: [];
+      };
+      community_settings: {
+        Row: CommunitySettingsRow;
+        Insert: Partial<CommunitySettingsRow> & { id?: number };
+        Update: Partial<CommunitySettingsRow>;
+        Relationships: [];
+      };
+      community_levels: {
+        Row: CommunityLevelRow;
+        Insert: Omit<CommunityLevelRow, "id" | "created_at" | "updated_at"> & {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<CommunityLevelRow>;
+        Relationships: [];
+      };
+      loyalty_accounts: {
+        Row: LoyaltyAccountRow;
+        Insert: Partial<LoyaltyAccountRow> & { user_id: string };
+        Update: Partial<LoyaltyAccountRow>;
+        Relationships: [];
+      };
+      loyalty_transactions: {
+        Row: LoyaltyTransactionRow;
+        Insert: Omit<LoyaltyTransactionRow, "id" | "created_at"> & {
+          id?: string;
+          created_at?: string;
+        };
+        Update: Partial<LoyaltyTransactionRow>;
+        Relationships: [];
+      };
+      community_rewards: {
+        Row: CommunityRewardRow;
+        Insert: Omit<CommunityRewardRow, "id" | "created_at" | "updated_at"> & {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<CommunityRewardRow>;
+        Relationships: [];
+      };
+      community_redemptions: {
+        Row: CommunityRedemptionRow;
+        Insert: Omit<CommunityRedemptionRow, "id" | "created_at" | "updated_at"> & {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<CommunityRedemptionRow>;
         Relationships: [];
       };
       analytics_events: {
@@ -815,6 +949,65 @@ export type Database = {
       increment_advertising_dismiss_count: {
         Args: { p_campaign_id: string };
         Returns: void;
+      };
+      ensure_loyalty_account: {
+        Args: { p_user_id: string };
+        Returns: undefined;
+      };
+      recalculate_loyalty_level: {
+        Args: { p_user_id: string };
+        Returns: string | null;
+      };
+      award_loyalty_points: {
+        Args: {
+          p_user_id: string;
+          p_points: number;
+          p_source_type: string;
+          p_source_id: string;
+          p_idempotency_key: string;
+          p_description?: string | null;
+          p_metadata?: Json;
+          p_created_by?: string | null;
+        };
+        Returns: string;
+      };
+      reverse_loyalty_points: {
+        Args: {
+          p_user_id: string;
+          p_points: number;
+          p_source_type: string;
+          p_source_id: string;
+          p_idempotency_key: string;
+          p_description?: string | null;
+          p_metadata?: Json;
+          p_created_by?: string | null;
+        };
+        Returns: string;
+      };
+      adjust_loyalty_points: {
+        Args: {
+          p_user_id: string;
+          p_points: number;
+          p_reason: string;
+          p_admin_id: string;
+        };
+        Returns: string;
+      };
+      redeem_community_reward: {
+        Args: { p_user_id: string; p_reward_id: string };
+        Returns: {
+          redemption_id: string;
+          redemption_code: string;
+          points_spent: number;
+        }[];
+      };
+      award_loyalty_points_for_ticket: {
+        Args: { p_ticket_id: string };
+        Returns: string | null;
+      };
+      reverse_loyalty_points_for_ticket: {
+        Args: { p_ticket_id: string };
+        Returns: string | null;
       };
     };
     Enums: Record<string, never>;

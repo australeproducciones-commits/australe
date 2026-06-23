@@ -80,6 +80,7 @@ function revalidateReservationPaths(eventSlug: string, eventId: string) {
   revalidatePath(ROUTES.miCuentaEntradas);
   revalidatePath(ROUTES.admin);
   revalidatePath(ROUTES.adminVentas);
+  revalidatePath(ROUTES.comunidad);
 }
 
 export async function reserveTicketsAction(
@@ -382,6 +383,15 @@ export async function confirmTicketPaymentAction(
     return { success: false, error: "No se pudo confirmar el pago." };
   }
 
+  try {
+    const { awardLoyaltyPointsForTicket } = await import(
+      "@/lib/community/loyalty/service"
+    );
+    await awardLoyaltyPointsForTicket(ticketId);
+  } catch (loyaltyError) {
+    console.error("confirmTicketPaymentAction loyalty:", loyaltyError);
+  }
+
   const event = await assertPublishedEventForReservation(ticket.event_id);
   if (event) {
     revalidateReservationPaths(event.slug, ticket.event_id);
@@ -416,6 +426,15 @@ export async function cancelTicketAction(
       success: false,
       error: mapCancelTicketRpcError(error.message),
     };
+  }
+
+  try {
+    const { reverseLoyaltyPointsForTicket } = await import(
+      "@/lib/community/loyalty/service"
+    );
+    await reverseLoyaltyPointsForTicket(ticketId);
+  } catch (loyaltyError) {
+    console.error("cancelTicketAction loyalty:", loyaltyError);
   }
 
   if (data?.event_id) {

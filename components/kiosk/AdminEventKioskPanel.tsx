@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CreateKioskManualOrderModal } from "@/components/kiosk/CreateKioskManualOrderModal";
@@ -8,10 +9,10 @@ import { KioskOrdersTable } from "@/components/kiosk/KioskOrdersTable";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Modal } from "@/components/ui/Modal";
+import { ROUTES } from "@/lib/constants/routes";
 import type { Event } from "@/lib/events/types";
 import {
   addProductToEventKioskAction,
-  createKioskProductAction,
   upsertEventKioskSettingsAction,
 } from "@/lib/kiosk/actions";
 import type {
@@ -24,13 +25,13 @@ import type {
 import {
   formatKioskMoney,
   getEventKioskSummary,
-  getSellableEventKioskProducts,
+  getSellableEventKioskProductsForCashier,
+  validateKioskCommunityPrice,
+  validateKioskMaxPerOrder,
   validateKioskPrice,
-  validateKioskStockTotal,
 } from "@/lib/kiosk/utils";
 import {
   adminInputClassName,
-  adminSelectClassName,
 } from "@/lib/utils/adminFormStyles";
 import { cn } from "@/lib/utils/cn";
 
@@ -58,12 +59,14 @@ export function AdminEventKioskPanel({
     [eventProducts],
   );
   const sellableProducts = useMemo(
-    () => getSellableEventKioskProducts(eventProducts),
+    () => getSellableEventKioskProductsForCashier(eventProducts),
     [eventProducts],
   );
 
   const presaleEnabled = settings?.presale_enabled ?? false;
   const manualSalesEnabled = settings?.manual_sales_enabled ?? true;
+  const qrSaleEnabled = settings?.qr_sale_enabled ?? true;
+  const showPriceList = settings?.show_price_list ?? true;
 
   return (
     <div className="space-y-6">
@@ -100,6 +103,8 @@ export function AdminEventKioskPanel({
         eventId={event.id}
         presaleEnabled={presaleEnabled}
         manualSalesEnabled={manualSalesEnabled}
+        qrSaleEnabled={qrSaleEnabled}
+        showPriceList={showPriceList}
       />
 
       <EventProductsSection
@@ -182,10 +187,14 @@ function KioskSettingsCard({
   eventId,
   presaleEnabled,
   manualSalesEnabled,
+  qrSaleEnabled,
+  showPriceList,
 }: {
   eventId: string;
   presaleEnabled: boolean;
   manualSalesEnabled: boolean;
+  qrSaleEnabled: boolean;
+  showPriceList: boolean;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -194,6 +203,8 @@ function KioskSettingsCard({
   async function saveSettings(next: {
     presale_enabled?: boolean;
     manual_sales_enabled?: boolean;
+    qr_sale_enabled?: boolean;
+    show_price_list?: boolean;
   }) {
     setLoading(true);
     setError(null);
@@ -201,6 +212,8 @@ function KioskSettingsCard({
     const result = await upsertEventKioskSettingsAction(eventId, {
       presale_enabled: next.presale_enabled ?? presaleEnabled,
       manual_sales_enabled: next.manual_sales_enabled ?? manualSalesEnabled,
+      qr_sale_enabled: next.qr_sale_enabled ?? qrSaleEnabled,
+      show_price_list: next.show_price_list ?? showPriceList,
     });
 
     setLoading(false);
@@ -232,8 +245,7 @@ function KioskSettingsCard({
         <span>
           Habilitar preventa de consumisiones
           <span className="mt-0.5 block text-xs text-zinc-500">
-            La preventa pública se habilitará en C.3. Este check deja preparado
-            el evento.
+            Permite reservas públicas y consumisiones junto con entradas.
           </span>
         </span>
       </label>
@@ -251,7 +263,43 @@ function KioskSettingsCard({
         <span>
           Habilitar venta manual en admin/caja
           <span className="mt-0.5 block text-xs text-zinc-500">
-            La venta manual se implementará en una etapa posterior.
+            Permite registrar ventas desde el panel o la caja.
+          </span>
+        </span>
+      </label>
+
+      <label className="flex items-start gap-3 text-sm text-zinc-300">
+        <input
+          type="checkbox"
+          checked={qrSaleEnabled}
+          disabled={loading}
+          onChange={(e) =>
+            saveSettings({ qr_sale_enabled: e.target.checked })
+          }
+          className="mt-0.5 size-4 rounded border-white/20 bg-zinc-900"
+        />
+        <span>
+          Mostrar consumisiones en QR / lista de precios
+          <span className="mt-0.5 block text-xs text-zinc-500">
+            Solo productos con canal QR habilitado aparecen en esas vistas.
+          </span>
+        </span>
+      </label>
+
+      <label className="flex items-start gap-3 text-sm text-zinc-300">
+        <input
+          type="checkbox"
+          checked={showPriceList}
+          disabled={loading}
+          onChange={(e) =>
+            saveSettings({ show_price_list: e.target.checked })
+          }
+          className="mt-0.5 size-4 rounded border-white/20 bg-zinc-900"
+        />
+        <span>
+          Publicar lista de precios de consumisiones
+          <span className="mt-0.5 block text-xs text-zinc-500">
+            Controla si la página de lista de precios del evento está activa.
           </span>
         </span>
       </label>
@@ -271,7 +319,6 @@ function EventProductsSection({
   products: KioskProduct[];
 }) {
   const [addOpen, setAddOpen] = useState(false);
-  const [createOpen, setCreateOpen] = useState(false);
 
   const linkedProductIds = new Set(eventProducts.map((item) => item.product_id));
   const availableProducts = products.filter(
@@ -285,8 +332,13 @@ function EventProductsSection({
           Productos del kiosco ({eventProducts.length})
         </h2>
         <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="outline" size="sm" onClick={() => setCreateOpen(true)}>
-            Nuevo producto maestro
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            href={ROUTES.adminProductos}
+          >
+            Ir al catálogo global
           </Button>
           <Button type="button" size="sm" onClick={() => setAddOpen(true)}>
             Agregar al evento
@@ -297,7 +349,15 @@ function EventProductsSection({
       {eventProducts.length === 0 ? (
         <Card padding="md" className="text-center">
           <p className="text-sm text-zinc-400">
-            Todavía no hay productos en el kiosco de este evento.
+            Todavía no hay productos en el kiosco de este evento. Creá o activá
+            productos en el{" "}
+            <Link
+              href={ROUTES.adminProductos}
+              className="text-sky-300 underline-offset-2 hover:underline"
+            >
+              catálogo global
+            </Link>{" "}
+            y agregalos acá con precio y canales de venta.
           </p>
         </Card>
       ) : (
@@ -313,17 +373,7 @@ function EventProductsSection({
         onClose={() => setAddOpen(false)}
         eventId={eventId}
         products={availableProducts}
-        allProducts={products}
         nextSortOrder={eventProducts.length}
-      />
-
-      <CreateMasterProductModal
-        open={createOpen}
-        onClose={() => setCreateOpen(false)}
-        onCreated={() => {
-          setCreateOpen(false);
-          setAddOpen(true);
-        }}
       />
     </>
   );
@@ -334,42 +384,60 @@ function AddEventProductModal({
   onClose,
   eventId,
   products,
-  allProducts,
   nextSortOrder,
 }: {
   open: boolean;
   onClose: () => void;
   eventId: string;
   products: KioskProduct[];
-  allProducts: KioskProduct[];
   nextSortOrder: number;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [productId, setProductId] = useState("");
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const [price, setPrice] = useState("");
-  const [stockTotal, setStockTotal] = useState("");
+  const [communityPrice, setCommunityPrice] = useState("");
+  const [maxPerOrder, setMaxPerOrder] = useState("");
   const [sortOrder, setSortOrder] = useState(String(nextSortOrder));
   const [isAvailable, setIsAvailable] = useState(true);
+  const [isVisible, setIsVisible] = useState(true);
+  const [presaleEnabled, setPresaleEnabled] = useState(true);
+  const [qrSaleEnabled, setQrSaleEnabled] = useState(true);
+  const [cashierSaleEnabled, setCashierSaleEnabled] = useState(true);
 
-  const selectedProduct = allProducts.find((item) => item.id === productId);
+  const selectedProducts = products.filter((item) =>
+    selectedProductIds.includes(item.id),
+  );
 
   function resetForm() {
-    setProductId("");
+    setSelectedProductIds([]);
     setPrice("");
-    setStockTotal("");
+    setCommunityPrice("");
+    setMaxPerOrder("");
     setSortOrder(String(nextSortOrder));
     setIsAvailable(true);
+    setIsVisible(true);
+    setPresaleEnabled(true);
+    setQrSaleEnabled(true);
+    setCashierSaleEnabled(true);
     setError(null);
   }
 
-  function handleProductChange(nextId: string) {
-    setProductId(nextId);
-    const product = allProducts.find((item) => item.id === nextId);
-    if (product?.default_price != null && !price) {
-      setPrice(String(product.default_price));
-    }
+  function toggleProductSelection(product: KioskProduct) {
+    setSelectedProductIds((current) => {
+      const isSelected = current.includes(product.id);
+
+      if (isSelected) {
+        return current.filter((id) => id !== product.id);
+      }
+
+      if (!price && product.default_price != null) {
+        setPrice(String(product.default_price));
+      }
+
+      return [...current, product.id];
+    });
   }
 
   async function handleSubmit(event: React.FormEvent) {
@@ -377,9 +445,9 @@ function AddEventProductModal({
     setLoading(true);
     setError(null);
 
-    if (!productId) {
+    if (selectedProductIds.length === 0) {
       setLoading(false);
-      setError("Seleccioná un producto.");
+      setError("Seleccioná al menos un producto.");
       return;
     }
 
@@ -391,12 +459,21 @@ function AddEventProductModal({
       return;
     }
 
-    const parsedStock =
-      stockTotal.trim() === "" ? null : Number.parseInt(stockTotal, 10);
-    const stockError = validateKioskStockTotal(parsedStock);
-    if (stockError) {
+    const parsedCommunityPrice =
+      communityPrice.trim() === "" ? null : Number(communityPrice);
+    const communityPriceError = validateKioskCommunityPrice(parsedCommunityPrice);
+    if (communityPriceError) {
       setLoading(false);
-      setError(stockError);
+      setError(communityPriceError);
+      return;
+    }
+
+    const parsedMaxPerOrder =
+      maxPerOrder.trim() === "" ? null : Number.parseInt(maxPerOrder, 10);
+    const maxPerOrderError = validateKioskMaxPerOrder(parsedMaxPerOrder);
+    if (maxPerOrderError) {
+      setLoading(false);
+      setError(maxPerOrderError);
       return;
     }
 
@@ -407,77 +484,130 @@ function AddEventProductModal({
       return;
     }
 
-    const result = await addProductToEventKioskAction(eventId, productId, {
-      price: parsedPrice,
-      stock_total: parsedStock,
-      is_available: isAvailable,
-      sort_order: parsedSort,
-    });
+    let sortIndex = parsedSort;
 
-    setLoading(false);
+    for (const productId of selectedProductIds) {
+      const result = await addProductToEventKioskAction(eventId, productId, {
+        price: parsedPrice,
+        community_price: parsedCommunityPrice,
+        is_available: isAvailable,
+        is_visible: isVisible,
+        presale_enabled: presaleEnabled,
+        qr_sale_enabled: qrSaleEnabled,
+        cashier_sale_enabled: cashierSaleEnabled,
+        max_per_order: parsedMaxPerOrder,
+        sort_order: sortIndex,
+      });
 
-    if (!result.success) {
-      setError(result.error ?? "No se pudo agregar el producto.");
-      return;
+      if (!result.success) {
+        setLoading(false);
+        setError(result.error ?? "No se pudo agregar uno de los productos.");
+        return;
+      }
+
+      sortIndex += 1;
     }
 
+    setLoading(false);
     resetForm();
     onClose();
     router.refresh();
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Agregar producto al evento">
+    <Modal open={open} onClose={onClose} title="Agregar productos al evento">
       <form onSubmit={handleSubmit} className="space-y-4">
         {products.length === 0 ? (
           <p className="text-sm text-zinc-400">
-            No hay productos maestros disponibles. Creá uno nuevo o activá
-            productos que aún no estén en este evento.
+            No hay productos disponibles en el catálogo global.{" "}
+            <Link
+              href={ROUTES.adminProductos}
+              className="text-sky-300 underline-offset-2 hover:underline"
+            >
+              Creá productos en /admin/productos
+            </Link>{" "}
+            y volvé a agregar al evento.
           </p>
         ) : (
-          <Field label="Producto">
-            <select
-              value={productId}
-              onChange={(e) => handleProductChange(e.target.value)}
-              className={adminSelectClassName}
-              required
-            >
-              <option value="">Seleccionar…</option>
-              {products.map((product) => (
-                <option key={product.id} value={product.id}>
-                  {product.name}
-                  {product.category ? ` · ${product.category}` : ""}
-                </option>
-              ))}
-            </select>
+          <Field label="Productos del catálogo">
+            <div className="max-h-56 space-y-2 overflow-y-auto rounded-xl border border-white/10 p-3">
+              {products.map((product) => {
+                const available = Math.max(
+                  0,
+                  product.stock_on_hand - product.stock_reserved,
+                );
+                const checked = selectedProductIds.includes(product.id);
+
+                return (
+                  <label
+                    key={product.id}
+                    className="flex cursor-pointer items-start gap-3 rounded-lg px-2 py-2 hover:bg-white/5"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleProductSelection(product)}
+                      className="mt-0.5 size-4 rounded border-white/20 bg-zinc-900"
+                    />
+                    <span className="min-w-0 flex-1 text-sm text-zinc-200">
+                      <span className="font-medium text-white">{product.name}</span>
+                      {product.category ? (
+                        <span className="text-zinc-500"> · {product.category}</span>
+                      ) : null}
+                      <span className="mt-0.5 block text-xs text-zinc-500">
+                        Disponible en catálogo: {available}
+                        {product.sku ? ` · SKU ${product.sku}` : ""}
+                      </span>
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+            {selectedProducts.length > 0 ? (
+              <p className="mt-2 text-xs text-zinc-500">
+                {selectedProducts.length} producto
+                {selectedProducts.length === 1 ? "" : "s"} seleccionado
+                {selectedProducts.length === 1 ? "" : "s"}.
+              </p>
+            ) : null}
           </Field>
         )}
 
-        {selectedProduct?.description ? (
-          <p className="text-xs text-zinc-500">{selectedProduct.description}</p>
-        ) : null}
+        {products.length > 0 ? (
+          <>
+            <Field label="Precio general">
+              <input
+                type="number"
+                min={0}
+                step="0.01"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                className={adminInputClassName}
+                required
+              />
+            </Field>
 
-        <Field label="Precio">
+        <Field label="Precio comunidad (opcional)">
           <input
             type="number"
             min={0}
             step="0.01"
-            value={price}
-            onChange={(e) => setPrice(e.target.value)}
+            value={communityPrice}
+            onChange={(e) => setCommunityPrice(e.target.value)}
             className={adminInputClassName}
-            required
+            placeholder="Sin precio especial"
           />
         </Field>
 
-        <Field label="Stock total (opcional)">
+        <Field label="Límite por pedido (opcional)">
           <input
             type="number"
-            min={0}
+            min={1}
             step={1}
-            value={stockTotal}
-            onChange={(e) => setStockTotal(e.target.value)}
+            value={maxPerOrder}
+            onChange={(e) => setMaxPerOrder(e.target.value)}
             className={adminInputClassName}
-            placeholder="Ilimitado"
+            placeholder="Sin límite"
           />
         </Field>
 
@@ -492,179 +622,79 @@ function AddEventProductModal({
           />
         </Field>
 
-        <label className="flex items-center gap-2 text-sm text-zinc-300">
-          <input
-            type="checkbox"
+        <div className="space-y-2 rounded-xl border border-white/10 p-3">
+          <p className="text-xs font-medium uppercase tracking-wide text-zinc-400">
+            Canales y visibilidad
+          </p>
+          <CheckboxField
+            label="Disponible para venta"
             checked={isAvailable}
-            onChange={(e) => setIsAvailable(e.target.checked)}
-            className="size-4 rounded border-white/20 bg-zinc-900"
+            onChange={setIsAvailable}
           />
-          Disponible
-        </label>
+          <CheckboxField
+            label="Visible en preventa pública"
+            checked={isVisible}
+            onChange={setIsVisible}
+          />
+          <CheckboxField
+            label="Preventa web"
+            checked={presaleEnabled}
+            onChange={setPresaleEnabled}
+          />
+          <CheckboxField
+            label="QR / lista de precios"
+            checked={qrSaleEnabled}
+            onChange={setQrSaleEnabled}
+          />
+          <CheckboxField
+            label="Caja / venta manual"
+            checked={cashierSaleEnabled}
+            onChange={setCashierSaleEnabled}
+          />
+        </div>
 
         {error ? <p className="text-sm text-red-300">{error}</p> : null}
 
         <div className="flex flex-wrap gap-2">
-          <Button type="submit" size="sm" disabled={loading || products.length === 0}>
-            Agregar
+          <Button
+            type="submit"
+            size="sm"
+            disabled={loading || products.length === 0 || selectedProductIds.length === 0}
+          >
+            {selectedProductIds.length > 1
+              ? `Agregar ${selectedProductIds.length} productos`
+              : "Agregar"}
           </Button>
           <Button type="button" variant="ghost" size="sm" onClick={onClose}>
             Cancelar
           </Button>
         </div>
+          </>
+        ) : null}
       </form>
     </Modal>
   );
 }
 
-function CreateMasterProductModal({
-  open,
-  onClose,
-  onCreated,
+function CheckboxField({
+  label,
+  checked,
+  onChange,
 }: {
-  open: boolean;
-  onClose: () => void;
-  onCreated: () => void;
+  label: string;
+  checked: boolean;
+  onChange: (value: boolean) => void;
 }) {
-  const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [category, setCategory] = useState("");
-  const [defaultPrice, setDefaultPrice] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
-  const [isActive, setIsActive] = useState(true);
-
-  function resetForm() {
-    setName("");
-    setDescription("");
-    setCategory("");
-    setDefaultPrice("");
-    setImageUrl("");
-    setIsActive(true);
-    setError(null);
-  }
-
-  async function handleSubmit(event: React.FormEvent) {
-    event.preventDefault();
-    setLoading(true);
-    setError(null);
-
-    const trimmedName = name.trim();
-    if (!trimmedName) {
-      setLoading(false);
-      setError("El nombre es obligatorio.");
-      return;
-    }
-
-    const parsedDefaultPrice =
-      defaultPrice.trim() === "" ? null : Number(defaultPrice);
-    if (parsedDefaultPrice != null) {
-      const priceError = validateKioskPrice(parsedDefaultPrice);
-      if (priceError) {
-        setLoading(false);
-        setError(priceError);
-        return;
-      }
-    }
-
-    const result = await createKioskProductAction({
-      name: trimmedName,
-      description: description.trim() || null,
-      category: category.trim() || null,
-      default_price: parsedDefaultPrice,
-      image_url: imageUrl.trim() || null,
-      is_active: isActive,
-    });
-
-    setLoading(false);
-
-    if (!result.success) {
-      setError(result.error ?? "No se pudo crear el producto.");
-      return;
-    }
-
-    resetForm();
-    router.refresh();
-    onCreated();
-  }
-
   return (
-    <Modal open={open} onClose={onClose} title="Nuevo producto maestro">
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <Field label="Nombre">
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className={adminInputClassName}
-            required
-          />
-        </Field>
-
-        <Field label="Descripción (opcional)">
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            rows={2}
-            className={adminInputClassName}
-          />
-        </Field>
-
-        <Field label="Categoría (opcional)">
-          <input
-            type="text"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            className={adminInputClassName}
-            placeholder="Bebidas, combos…"
-          />
-        </Field>
-
-        <Field label="Precio por defecto (opcional)">
-          <input
-            type="number"
-            min={0}
-            step="0.01"
-            value={defaultPrice}
-            onChange={(e) => setDefaultPrice(e.target.value)}
-            className={adminInputClassName}
-          />
-        </Field>
-
-        <Field label="Imagen URL (opcional)">
-          <input
-            type="url"
-            value={imageUrl}
-            onChange={(e) => setImageUrl(e.target.value)}
-            className={adminInputClassName}
-            placeholder="https://…"
-          />
-        </Field>
-
-        <label className="flex items-center gap-2 text-sm text-zinc-300">
-          <input
-            type="checkbox"
-            checked={isActive}
-            onChange={(e) => setIsActive(e.target.checked)}
-            className="size-4 rounded border-white/20 bg-zinc-900"
-          />
-          Activo en catálogo maestro
-        </label>
-
-        {error ? <p className="text-sm text-red-300">{error}</p> : null}
-
-        <div className="flex flex-wrap gap-2">
-          <Button type="submit" size="sm" disabled={loading}>
-            Crear producto
-          </Button>
-          <Button type="button" variant="ghost" size="sm" onClick={onClose}>
-            Cancelar
-          </Button>
-        </div>
-      </form>
-    </Modal>
+    <label className="flex items-center gap-2 text-sm text-zinc-300">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+        className="size-4 rounded border-white/20 bg-zinc-900"
+      />
+      {label}
+    </label>
   );
 }
 

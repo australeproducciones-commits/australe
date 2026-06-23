@@ -8,6 +8,7 @@ import { formatRelativeTime } from "@/lib/admin/dashboard/format";
 import type { AdminDashboardData, EventDashboardRow } from "@/lib/admin/dashboard/types";
 import { EconomicBadges } from "@/components/finance/EconomicBadges";
 import { getEventVisibilityBadge } from "@/lib/events/access";
+import { getEventImageSource } from "@/lib/events/getEventImage";
 import { ROUTES } from "@/lib/constants/routes";
 import { formatEventDate, formatTime } from "@/lib/events/utils";
 import { formatTicketPrice } from "@/lib/tickets/utils";
@@ -43,7 +44,7 @@ function EmptyHint({ children }: { children: React.ReactNode }) {
 
 function EventRowCard({ row }: { row: EventDashboardRow }) {
   const { event, timing } = row;
-  const imageUrl = event.thumbnail_url || event.main_image_url;
+  const imageUrl = getEventImageSource(event);
   const stockLabel = row.hasUndefinedStock && row.stockTotal === null
     ? `${row.ticketsSold} vendidas`
     : row.stockTotal != null
@@ -59,7 +60,7 @@ function EventRowCard({ row }: { row: EventDashboardRow }) {
               src={imageUrl}
               alt=""
               fill
-              className="object-cover"
+              className="object-contain p-1"
               sizes="144px"
             />
           ) : (

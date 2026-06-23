@@ -49,7 +49,7 @@ export function getEventHeroImageUrl(event: EventImageFields): string | null {
 }
 
 /** Ya no se muestra afiche separado: el banner unificado cubre el detalle. */
-export function getEventDetailPosterUrl(_event: EventImageFields): string | null {
+export function getEventDetailPosterUrl(): string | null {
   return null;
 }
 

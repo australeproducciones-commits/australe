@@ -53,12 +53,13 @@ export function HomeCartelera({ items }: HomeCarteleraProps) {
         </div>
       ) : (
         <>
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
             {(gridItems.length > 0 ? gridItems : items).map((item) => (
               <EventCard
                 key={item.event.id}
                 event={item.event}
                 minPrice={item.minPrice}
+                minCommunityPrice={item.minCommunityPrice}
                 featured={item.featured}
               />
             ))}

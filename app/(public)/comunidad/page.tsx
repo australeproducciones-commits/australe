@@ -7,11 +7,14 @@ import {
   PublicCard,
   SectionHeading,
 } from "@/components/ui/public";
+import { PublicQueryError } from "@/components/ui/PublicQueryError";
 import { getProfile } from "@/lib/auth/getProfile";
 import { isActiveCommunityMember } from "@/lib/community/membership";
 import { ROUTES } from "@/lib/constants/routes";
 import { getCommunityPublishedEvents } from "@/lib/events/queries";
+import type { Event } from "@/lib/events/types";
 import { createClient } from "@/lib/supabase/server";
+import { isSupabaseQueryError } from "@/lib/supabase/queryError";
 
 export const metadata: Metadata = {
   title: "Comunidad",
@@ -21,7 +24,20 @@ export default async function ComunidadPage() {
   const supabase = await createClient();
   const profile = await getProfile(supabase);
   const isMember = await isActiveCommunityMember(profile?.id);
-  const communityEvents = isMember ? await getCommunityPublishedEvents() : [];
+  let communityEvents: Event[] = [];
+  let loadError: string | null = null;
+
+  if (isMember) {
+    try {
+      communityEvents = await getCommunityPublishedEvents();
+    } catch (error) {
+      if (isSupabaseQueryError(error)) {
+        loadError = error.userMessage;
+      } else {
+        throw error;
+      }
+    }
+  }
 
   return (
     <PageContainer>
@@ -50,7 +66,12 @@ export default async function ComunidadPage() {
           <h2 className="public-heading text-2xl font-bold">
             Eventos de la comunidad
           </h2>
-          {communityEvents.length === 0 ? (
+          {loadError ? (
+            <PublicQueryError
+              title="No pudimos cargar los eventos de la comunidad"
+              message={loadError}
+            />
+          ) : communityEvents.length === 0 ? (
             <p className="mt-4 text-sm public-text-soft">
               No hay eventos exclusivos publicados por ahora.
             </p>

@@ -13,6 +13,7 @@ type EventFlyerProps = {
   /** @deprecated Usar `purpose`. */
   variant?: EventImagePurpose;
   className?: string;
+  priority?: boolean;
 };
 
 function purposeToVariant(purpose: EventImagePurpose): EventImageVariant {
@@ -24,6 +25,7 @@ export function EventFlyer({
   purpose,
   variant = "card",
   className,
+  priority = false,
 }: EventFlyerProps) {
   const resolvedPurpose = purpose ?? variant;
   const imageVariant = purposeToVariant(resolvedPurpose);
@@ -31,14 +33,11 @@ export function EventFlyer({
   return (
     <EventImage
       event={event}
-      alt={
-        resolvedPurpose === "hero"
-          ? `Portada de ${event.name}`
-          : `Flyer de ${event.name}`
-      }
+      alt={`Banner del evento ${event.name}`}
       variant={imageVariant}
+      priority={priority}
       className={cn(
-        resolvedPurpose === "hero" ? "min-h-[280px] sm:min-h-[360px]" : "",
+        resolvedPurpose === "hero" ? "min-h-[200px] sm:min-h-[280px]" : "",
         className,
       )}
     />
@@ -53,21 +52,8 @@ type EventPosterProps = {
   className?: string;
 };
 
-export function EventPoster({ event, className }: EventPosterProps) {
-  if (event.main_image_url) {
-    return null;
-  }
-
-  if (!event.flyer_url) {
-    return null;
-  }
-
-  return (
-    <div className={className}>
-      <p className="public-label mb-3 text-xs uppercase tracking-[0.3em]">
-        Afiche del evento
-      </p>
-      <EventImage event={event} alt={`Afiche de ${event.name}`} variant="flyer" />
-    </div>
-  );
+/** @deprecated El banner unificado reemplaza el afiche separado en el detalle. */
+export function EventPoster(props: EventPosterProps) {
+  void props;
+  return null;
 }

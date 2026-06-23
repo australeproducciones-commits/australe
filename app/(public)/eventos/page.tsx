@@ -1,17 +1,32 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { EventCard } from "@/components/events/EventCard";
+import { PublicQueryError } from "@/components/ui/PublicQueryError";
 import { ROUTES } from "@/lib/constants/routes";
 import { buildCarteleraEvents } from "@/lib/events/cartelera";
 import { getPublishedEvents } from "@/lib/events/queries";
+import type { Event } from "@/lib/events/types";
+import { isSupabaseQueryError } from "@/lib/supabase/queryError";
 
 export const metadata: Metadata = {
   title: "Cartelera",
 };
 
 export default async function EventosPage() {
-  const events = await getPublishedEvents();
-  const carteleraItems = await buildCarteleraEvents(events);
+  let events: Event[] = [];
+  let loadError: string | null = null;
+
+  try {
+    events = await getPublishedEvents();
+  } catch (error) {
+    if (isSupabaseQueryError(error)) {
+      loadError = error.userMessage;
+    } else {
+      throw error;
+    }
+  }
+
+  const carteleraItems = loadError ? [] : await buildCarteleraEvents(events);
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-16">
@@ -29,7 +44,9 @@ export default async function EventosPage() {
         </p>
       </div>
 
-      {carteleraItems.length === 0 ? (
+      {loadError ? (
+        <PublicQueryError message={loadError} />
+      ) : carteleraItems.length === 0 ? (
         <div className="public-card rounded-3xl p-10 text-center">
           <h2 className="public-heading text-xl font-bold">
             Cartelera en preparación
@@ -45,12 +62,13 @@ export default async function EventosPage() {
           </Link>
         </div>
       ) : (
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
           {carteleraItems.map((item) => (
             <EventCard
               key={item.event.id}
               event={item.event}
               minPrice={item.minPrice}
+              minCommunityPrice={item.minCommunityPrice}
               featured={item.featured}
             />
           ))}

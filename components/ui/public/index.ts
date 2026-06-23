@@ -1,3 +1,4 @@
+export { PublicAccordion } from "@/components/ui/public/PublicAccordion";
 export { PageContainer } from "@/components/ui/public/PageContainer";
 export { PublicButton } from "@/components/ui/public/PublicButton";
 export type { PublicButtonProps } from "@/components/ui/public/PublicButton";

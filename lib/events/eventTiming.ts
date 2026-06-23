@@ -67,7 +67,7 @@ export function getEventTiming(
   const calendarDaysUntilStart = diffCalendarDays(today, eventDate);
 
   const startAt = mendozaEventInstant(eventDate, startTime, "start");
-  const endAt = endTime
+  let endAt = endTime
     ? mendozaEventInstant(eventDate, endTime, "end")
     : startTime
       ? new Date(
@@ -75,6 +75,10 @@ export function getEventTiming(
             4 * 60 * 60 * 1000,
         )
       : mendozaEventInstant(eventDate, null, "end");
+
+  if (endTime && startTime && endAt.getTime() <= startAt.getTime()) {
+    endAt = new Date(endAt.getTime() + 24 * 60 * 60 * 1000);
+  }
 
   const nowMs = now.getTime();
 

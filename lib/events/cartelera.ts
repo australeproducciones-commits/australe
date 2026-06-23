@@ -1,10 +1,12 @@
 import type { Event } from "@/lib/events/types";
 import { getActiveTicketTypesForPublishedEvent } from "@/lib/tickets/queries";
 import { getMinPublicPrice } from "@/lib/tickets/utils";
+import { getMinCommunityPrice } from "@/lib/events/eventMerchandising";
 
 export type CarteleraEvent = {
   event: Event;
   minPrice: number | null;
+  minCommunityPrice: number | null;
   featured: boolean;
 };
 
@@ -36,6 +38,7 @@ export async function buildCarteleraEvents(
       return {
         event,
         minPrice: getMinPublicPrice(ticketTypes),
+        minCommunityPrice: getMinCommunityPrice(ticketTypes),
         featured: event.id === featuredId,
       };
     }),

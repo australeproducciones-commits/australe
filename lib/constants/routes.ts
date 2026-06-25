@@ -13,6 +13,7 @@ export const ROUTES = {
     `/eventos/${slug}?entrada=${encodeURIComponent(entradaSlug)}`,
   eventoListaPrecios: (slug: string) => `/eventos/${slug}/lista-precios`,
   ventaEvento: (code: string) => `/venta/e/${code}`,
+  invitacion: (token: string) => `/invitacion/${token}`,
   comunidad: "/comunidad",
   login: "/login",
   miCuenta: "/mi-cuenta",

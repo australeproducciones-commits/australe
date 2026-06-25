@@ -204,6 +204,25 @@ export type CommunityRedemptionRow = {
   updated_at: string;
 };
 
+export type CommunityEventInvitationRow = {
+  id: string;
+  user_id: string;
+  event_id: string;
+  invitation_type: string;
+  channel: string;
+  status: string;
+  message: string | null;
+  public_token: string | null;
+  created_by: string | null;
+  created_at: string;
+  sent_at: string | null;
+  opened_at: string | null;
+  accepted_at: string | null;
+  used_at: string | null;
+  cancelled_at: string | null;
+  metadata: Json;
+};
+
 export type TicketRow = {
   id: string;
   event_id: string;
@@ -557,6 +576,20 @@ export type Database = {
           updated_at?: string;
         };
         Update: Partial<CommunityRedemptionRow>;
+        Relationships: [];
+      };
+      community_event_invitations: {
+        Row: CommunityEventInvitationRow;
+        Insert: Partial<
+          Omit<CommunityEventInvitationRow, "id" | "created_at">
+        > & {
+          user_id: string;
+          event_id: string;
+          invitation_type: string;
+          channel: string;
+          status: string;
+        };
+        Update: Partial<CommunityEventInvitationRow>;
         Relationships: [];
       };
       analytics_events: {
@@ -1008,6 +1041,10 @@ export type Database = {
       reverse_loyalty_points_for_ticket: {
         Args: { p_ticket_id: string };
         Returns: string | null;
+      };
+      record_community_invitation_open: {
+        Args: { p_token: string };
+        Returns: CommunityEventInvitationRow;
       };
     };
     Enums: Record<string, never>;

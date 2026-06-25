@@ -91,7 +91,7 @@ export function PublicHeader() {
             className="mt-2 border-t pt-3"
             style={{ borderColor: "var(--public-border)" }}
           >
-            <PublicUserMenu stacked />
+            <PublicUserMenu stacked onNavigate={() => setOpen(false)} />
           </div>
         </nav>
       </div>

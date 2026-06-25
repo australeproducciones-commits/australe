@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils/cn";
 type PublicUserMenuProps = {
   stacked?: boolean;
   compact?: boolean;
+  onNavigate?: () => void;
 };
 
 const PROFILE_COLUMNS =
@@ -58,12 +59,14 @@ async function resolveSessionUserFromClient(): Promise<PublicSessionUser | null>
 export function PublicUserMenu({
   stacked = false,
   compact = false,
+  onNavigate,
 }: PublicUserMenuProps) {
   const menuId = useId();
   const [sessionUser, setSessionUser] = useState<PublicSessionUser | null>(null);
   const [sessionReady, setSessionReady] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const syncInFlight = useRef<Promise<void> | null>(null);
 
   useEffect(() => {
@@ -108,6 +111,16 @@ export function PublicUserMenu({
         return;
       }
 
+      if (event === "SIGNED_OUT") {
+        if (!active) {
+          return;
+        }
+        setSessionUser(null);
+        setSessionReady(true);
+        setMenuOpen(false);
+        return;
+      }
+
       void syncSession();
     });
 
@@ -131,6 +144,7 @@ export function PublicUserMenu({
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         setMenuOpen(false);
+        triggerRef.current?.focus();
       }
     }
 
@@ -156,7 +170,7 @@ export function PublicUserMenu({
 
   if (!isAuthenticated) {
     return (
-      <Link href={ROUTES.login} className={linkClass}>
+      <Link href={ROUTES.login} className={linkClass} onClick={onNavigate}>
         Iniciar sesión
       </Link>
     );
@@ -165,6 +179,7 @@ export function PublicUserMenu({
   const primaryLink = getPublicNavAuthLink(sessionUser);
   const initial = getSessionUserInitial(sessionUser);
   const isCustomer = getEffectiveRole(sessionUser.profile) === ROLES.CUSTOMER;
+  const menuLabel = sessionUser.profile.full_name?.trim() || sessionUser.email || "Cuenta";
 
   const menuItems = isCustomer
     ? [
@@ -173,101 +188,118 @@ export function PublicUserMenu({
       ]
     : [{ href: primaryLink.href, label: primaryLink.label }];
 
+  function handleNavigate() {
+    setMenuOpen(false);
+    onNavigate?.();
+  }
+
+  function handleSignedOut() {
+    setSessionUser(null);
+    setSessionReady(true);
+    setMenuOpen(false);
+    onNavigate?.();
+  }
+
+  const avatarBadge = (
+    <span
+      className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold public-heading"
+      style={{
+        backgroundColor: "var(--public-header-hover)",
+        border: "1px solid var(--public-border)",
+      }}
+      aria-hidden
+    >
+      {initial}
+    </span>
+  );
+
+  const dropdownMenu = (
+    <div
+      id={`${menuId}-menu`}
+      role="menu"
+      aria-labelledby={`${menuId}-trigger`}
+      className="absolute right-0 top-full z-20 mt-1 min-w-[12rem] rounded-2xl border py-1 shadow-lg"
+      style={{
+        borderColor: "var(--public-border)",
+        backgroundColor: "var(--public-card)",
+      }}
+    >
+      {menuItems.map((item) => (
+        <Link
+          key={item.href}
+          href={item.href}
+          role="menuitem"
+          className="block px-4 py-2.5 text-sm public-heading transition hover:bg-[var(--public-header-hover)]"
+          onClick={handleNavigate}
+        >
+          {item.label}
+        </Link>
+      ))}
+      <div
+        className="my-1 border-t"
+        style={{ borderColor: "var(--public-border)" }}
+      />
+      <LogoutButton
+        variant="public-header"
+        redirectTo={ROUTES.login}
+        onSignedOut={handleSignedOut}
+        className="w-full justify-start rounded-none px-4"
+      />
+    </div>
+  );
+
   if (stacked) {
     return (
       <div className="relative z-10 flex w-full flex-col gap-1">
         {menuItems.map((item) => (
-          <Link key={item.href} href={item.href} className={linkClass}>
+          <Link
+            key={item.href}
+            href={item.href}
+            className={linkClass}
+            onClick={handleNavigate}
+          >
             {item.label}
           </Link>
         ))}
         <LogoutButton
           variant="public-header"
           redirectTo={ROUTES.login}
-          onSignedOut={() => {
-            setSessionUser(null);
-            setSessionReady(true);
-            setMenuOpen(false);
-          }}
+          onSignedOut={handleSignedOut}
           className="w-full justify-start"
         />
       </div>
     );
   }
 
-  if (compact) {
-    return (
-      <Link href={primaryLink.href} className={linkClass}>
-        {primaryLink.label}
-      </Link>
-    );
-  }
+  const showLabel = !compact;
 
   return (
     <div ref={menuRef} className="relative z-10">
       <button
+        ref={triggerRef}
         type="button"
         id={`${menuId}-trigger`}
         aria-haspopup="menu"
         aria-expanded={menuOpen}
         aria-controls={`${menuId}-menu`}
+        aria-label={`Menú de ${menuLabel}`}
         onClick={() => setMenuOpen((open) => !open)}
-        className={cn(linkClass, "gap-2")}
+        className={cn(linkClass, compact ? "gap-0 px-2" : "gap-2")}
       >
-        <span
-          className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold public-heading"
-          style={{
-            backgroundColor: "var(--public-header-hover)",
-            border: "1px solid var(--public-border)",
-          }}
-          aria-hidden
-        >
-          {initial}
-        </span>
-        <span>{primaryLink.label}</span>
-        <span aria-hidden className="text-xs public-text-soft">
-          ▾
-        </span>
+        {avatarBadge}
+        {showLabel ? (
+          <>
+            <span>{primaryLink.label}</span>
+            <span aria-hidden className="text-xs public-text-soft">
+              ▾
+            </span>
+          </>
+        ) : (
+          <span className="sr-only">{primaryLink.label}</span>
+        )}
       </button>
 
-      {menuOpen ? (
-        <div
-          id={`${menuId}-menu`}
-          role="menu"
-          aria-labelledby={`${menuId}-trigger`}
-          className="absolute right-0 top-full z-20 mt-1 min-w-[12rem] rounded-2xl border py-1 shadow-lg"
-          style={{
-            borderColor: "var(--public-border)",
-            backgroundColor: "var(--public-card)",
-          }}
-        >
-          {menuItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              role="menuitem"
-              className="block px-4 py-2.5 text-sm public-heading transition hover:bg-[var(--public-header-hover)]"
-              onClick={() => setMenuOpen(false)}
-            >
-              {item.label}
-            </Link>
-          ))}
-          <div
-            className="my-1 border-t"
-            style={{ borderColor: "var(--public-border)" }}
-          />
-          <LogoutButton
-            variant="public-header"
-            redirectTo={ROUTES.login}
-            onSignedOut={() => {
-              setSessionUser(null);
-              setSessionReady(true);
-              setMenuOpen(false);
-            }}
-            className="w-full justify-start rounded-none px-4"
-          />
-        </div>
-      ) : null}
+      {menuOpen ? dropdownMenu : null}
     </div>
   );
 }

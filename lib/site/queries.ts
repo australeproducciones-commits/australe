@@ -156,6 +156,7 @@ export async function getAllAdvertisingCampaignsForAdmin(): Promise<
     view_count: row.view_count,
     click_count: row.click_count,
     dismiss_count: row.dismiss_count,
+    created_at: row.created_at,
   }));
 }
 

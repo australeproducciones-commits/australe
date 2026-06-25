@@ -172,7 +172,35 @@ export async function saveAdvertisingCampaignAction(
     return { ok: false, message: "No se pudo guardar la campaña." };
   }
 
+  revalidatePath(ROUTES.adminComunidadPublicidad);
+  revalidatePublicSite();
   return { ok: true, id: data.id };
+}
+
+export async function setAdvertisingCampaignActiveAction(
+  campaignId: string,
+  isActive: boolean,
+): Promise<AdvertisingActionResult> {
+  const auth = await requireAdminAction();
+  if ("error" in auth) {
+    return { ok: false, message: auth.error ?? "No tenés permiso para realizar esta acción." };
+  }
+
+  const { error } = await auth.supabase
+    .from("advertising_campaigns")
+    .update({
+      is_active: isActive,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", campaignId);
+
+  if (error) {
+    return { ok: false, message: "No se pudo actualizar el estado de la campaña." };
+  }
+
+  revalidatePath(ROUTES.adminComunidadPublicidad);
+  revalidatePublicSite();
+  return { ok: true };
 }
 
 export async function deleteAdvertisingCampaignAction(
@@ -192,6 +220,8 @@ export async function deleteAdvertisingCampaignAction(
     return { ok: false, message: "No se pudo eliminar la campaña." };
   }
 
+  revalidatePath(ROUTES.adminComunidadPublicidad);
+  revalidatePublicSite();
   return { ok: true };
 }
 

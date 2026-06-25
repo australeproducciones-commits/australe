@@ -77,6 +77,7 @@ export type AdvertisingCampaign = {
   view_count: number;
   click_count: number;
   dismiss_count: number;
+  created_at: string;
 };
 
 export type AdvertisingCampaignInput = {

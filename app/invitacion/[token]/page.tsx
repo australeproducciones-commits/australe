@@ -96,10 +96,10 @@ export default async function InvitationPage({ params }: PageProps) {
     );
   }
 
-  const preview = await getInvitationAcceptPreview(trimmedToken, user.id);
+  const preview = await getInvitationAcceptPreview(trimmedToken, user.id, supabase);
 
   if (preview.state === "ready") {
-    await recordInvitationOpen(trimmedToken);
+    await recordInvitationOpen(trimmedToken, supabase);
   }
 
   return (

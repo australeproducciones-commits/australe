@@ -1052,6 +1052,14 @@ export type Database = {
         Args: { p_token: string };
         Returns: Json;
       };
+      preview_community_event_invitation: {
+        Args: { p_token: string };
+        Returns: Json;
+      };
+      record_community_invitation_open_authenticated: {
+        Args: { p_token: string };
+        Returns: undefined;
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

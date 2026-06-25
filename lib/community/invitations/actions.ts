@@ -318,30 +318,25 @@ export async function acceptCommunityInvitationAction(
   const payload = data as {
     invitation_id?: string;
     event_id?: string;
+    event_slug?: string;
     accepted?: boolean;
   } | null;
 
-  if (!payload?.accepted || !payload.event_id) {
+  if (!payload?.accepted) {
     return {
       success: false,
       error: "No pudimos procesar la invitación. Intentá de nuevo.",
     };
   }
 
-  const admin = createAdminClient();
-  const { data: event } = await admin
-    .from("events")
-    .select("slug")
-    .eq("id", payload.event_id)
-    .maybeSingle();
-
-  if (!event?.slug) {
+  const eventSlug = payload.event_slug;
+  if (!eventSlug) {
     return { success: false, error: "Esta invitación no está disponible." };
   }
 
   return {
     success: true,
-    redirectTo: `${ROUTES.evento(event.slug)}?invitacion=aceptada`,
+    redirectTo: `${ROUTES.evento(eventSlug)}?invitacion=aceptada`,
   };
 }
 

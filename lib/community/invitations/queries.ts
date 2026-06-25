@@ -2,7 +2,47 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { EVENT_STATUS } from "@/lib/constants/event-status";
 import type { InvitationPreview } from "@/lib/community/invitations/errors";
 import type { InviteableEvent } from "@/lib/community/invitations/types";
-import { isInvitationExpired } from "@/lib/community/invitations/utils";
+import { createClient } from "@/lib/supabase/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/supabase/types";
+
+type ServerSupabase = SupabaseClient<Database>;
+
+type PreviewRpcPayload = {
+  state: InvitationPreview["state"];
+  expires_at?: string;
+  event?: {
+    name: string;
+    slug: string;
+    event_date: string;
+  };
+};
+
+function mapPreviewRpcPayload(payload: PreviewRpcPayload | null): InvitationPreview {
+  if (!payload?.state || payload.state === "login_required") {
+    return { state: "login_required" };
+  }
+
+  if (payload.state === "ready" && payload.event) {
+    return {
+      state: "ready",
+      event: payload.event,
+      expiresAt: payload.expires_at,
+    };
+  }
+
+  if (
+    payload.state === "expired" ||
+    payload.state === "unavailable" ||
+    payload.state === "wrong_account" ||
+    payload.state === "disabled" ||
+    payload.state === "already_used"
+  ) {
+    return { state: payload.state };
+  }
+
+  return { state: "unavailable" };
+}
 
 export async function getInviteableEventsForAdmin(): Promise<InviteableEvent[]> {
   const admin = createAdminClient();
@@ -66,11 +106,15 @@ export async function getRecentInvitationsForUsers(
   return map;
 }
 
-export async function recordInvitationOpen(token: string): Promise<void> {
-  const admin = createAdminClient();
-  const { error } = await admin.rpc("record_community_invitation_open", {
-    p_token: token,
-  });
+export async function recordInvitationOpen(
+  token: string,
+  supabase?: ServerSupabase,
+): Promise<void> {
+  const client = supabase ?? (await createClient());
+  const { error } = await client.rpc(
+    "record_community_invitation_open_authenticated",
+    { p_token: token },
+  );
   if (error) {
     console.error("recordInvitationOpen:", error.message);
   }
@@ -79,72 +123,29 @@ export async function recordInvitationOpen(token: string): Promise<void> {
 export async function getInvitationAcceptPreview(
   token: string,
   userId: string | null,
+  supabase?: ServerSupabase,
 ): Promise<InvitationPreview> {
   if (!userId) {
     return { state: "login_required" };
   }
 
-  const admin = createAdminClient();
-  const { data: invitation, error } = await admin
-    .from("community_event_invitations")
-    .select(
-      "id, user_id, event_id, status, cancelled_at, expires_at, accepted_at, used_at",
-    )
-    .eq("public_token", token)
-    .maybeSingle();
+  try {
+    const client = supabase ?? (await createClient());
+    const { data, error } = await client.rpc("preview_community_event_invitation", {
+      p_token: token,
+    });
 
-  if (error || !invitation) {
+    if (error) {
+      console.error("getInvitationAcceptPreview:", error.message);
+      return { state: "unavailable" };
+    }
+
+    return mapPreviewRpcPayload(data as PreviewRpcPayload | null);
+  } catch (error) {
+    console.error(
+      "getInvitationAcceptPreview:",
+      error instanceof Error ? error.message : "unknown error",
+    );
     return { state: "unavailable" };
   }
-
-  if (invitation.cancelled_at || invitation.status === "cancelled") {
-    return { state: "unavailable" };
-  }
-
-  if (
-    invitation.status === "accepted" ||
-    invitation.status === "used" ||
-    invitation.accepted_at ||
-    invitation.used_at
-  ) {
-    return { state: "already_used" };
-  }
-
-  if (isInvitationExpired(invitation.expires_at)) {
-    return { state: "expired" };
-  }
-
-  if (invitation.user_id !== userId) {
-    return { state: "wrong_account" };
-  }
-
-  const { data: profile } = await admin
-    .from("profiles")
-    .select("is_active")
-    .eq("id", userId)
-    .maybeSingle();
-
-  if (!profile?.is_active) {
-    return { state: "disabled" };
-  }
-
-  const { data: event } = await admin
-    .from("events")
-    .select("name, slug, event_date")
-    .eq("id", invitation.event_id)
-    .maybeSingle();
-
-  if (!event) {
-    return { state: "unavailable" };
-  }
-
-  return {
-    state: "ready",
-    event: {
-      name: event.name,
-      slug: event.slug,
-      event_date: event.event_date,
-    },
-    expiresAt: invitation.expires_at,
-  };
 }

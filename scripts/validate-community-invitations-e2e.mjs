@@ -216,6 +216,11 @@ async function runTests() {
   });
   if (!accept1.error && accept1.data?.accepted === true) {
     pass("1. Token válido aceptado", accept1.data.event_id);
+    if (accept1.data.event_slug === state.eventSlug) {
+      pass("1b. RPC devuelve event_slug");
+    } else {
+      fail("1b. event_slug", String(accept1.data.event_slug));
+    }
   } else {
     fail("1. Token válido", accept1.error?.message ?? JSON.stringify(accept1.data));
   }
@@ -459,6 +464,90 @@ async function runTests() {
     fail("21. Duplicado", `count=${activeDupes?.length}`);
   }
   void dup1;
+
+  // 23 preview RPC — ready
+  const previewReady = await insertInvitation({ user_id: state.userB.id });
+  const previewClientB = await signIn(state.userB);
+  const previewReadyRes = await previewClientB.rpc("preview_community_event_invitation", {
+    p_token: previewReady.token,
+  });
+  if (
+    !previewReadyRes.error &&
+    previewReadyRes.data?.state === "ready" &&
+    previewReadyRes.data?.event?.slug === state.eventSlug
+  ) {
+    pass("23. Preview RPC estado ready");
+  } else {
+    fail("23. Preview RPC ready", previewReadyRes.error?.message ?? JSON.stringify(previewReadyRes.data));
+  }
+
+  // 24 preview wrong account
+  const previewWrong = await insertInvitation({ user_id: state.userB.id });
+  const previewClientA = await signIn(state.userA);
+  const previewWrongRes = await previewClientA.rpc("preview_community_event_invitation", {
+    p_token: previewWrong.token,
+  });
+  if (!previewWrongRes.error && previewWrongRes.data?.state === "wrong_account") {
+    pass("24. Preview RPC cuenta ajena");
+  } else {
+    fail("24. Preview RPC cuenta ajena", previewWrongRes.error?.message ?? JSON.stringify(previewWrongRes.data));
+  }
+
+  // 25 preview disabled
+  const previewDisInv = await insertInvitation({ user_id: state.userDisabled.id });
+  const previewDisClient = await signIn(state.userDisabled);
+  const previewDisRes = await previewDisClient.rpc("preview_community_event_invitation", {
+    p_token: previewDisInv.token,
+  });
+  if (!previewDisRes.error && previewDisRes.data?.state === "disabled") {
+    pass("25. Preview RPC perfil inactivo");
+  } else {
+    fail("25. Preview RPC inactivo", previewDisRes.error?.message ?? JSON.stringify(previewDisRes.data));
+  }
+
+  // 26 preview expired
+  const previewExpInv = await insertInvitation({
+    user_id: state.userB.id,
+    expires_at: new Date(Date.now() - 3600000).toISOString(),
+  });
+  const previewExpRes = await previewClientB.rpc("preview_community_event_invitation", {
+    p_token: previewExpInv.token,
+  });
+  if (!previewExpRes.error && previewExpRes.data?.state === "expired") {
+    pass("26. Preview RPC vencida");
+  } else {
+    fail("26. Preview RPC vencida", previewExpRes.error?.message ?? JSON.stringify(previewExpRes.data));
+  }
+
+  // 27 authenticated open without service_role
+  const openAuthInv = await insertInvitation({ user_id: state.userB.id });
+  const openAuthClient = await signIn(state.userB);
+  const openAuth1 = await openAuthClient.rpc("record_community_invitation_open_authenticated", {
+    p_token: openAuthInv.token,
+  });
+  const openAuth2 = await openAuthClient.rpc("record_community_invitation_open_authenticated", {
+    p_token: openAuthInv.token,
+  });
+  const { data: openAuthRow } = await admin
+    .from("community_event_invitations")
+    .select("opened_at, status")
+    .eq("id", openAuthInv.id)
+    .single();
+  if (!openAuth1.error && !openAuth2.error && openAuthRow?.opened_at) {
+    pass("27. Apertura autenticada sin service_role", openAuthRow.status);
+  } else {
+    fail("27. Apertura autenticada", openAuth1.error?.message ?? "sin opened_at");
+  }
+
+  // 28 preview anon blocked
+  const previewAnon = await anon.rpc("preview_community_event_invitation", {
+    p_token: previewReady.token,
+  });
+  if (previewAnon.error?.message?.includes("permission denied")) {
+    pass("28. Preview RPC anon bloqueada");
+  } else {
+    fail("28. Preview RPC anon", previewAnon.error?.message ?? JSON.stringify(previewAnon.data));
+  }
 
   // 22 cleanup will run in finally
   pass("22. Limpieza programada", `${state.invitationIds.length} invitaciones`);

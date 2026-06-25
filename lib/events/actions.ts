@@ -17,7 +17,8 @@ import {
   validateEventForm,
 } from "@/lib/events/utils";
 import { createClient } from "@/lib/supabase/server";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
+import { CACHE_TAGS } from "@/lib/supabase/cacheTags";
 import { redirect } from "next/navigation";
 
 async function requireAdminAction() {
@@ -35,6 +36,8 @@ function revalidateEventPaths(slug?: string, salesQrCode?: string | null) {
   revalidatePath(ROUTES.home);
   revalidatePath(ROUTES.eventos);
   revalidatePath(ROUTES.adminEventos);
+  updateTag(CACHE_TAGS.publishedEvents);
+  updateTag(CACHE_TAGS.ticketTypes);
 
   if (slug) {
     revalidatePath(ROUTES.evento(slug));

@@ -7,7 +7,11 @@ import type {
   Partner,
   SiteSettings,
 } from "@/lib/site/types";
+import { CACHE_TAGS } from "@/lib/supabase/cacheTags";
+import { createPublicClient } from "@/lib/supabase/public";
+import { withQueryTimeout } from "@/lib/supabase/queryTimeout";
 import { createClient } from "@/lib/supabase/server";
+import { unstable_cache } from "next/cache";
 
 const SITE_SETTINGS_COLUMNS =
   "contact_email, contact_phone, contact_whatsapp, contact_location, instagram_url";
@@ -23,14 +27,17 @@ export const EMPTY_SITE_SETTINGS: SiteSettings = {
   instagram_url: INSTAGRAM_URL,
 };
 
-export async function getSiteSettings(): Promise<SiteSettings> {
-  const supabase = await createClient();
+async function fetchSiteSettingsUncached(): Promise<SiteSettings> {
+  const supabase = createPublicClient();
 
-  const { data, error } = await supabase
-    .from("site_settings")
-    .select(SITE_SETTINGS_COLUMNS)
-    .eq("id", 1)
-    .maybeSingle();
+  const { data, error } = await withQueryTimeout("getSiteSettings", (signal) =>
+    supabase
+      .from("site_settings")
+      .select(SITE_SETTINGS_COLUMNS)
+      .eq("id", 1)
+      .abortSignal(signal)
+      .maybeSingle(),
+  );
 
   if (error || !data) {
     return EMPTY_SITE_SETTINGS;
@@ -43,6 +50,16 @@ export async function getSiteSettings(): Promise<SiteSettings> {
     contact_location: data.contact_location ?? null,
     instagram_url: data.instagram_url ?? INSTAGRAM_URL,
   };
+}
+
+const getSiteSettingsCached = unstable_cache(
+  fetchSiteSettingsUncached,
+  ["public-site-settings"],
+  { revalidate: 300, tags: [CACHE_TAGS.siteSettings] },
+);
+
+export async function getSiteSettings(): Promise<SiteSettings> {
+  return getSiteSettingsCached();
 }
 
 function isPartnerCurrentlyActive(partner: Partner, now = Date.now()): boolean {
@@ -61,21 +78,34 @@ function isPartnerCurrentlyActive(partner: Partner, now = Date.now()): boolean {
   return true;
 }
 
-export async function getActivePartners(): Promise<Partner[]> {
-  const supabase = await createClient();
+async function fetchActivePartnersUncached(): Promise<Partner[]> {
+  const supabase = createPublicClient();
 
-  const { data, error } = await supabase
-    .from("partners")
-    .select(PARTNER_COLUMNS)
-    .eq("is_active", true)
-    .order("sort_order", { ascending: true })
-    .order("created_at", { ascending: true });
+  const { data, error } = await withQueryTimeout("getActivePartners", (signal) =>
+    supabase
+      .from("partners")
+      .select(PARTNER_COLUMNS)
+      .eq("is_active", true)
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: true })
+      .abortSignal(signal),
+  );
 
   if (error || !data) {
     return [];
   }
 
   return (data as Partner[]).filter((partner) => isPartnerCurrentlyActive(partner));
+}
+
+const getActivePartnersCached = unstable_cache(
+  fetchActivePartnersUncached,
+  ["public-active-partners"],
+  { revalidate: 300, tags: [CACHE_TAGS.partners] },
+);
+
+export async function getActivePartners(): Promise<Partner[]> {
+  return getActivePartnersCached();
 }
 
 export async function getAllPartnersForAdmin(): Promise<Partner[]> {

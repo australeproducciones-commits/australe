@@ -1,7 +1,7 @@
 import { EVENT_STATUS } from "@/lib/constants/event-status";
 import { getEventByIdForAdmin, requireAdminPage } from "@/lib/events/queries";
 import type { TicketType } from "@/lib/tickets/types";
-import { createClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/lib/supabase/public";
 
 const TICKET_TYPE_COLUMNS =
   "id, event_id, name, description, public_price, community_price, stock_total, stock_sold, max_per_order, sale_start_at, sale_end_at, is_active, sort_order, created_at, updated_at";
@@ -48,7 +48,7 @@ export async function getTicketTypeByIdForAdmin(
 export async function getActiveTicketTypesByEventId(
   eventId: string,
 ): Promise<TicketType[]> {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
 
   const { data, error } = await supabase
     .from("ticket_types")
@@ -75,6 +75,38 @@ export async function getActiveTicketTypesForPublishedEvent(
   }
 
   return getActiveTicketTypesByEventId(eventId);
+}
+
+export async function getActiveTicketTypesForPublishedEvents(
+  eventIds: string[],
+): Promise<Map<string, TicketType[]>> {
+  const result = new Map<string, TicketType[]>();
+
+  if (eventIds.length === 0) {
+    return result;
+  }
+
+  const supabase = createPublicClient();
+  const { data, error } = await supabase
+    .from("ticket_types")
+    .select(TICKET_TYPE_COLUMNS)
+    .in("event_id", eventIds)
+    .eq("is_active", true)
+    .order("sort_order", { ascending: true })
+    .order("public_price", { ascending: true });
+
+  if (error) {
+    console.error("getActiveTicketTypesForPublishedEvents:", error.message);
+    return result;
+  }
+
+  for (const row of (data ?? []) as TicketType[]) {
+    const current = result.get(row.event_id) ?? [];
+    current.push(row);
+    result.set(row.event_id, current);
+  }
+
+  return result;
 }
 
 export async function getEventWithTicketTypesForAdmin(eventId: string) {

@@ -1,4 +1,5 @@
-import { createClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/lib/supabase/public";
+import { withQueryTimeout } from "@/lib/supabase/queryTimeout";
 import type { AnalyticsTrackPayload } from "@/lib/analytics/types";
 import { NextResponse } from "next/server";
 
@@ -32,20 +33,28 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const userAgent = request.headers.get("user-agent");
 
-  const { error } = await supabase.from("analytics_events").insert({
-    event_name: body.event_name,
-    page_path: body.page_path.slice(0, 500),
-    event_id: body.event_id ?? null,
-    ticket_type_id: body.ticket_type_id ?? null,
-    session_id: body.session_id.slice(0, 100),
-    visitor_id: body.visitor_id.slice(0, 100),
-    referrer: body.referrer?.slice(0, 500) ?? null,
-    user_agent: userAgent?.slice(0, 500) ?? null,
-    metadata: body.metadata ?? {},
-  });
+  const { error } = await withQueryTimeout(
+    "analytics_insert",
+    (signal) =>
+      supabase
+        .from("analytics_events")
+        .insert({
+          event_name: body.event_name,
+          page_path: body.page_path.slice(0, 500),
+          event_id: body.event_id ?? null,
+          ticket_type_id: body.ticket_type_id ?? null,
+          session_id: body.session_id.slice(0, 100),
+          visitor_id: body.visitor_id.slice(0, 100),
+          referrer: body.referrer?.slice(0, 500) ?? null,
+          user_agent: userAgent?.slice(0, 500) ?? null,
+          metadata: body.metadata ?? {},
+        })
+        .abortSignal(signal),
+    2_500,
+  );
 
   if (error) {
     console.error("analytics insert:", error.message);

@@ -1,9 +1,9 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { getProfile } from "@/lib/auth/getProfile";
+import { shouldRunProxyAuth } from "@/lib/auth/proxyMatcher";
 import {
   getEffectiveRole,
-  requiresAuthCheck,
   resolveMiddlewareRedirect,
 } from "@/lib/auth/routeAccess";
 import { ROLES, type Role } from "@/lib/constants/roles";
@@ -11,10 +11,14 @@ import { ROUTES } from "@/lib/constants/routes";
 import { getSupabaseEnv } from "@/lib/supabase/env";
 import type { Database } from "@/lib/supabase/types";
 
-export async function middleware(request: NextRequest) {
-  const { url, anonKey } = getSupabaseEnv();
+export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
+  if (!shouldRunProxyAuth(pathname)) {
+    return NextResponse.next();
+  }
+
+  const { url, anonKey } = getSupabaseEnv();
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient<Database>(url, anonKey, {
@@ -34,17 +38,15 @@ export async function middleware(request: NextRequest) {
     },
   });
 
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
+  let user = null;
+  let authError: Error | null = null;
 
-  if (authError) {
-    await supabase.auth.signOut({ scope: "global" });
-  }
-
-  if (!requiresAuthCheck(pathname)) {
-    return supabaseResponse;
+  try {
+    const result = await supabase.auth.getUser();
+    user = result.data.user;
+    authError = result.error;
+  } catch {
+    authError = new Error("auth lookup failed");
   }
 
   const isAuthenticated = !!user && !authError;
@@ -86,6 +88,10 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    "/login",
+    "/mi-cuenta/:path*",
+    "/admin/:path*",
+    "/cajero/:path*",
+    "/portero/:path*",
   ],
 };

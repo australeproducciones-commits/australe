@@ -1,6 +1,4 @@
-import { getProfile } from "@/lib/auth/getProfile";
-import { ROLES } from "@/lib/constants/roles";
-import { ROUTES } from "@/lib/constants/routes";
+import { requireAdminPage } from "@/lib/auth/requestAuth";
 import { EVENT_AUDIENCE } from "@/lib/constants/event-audience";
 import { EVENT_STATUS } from "@/lib/constants/event-status";
 import type { Event } from "@/lib/events/types";
@@ -8,34 +6,39 @@ import { isEventFeaturedActive } from "@/lib/events/utils";
 import {
   EVENTS_LOAD_ERROR_MESSAGE,
   PUBLIC_EVENTS_LOAD_ERROR_MESSAGE,
+  SupabaseQueryError,
   throwSupabaseQueryError,
 } from "@/lib/supabase/queryError";
+import { createPublicClient } from "@/lib/supabase/public";
+import { CACHE_TAGS } from "@/lib/supabase/cacheTags";
+import {
+  logSlowQuery,
+  QueryTimeoutError,
+  withQueryTimeout,
+} from "@/lib/supabase/queryTimeout";
 import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
+import { unstable_cache } from "next/cache";
 
 const EVENT_COLUMNS =
   "id, name, slug, description, main_image_url, thumbnail_url, flyer_url, banner_url, social_presale_price, social_regular_price, box_office_preview, event_date, start_time, end_time, location_name, address, capacity, status, audience, financial_management_status, financial_closed_at, financial_closed_by, ticket_sale_mode, external_ticket_url, sale_web_enabled, external_sale_enabled, sale_whatsapp_enabled, reservation_enabled, whatsapp_sale_number, whatsapp_sale_message, is_featured, featured_ticket_label, featured_until, home_order, sales_qr_enabled, sales_qr_code, sales_qr_url, qr_sell_tickets, qr_products_enabled, qr_show_price_list, qr_sell_products, created_by, created_at, updated_at";
 
-export async function requireAdminPage() {
-  const supabase = await createClient();
-  const profile = await getProfile(supabase);
+export { requireAdminPage } from "@/lib/auth/requestAuth";
 
-  if (!profile || profile.role !== ROLES.ADMIN || !profile.is_active) {
-    redirect(ROUTES.admin);
-  }
+async function fetchPublishedEventsUncached(): Promise<Event[]> {
+  const supabase = createPublicClient();
+  const started = Date.now();
 
-  return { supabase, profile };
-}
+  const { data, error } = await withQueryTimeout("getPublishedEvents", (signal) =>
+    supabase
+      .from("events")
+      .select(EVENT_COLUMNS)
+      .eq("status", EVENT_STATUS.PUBLISHED)
+      .eq("audience", EVENT_AUDIENCE.PUBLIC)
+      .order("event_date", { ascending: true })
+      .abortSignal(signal),
+  );
 
-export async function getPublishedEvents(): Promise<Event[]> {
-  const supabase = await createClient();
-
-  const { data, error } = await supabase
-    .from("events")
-    .select(EVENT_COLUMNS)
-    .eq("status", EVENT_STATUS.PUBLISHED)
-    .eq("audience", EVENT_AUDIENCE.PUBLIC)
-    .order("event_date", { ascending: true });
+  logSlowQuery("getPublishedEvents", Date.now() - started);
 
   if (error) {
     throwSupabaseQueryError(
@@ -46,6 +49,27 @@ export async function getPublishedEvents(): Promise<Event[]> {
   }
 
   return ((data ?? []) as Event[]).map(normalizeEventRow);
+}
+
+const getPublishedEventsCached = unstable_cache(
+  fetchPublishedEventsUncached,
+  ["public-published-events"],
+  { revalidate: 120, tags: [CACHE_TAGS.publishedEvents] },
+);
+
+export async function getPublishedEvents(): Promise<Event[]> {
+  try {
+    return await getPublishedEventsCached();
+  } catch (error) {
+    if (error instanceof QueryTimeoutError) {
+      throw new SupabaseQueryError(
+        "getPublishedEvents",
+        error,
+        PUBLIC_EVENTS_LOAD_ERROR_MESSAGE,
+      );
+    }
+    throw error;
+  }
 }
 
 function normalizeEventRow(row: Event): Event {
@@ -106,7 +130,7 @@ export async function getEventBySalesQrCode(code: string): Promise<Event | null>
 export async function getPublishedEventBySlug(
   slug: string,
 ): Promise<Event | null> {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
 
   const { data, error } = await supabase
     .from("events")
@@ -130,36 +154,27 @@ export async function getFeaturedPublishedEvents(): Promise<Event[]> {
   return getFeaturedEventsForHome();
 }
 
-/** Eventos destacados activos para la home (hero y promos). */
-export async function getFeaturedEventsForHome(): Promise<Event[]> {
-  const supabase = await createClient();
-
-  const { data, error } = await supabase
-    .from("events")
-    .select(EVENT_COLUMNS)
-    .eq("status", EVENT_STATUS.PUBLISHED)
-    .eq("audience", EVENT_AUDIENCE.PUBLIC)
-    .eq("is_featured", true)
-    .order("home_order", { ascending: true })
-    .order("event_date", { ascending: true })
-    .order("start_time", { ascending: true });
-
-  if (error) {
-    throwSupabaseQueryError(
-      "getFeaturedEventsForHome",
-      error,
-      PUBLIC_EVENTS_LOAD_ERROR_MESSAGE,
-    );
-  }
-
-  return ((data ?? []) as Event[])
-    .map(normalizeEventRow)
-    .filter(isEventFeaturedActive);
+/** Eventos destacados activos para la home (derivados de la cartelera publicada). */
+export async function getFeaturedEventsForHome(
+  publishedEvents?: Event[],
+): Promise<Event[]> {
+  const events = publishedEvents ?? (await getPublishedEvents());
+  return events.filter(isEventFeaturedActive).sort((left, right) => {
+    const order = left.home_order - right.home_order;
+    if (order !== 0) {
+      return order;
+    }
+    const date = left.event_date.localeCompare(right.event_date);
+    if (date !== 0) {
+      return date;
+    }
+    return (left.start_time ?? "").localeCompare(right.start_time ?? "");
+  });
 }
 
 /** Eventos publicados exclusivos para miembros activos de la comunidad. */
 export async function getCommunityPublishedEvents(): Promise<Event[]> {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
 
   const { data, error } = await supabase
     .from("events")

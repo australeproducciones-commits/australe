@@ -1,5 +1,7 @@
 import type { Event } from "@/lib/events/types";
-import { getActiveTicketTypesForPublishedEvent } from "@/lib/tickets/queries";
+import {
+  getActiveTicketTypesForPublishedEvents,
+} from "@/lib/tickets/queries";
 import { getMinPublicPrice } from "@/lib/tickets/utils";
 import { getMinCommunityPrice } from "@/lib/events/eventMerchandising";
 
@@ -14,6 +16,10 @@ export async function buildCarteleraEvents(
   events: Event[],
   featuredEventId?: string | null,
 ): Promise<CarteleraEvent[]> {
+  if (events.length === 0) {
+    return [];
+  }
+
   const featuredId =
     featuredEventId ?? events.find((event) => event.is_featured)?.id ?? null;
 
@@ -28,19 +34,18 @@ export async function buildCarteleraEvents(
     return left.event_date.localeCompare(right.event_date);
   });
 
-  return Promise.all(
-    sorted.map(async (event) => {
-      const ticketTypes = await getActiveTicketTypesForPublishedEvent(
-        event.id,
-        event.status,
-      );
-
-      return {
-        event,
-        minPrice: getMinPublicPrice(ticketTypes),
-        minCommunityPrice: getMinCommunityPrice(ticketTypes),
-        featured: event.id === featuredId,
-      };
-    }),
+  const ticketTypesByEvent = await getActiveTicketTypesForPublishedEvents(
+    sorted.map((event) => event.id),
   );
+
+  return sorted.map((event) => {
+    const ticketTypes = ticketTypesByEvent.get(event.id) ?? [];
+
+    return {
+      event,
+      minPrice: getMinPublicPrice(ticketTypes),
+      minCommunityPrice: getMinCommunityPrice(ticketTypes),
+      featured: event.id === featuredId,
+    };
+  });
 }

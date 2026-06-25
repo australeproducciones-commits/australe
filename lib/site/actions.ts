@@ -13,7 +13,8 @@ import type {
   SiteSettings,
 } from "@/lib/site/types";
 import { createClient } from "@/lib/supabase/server";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
+import { CACHE_TAGS } from "@/lib/supabase/cacheTags";
 
 async function requireAdminAction() {
   const supabase = await createClient();
@@ -29,6 +30,9 @@ async function requireAdminAction() {
 function revalidatePublicSite() {
   revalidatePath(ROUTES.home);
   revalidatePath(ROUTES.eventos);
+  updateTag(CACHE_TAGS.siteSettings);
+  updateTag(CACHE_TAGS.partners);
+  updateTag(CACHE_TAGS.publishedEvents);
 }
 
 export async function updateSiteSettingsAction(
@@ -192,8 +196,20 @@ export async function deleteAdvertisingCampaignAction(
 }
 
 export async function recordPartnerViewAction(partnerId: string): Promise<void> {
+  await recordPartnerViewsAction([partnerId]);
+}
+
+export async function recordPartnerViewsAction(partnerIds: string[]): Promise<void> {
+  if (partnerIds.length === 0) {
+    return;
+  }
+
   const supabase = await createClient();
-  await supabase.rpc("increment_partner_view_count", { p_partner_id: partnerId });
+  await Promise.allSettled(
+    partnerIds.map((partnerId) =>
+      supabase.rpc("increment_partner_view_count", { p_partner_id: partnerId }),
+    ),
+  );
 }
 
 export async function recordPartnerClickAction(partnerId: string): Promise<void> {

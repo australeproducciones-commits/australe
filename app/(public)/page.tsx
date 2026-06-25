@@ -12,14 +12,16 @@ import type { Event } from "@/lib/events/types";
 
 export default async function Home() {
   let featuredEvents: Event[] = [];
-  let publishedEvents: Event[] = [];
+  let carteleraItems: Awaited<ReturnType<typeof buildCarteleraEvents>> = [];
   let loadError: string | null = null;
 
   try {
-    [featuredEvents, publishedEvents] = await Promise.all([
-      getFeaturedEventsForHome(),
-      getPublishedEvents(),
-    ]);
+    const publishedEvents = await getPublishedEvents();
+    featuredEvents = await getFeaturedEventsForHome(publishedEvents);
+    carteleraItems = await buildCarteleraEvents(
+      publishedEvents,
+      featuredEvents[0]?.id,
+    );
   } catch (error) {
     if (isSupabaseQueryError(error)) {
       loadError = error.userMessage;
@@ -27,13 +29,6 @@ export default async function Home() {
       throw error;
     }
   }
-
-  const carteleraItems = loadError
-    ? []
-    : await buildCarteleraEvents(
-        publishedEvents,
-        featuredEvents[0]?.id,
-      );
 
   return (
     <main>

@@ -1,6 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { TicketSaleStatusPanel } from "@/components/events/TicketSaleStatusPanel";
+import {
+  CalendarClockIcon,
+  CartIcon,
+  GlobeIcon,
+  LinkIcon,
+} from "@/components/icons/PublicScadaIcons";
 import { PublicButton } from "@/components/ui/public/PublicButton";
 import { StatusBadge } from "@/components/ui/public/StatusBadge";
 import { ROUTES } from "@/lib/constants/routes";
@@ -21,6 +28,7 @@ import {
   matchesTicketTypePublicSlug,
   type PublicTicketTypeDisplay,
 } from "@/lib/tickets/publicDisplay";
+import { getTicketPublicSaleStatus } from "@/lib/tickets/getTicketPublicSaleStatus";
 import { cn } from "@/lib/utils/cn";
 
 type EventPublicTicketTypesProps = {
@@ -268,76 +276,38 @@ function EventPublicTicketTypeCard({
   onCopyLink,
   copyFeedback,
 }: TicketTypeCardProps) {
+  const saleStatus = getTicketPublicSaleStatus(ticketType);
   const trackTicketClick = () => {
     void trackAnalyticsEvent(ANALYTICS_EVENT_NAMES.TICKET_CLICK, {
       eventId,
       ticketTypeId: ticketType.id,
     });
   };
-  const detailRows: Array<{ label: string; value: string }> = [];
-
-  if (display.stockTotal != null) {
-    detailRows.push({
-      label: "Stock total",
-      value: String(display.stockTotal),
-    });
-    detailRows.push({
-      label: "Vendidas",
-      value: String(display.stockSold),
-    });
-    detailRows.push({
-      label: "Restantes",
-      value: String(display.stockRemaining ?? 0),
-    });
-  } else {
-    detailRows.push({
-      label: "Disponibles",
-      value: "Ilimitado",
-    });
-    if (display.stockSold > 0) {
-      detailRows.push({
-        label: "Vendidas",
-        value: String(display.stockSold),
-      });
-    }
-  }
-
-  if (display.saleStartLabel) {
-    detailRows.push({
-      label: "Inicio de venta",
-      value: display.saleStartLabel,
-    });
-  }
-
-  if (display.saleEndLabel) {
-    detailRows.push({
-      label: "Fin de venta",
-      value: display.saleEndLabel,
-    });
-  }
-
-  detailRows.push({
-    label: "Máximo por persona",
-    value: String(ticketType.max_per_order),
-  });
-
   const hasAction = webHref || reservationHref || externalHref;
+  const showAvailabilityBadge =
+    display.status !== "available" &&
+    display.status !== "coming_soon" &&
+    display.status !== "sale_ended" &&
+    display.status !== "sold_out" &&
+    display.status !== "unavailable";
 
   return (
     <article
       id={`entrada-${display.slug}`}
       ref={cardRef}
       className={cn(
-        "public-card rounded-3xl p-6 transition",
+        "public-scada-ticket-card public-card rounded-2xl p-5 transition sm:p-6",
         display.featured &&
           "ring-2 ring-[var(--public-primary)] ring-offset-2 ring-offset-[var(--public-bg)]",
       )}
     >
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div className="min-w-0 flex-1">
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-stretch lg:gap-0">
+        <div className="min-w-0 flex-1 lg:pr-6">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="public-heading text-xl font-bold">{ticketType.name}</h3>
-            <StatusBadge tone={display.statusTone}>{display.statusLabel}</StatusBadge>
+            {showAvailabilityBadge ? (
+              <StatusBadge tone={display.statusTone}>{display.statusLabel}</StatusBadge>
+            ) : null}
             {display.featured ? (
               <StatusBadge tone="featured">Recomendada</StatusBadge>
             ) : null}
@@ -356,38 +326,34 @@ function EventPublicTicketTypeCard({
 
           <div className="mt-4 flex flex-wrap items-end gap-4">
             <div>
-              <p className="text-xs uppercase tracking-wider public-text-soft">
-                Precio
-              </p>
-              <p className="public-heading text-2xl font-black">
+              <p className="public-scada-label">PRECIO</p>
+              <p className="public-heading mt-1 text-2xl font-black">
                 {display.publicPriceLabel}
               </p>
             </div>
             {display.communityPriceLabel ? (
               <div>
-                <p className="text-xs uppercase tracking-wider public-text-soft">
-                  Precio comunidad
-                </p>
-                <p className="public-label text-lg font-bold">
+                <p className="public-scada-label">PRECIO COMUNIDAD</p>
+                <p className="public-label mt-1 text-lg font-bold">
                   {display.communityPriceLabel}
                 </p>
               </div>
             ) : null}
           </div>
 
-          <dl className="mt-5 grid gap-2 sm:grid-cols-2">
-            {detailRows.map((row) => (
-              <div key={row.label} className="public-surface-row text-sm">
-                <dt className="public-text-soft">{row.label}</dt>
-                <dd className="public-heading font-medium">{row.value}</dd>
-              </div>
-            ))}
-          </dl>
+          <TicketSaleStatusPanel status={saleStatus} className="mt-5" />
         </div>
 
-        <div className="flex w-full shrink-0 flex-col gap-2 lg:w-56">
+        <div className="public-scada-ticket-card__divider lg:mx-6" aria-hidden />
+
+        <div className="flex w-full shrink-0 flex-col gap-2 lg:w-56 lg:justify-center">
           {webHref ? (
-            <PublicButton href={webHref} className="w-full" onClick={trackTicketClick}>
+            <PublicButton
+              href={webHref}
+              className="inline-flex w-full gap-2"
+              onClick={trackTicketClick}
+            >
+              <CartIcon />
               Comprar en la web
             </PublicButton>
           ) : null}
@@ -396,9 +362,10 @@ function EventPublicTicketTypeCard({
             <PublicButton
               href={reservationHref}
               variant={webHref ? "outline" : "primary"}
-              className="w-full public-btn-reservation"
+              className="inline-flex w-full gap-2 public-btn-reservation"
               onClick={trackTicketClick}
             >
+              <CalendarClockIcon />
               Reserva desde la web
             </PublicButton>
           ) : null}
@@ -407,10 +374,11 @@ function EventPublicTicketTypeCard({
             <PublicButton
               href={externalHref}
               variant="outline"
-              className="w-full public-btn-external"
+              className="inline-flex w-full gap-2 public-btn-external"
               target="_blank"
               rel="noopener noreferrer"
             >
+              <GlobeIcon />
               Comprar en sitio externo
             </PublicButton>
           ) : null}
@@ -425,9 +393,11 @@ function EventPublicTicketTypeCard({
             type="button"
             variant="ghost"
             size="sm"
-            className="w-full"
+            className="inline-flex w-full gap-2"
             onClick={onCopyLink}
+            aria-live="polite"
           >
+            <LinkIcon />
             {copyFeedback ? "Enlace copiado" : "Copiar enlace"}
           </PublicButton>
         </div>

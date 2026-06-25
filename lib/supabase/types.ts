@@ -220,6 +220,8 @@ export type CommunityEventInvitationRow = {
   accepted_at: string | null;
   used_at: string | null;
   cancelled_at: string | null;
+  expires_at: string;
+  accepted_by: string | null;
   metadata: Json;
 };
 
@@ -1045,6 +1047,10 @@ export type Database = {
       record_community_invitation_open: {
         Args: { p_token: string };
         Returns: CommunityEventInvitationRow;
+      };
+      accept_community_event_invitation: {
+        Args: { p_token: string };
+        Returns: Json;
       };
     };
     Enums: Record<string, never>;

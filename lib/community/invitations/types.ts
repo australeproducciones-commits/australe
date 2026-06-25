@@ -47,6 +47,8 @@ export type CommunityEventInvitation = {
   accepted_at: string | null;
   used_at: string | null;
   cancelled_at: string | null;
+  expires_at: string;
+  accepted_by: string | null;
   metadata: Record<string, unknown>;
 };
 
@@ -83,3 +85,7 @@ export type CreateInvitationsResult = {
     trackingUrl?: string;
   }>;
 };
+
+export type AcceptInvitationResult =
+  | { success: true; redirectTo: string }
+  | { success: false; error: string };

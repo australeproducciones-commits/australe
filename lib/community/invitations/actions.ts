@@ -1,6 +1,6 @@
 "use server";
 
-import { requireAdmin } from "@/lib/auth/require";
+import { requireActiveProfile, requireAdmin } from "@/lib/auth/require";
 import { ROUTES } from "@/lib/constants/routes";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
@@ -9,6 +9,7 @@ import {
   getRecentInvitationsForUsers,
 } from "@/lib/community/invitations/queries";
 import type {
+  AcceptInvitationResult,
   CreateInvitationsInput,
   CreateInvitationsResult,
 } from "@/lib/community/invitations/types";
@@ -17,11 +18,13 @@ import {
   INVITATION_STATUS,
   INVITATION_TYPE,
 } from "@/lib/community/invitations/types";
+import { mapInvitationRpcError } from "@/lib/community/invitations/errors";
 import {
   buildInvitationMessage,
   buildInvitationTrackingUrl,
   buildMailtoUrl,
   buildWhatsappUrl,
+  computeInvitationExpiresAt,
   generateInvitationToken,
 } from "@/lib/community/invitations/utils";
 import { fetchAuthEmailsByIds } from "@/lib/users/authEmails";
@@ -95,7 +98,7 @@ export async function createCommunityInvitationsAction(
     await Promise.all([
       admin
         .from("profiles")
-        .select("id, full_name, whatsapp")
+        .select("id, full_name, whatsapp, is_active")
         .in("id", userIds),
       admin
         .from("community_members")
@@ -123,7 +126,7 @@ export async function createCommunityInvitationsAction(
     }
 
     const profile = profileById.get(userId);
-    if (!profile) {
+    if (!profile || profile.is_active === false) {
       skippedNoChannel += 1;
       continue;
     }
@@ -142,6 +145,9 @@ export async function createCommunityInvitationsAction(
 
     const token = generateInvitationToken();
     const trackingUrl = buildInvitationTrackingUrl(token);
+    const expiresAt = computeInvitationExpiresAt({
+      eventDate: event.event_date,
+    }).toISOString();
     const message = buildInvitationMessage({
       event,
       recipientName: profile.full_name,
@@ -165,6 +171,7 @@ export async function createCommunityInvitationsAction(
         status: initialStatus,
         message,
         public_token: token,
+        expires_at: expiresAt,
         created_by: auth.profile.id,
         metadata: {
           resend: Boolean(existing && input.allowResend),
@@ -284,6 +291,58 @@ export async function cancelCommunityInvitationAction(invitationId: string) {
 
   revalidateCommunityPaths();
   return { success: true };
+}
+
+export async function acceptCommunityInvitationAction(
+  token: string,
+): Promise<AcceptInvitationResult> {
+  const trimmed = token.trim();
+  if (!trimmed) {
+    return { success: false, error: "Esta invitación no está disponible." };
+  }
+
+  const auth = await requireActiveProfile();
+  if ("error" in auth) {
+    return { success: false, error: auth.error };
+  }
+
+  const { data, error } = await auth.supabase.rpc(
+    "accept_community_event_invitation",
+    { p_token: trimmed },
+  );
+
+  if (error) {
+    return { success: false, error: mapInvitationRpcError(error.message) };
+  }
+
+  const payload = data as {
+    invitation_id?: string;
+    event_id?: string;
+    accepted?: boolean;
+  } | null;
+
+  if (!payload?.accepted || !payload.event_id) {
+    return {
+      success: false,
+      error: "No pudimos procesar la invitación. Intentá de nuevo.",
+    };
+  }
+
+  const admin = createAdminClient();
+  const { data: event } = await admin
+    .from("events")
+    .select("slug")
+    .eq("id", payload.event_id)
+    .maybeSingle();
+
+  if (!event?.slug) {
+    return { success: false, error: "Esta invitación no está disponible." };
+  }
+
+  return {
+    success: true,
+    redirectTo: `${ROUTES.evento(event.slug)}?invitacion=aceptada`,
+  };
 }
 
 export async function previewInvitationTypesAction() {

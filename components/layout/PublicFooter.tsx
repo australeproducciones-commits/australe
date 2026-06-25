@@ -1,7 +1,11 @@
 import Link from "next/link";
 import { InstagramIcon } from "@/components/icons/InstagramIcon";
+import { WhatsAppIcon } from "@/components/icons/WhatsAppIcon";
 import { PUBLIC_NAV_LINKS } from "@/lib/constants/routes";
-import { buildWhatsappUrl } from "@/lib/site/queries";
+import {
+  buildWhatsappUrl,
+  FOOTER_PARTNERSHIP_WHATSAPP_MESSAGE,
+} from "@/lib/site/queries";
 import type { SiteSettings } from "@/lib/site/types";
 
 type PublicFooterProps = {
@@ -15,6 +19,9 @@ export function PublicFooter({ settings }: PublicFooterProps) {
   const whatsapp = settings.contact_whatsapp?.trim();
   const location = settings.contact_location?.trim();
   const whatsappUrl = whatsapp ? buildWhatsappUrl(whatsapp) : "";
+  const partnershipWhatsappUrl = whatsapp
+    ? buildWhatsappUrl(whatsapp, FOOTER_PARTNERSHIP_WHATSAPP_MESSAGE)
+    : "";
 
   const hasContact = Boolean(email || phone || whatsapp || location || instagramUrl);
 
@@ -93,6 +100,39 @@ export function PublicFooter({ settings }: PublicFooterProps) {
             ))}
           </div>
         </div>
+
+        <section
+          aria-labelledby="footer-partnership-cta"
+          className="mt-8 rounded-2xl border bg-gradient-to-br from-purple-50/90 via-white/95 to-[var(--public-footer-bg)] p-5 shadow-[0_4px_24px_rgba(155,126,222,0.08)] sm:p-6"
+          style={{ borderColor: "var(--public-border)" }}
+        >
+          <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between md:gap-8">
+            <div className="min-w-0 flex-1">
+              <h2
+                id="footer-partnership-cta"
+                className="text-base font-bold public-heading sm:text-lg"
+              >
+                ¿Querés ser parte de Australe?
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm leading-relaxed public-text-muted">
+                Sumate a las empresas y emprendimientos que nos acompañan. Trabajemos juntos
+                para crear nuevas experiencias, eventos y oportunidades.
+              </p>
+            </div>
+
+            {partnershipWhatsappUrl ? (
+              <a
+                href={partnershipWhatsappUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="public-btn-primary inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-2xl px-6 py-3.5 text-sm font-semibold transition sm:w-auto sm:min-w-[11rem]"
+              >
+                <WhatsAppIcon className="h-5 w-5" />
+                Quiero ser parte
+              </a>
+            ) : null}
+          </div>
+        </section>
       </div>
     </footer>
   );

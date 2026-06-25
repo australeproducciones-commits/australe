@@ -149,6 +149,176 @@ body {
   color: var(--public-primary-hover);
 }
 
+/* SCADA público — detalle de evento y entradas */
+.public-theme .public-scada-event-card {
+  padding: 1.5rem;
+  border: 1px solid var(--public-border);
+  background:
+    linear-gradient(180deg, rgba(251, 247, 255, 0.65) 0%, #fff 42%),
+    var(--public-card);
+  box-shadow: var(--public-shadow);
+}
+
+@media (min-width: 640px) {
+  .public-theme .public-scada-event-card {
+    padding: 2rem;
+  }
+}
+
+.public-theme .public-scada-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 999px;
+  border: 1px solid rgba(155, 126, 222, 0.35);
+  background: rgba(241, 232, 255, 0.9);
+  padding: 0.25rem 0.65rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  color: var(--public-primary-hover);
+}
+
+.public-theme .public-scada-date-badge {
+  border-color: rgba(155, 126, 222, 0.35);
+  background: rgba(241, 232, 255, 0.75);
+  color: var(--public-text);
+}
+
+.public-theme .public-scada-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: var(--public-text-soft);
+}
+
+.public-theme .public-scada-location-grid {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.public-theme .public-scada-location-row {
+  display: flex;
+  gap: 0.85rem;
+  border-radius: 1rem;
+  border: 1px dashed rgba(155, 126, 222, 0.35);
+  background: rgba(251, 247, 255, 0.85);
+  padding: 0.9rem 1rem;
+}
+
+.public-theme .public-scada-location-row__icon {
+  display: flex;
+  height: 2rem;
+  width: 2rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.65rem;
+  border: 1px solid rgba(155, 126, 222, 0.25);
+  background: #fff;
+  color: var(--public-primary);
+}
+
+.public-theme .public-scada-location-link {
+  color: var(--public-text);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.public-theme .public-scada-location-link:hover {
+  color: var(--public-primary-hover);
+}
+
+.public-theme .public-scada-location-link:focus-visible {
+  outline: 2px solid var(--public-primary);
+  outline-offset: 2px;
+  border-radius: 0.35rem;
+}
+
+.public-theme .public-scada-description-panel {
+  border-radius: 1rem;
+  border: 1px solid var(--public-border);
+  border-left: 3px solid rgba(155, 126, 222, 0.55);
+  background: rgba(251, 247, 255, 0.55);
+  padding: 1.15rem 1.25rem;
+}
+
+.public-theme .public-scada-ticket-card {
+  border: 1px solid var(--public-border);
+  background:
+    linear-gradient(135deg, rgba(251, 247, 255, 0.9) 0%, #fff 55%),
+    var(--public-card);
+  box-shadow: var(--public-shadow);
+}
+
+.public-theme .public-scada-ticket-card__divider {
+  display: none;
+  width: 1px;
+  align-self: stretch;
+  background: linear-gradient(
+    180deg,
+    transparent,
+    rgba(155, 126, 222, 0.35) 18%,
+    rgba(155, 126, 222, 0.35) 82%,
+    transparent
+  );
+}
+
+@media (min-width: 1024px) {
+  .public-theme .public-scada-ticket-card__divider {
+    display: block;
+  }
+}
+
+.public-theme .public-scada-sale-panel {
+  border-radius: 1rem;
+  border: 1px solid var(--public-border);
+  background: rgba(251, 247, 255, 0.75);
+  padding: 1rem 1.1rem;
+}
+
+.public-theme .public-scada-sale-panel__badge {
+  display: inline-flex;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+}
+
+.public-theme .public-scada-sale-panel__title {
+  color: var(--public-text);
+}
+
+.public-theme .public-scada-sale-panel__date {
+  color: var(--public-primary-hover);
+}
+
+.public-theme .public-scada-sale-panel__secondary {
+  color: var(--public-text-secondary);
+}
+
+.public-theme .public-scada-sale-panel--soon .public-scada-sale-panel__badge {
+  border-color: rgba(155, 126, 222, 0.45);
+  background: rgba(200, 182, 255, 0.35);
+  color: #5b4a8a;
+}
+
+.public-theme .public-scada-sale-panel--active .public-scada-sale-panel__badge {
+  border-color: rgba(127, 216, 190, 0.55);
+  background: rgba(127, 216, 190, 0.2);
+  color: var(--public-fresh-foreground);
+}
+
+.public-theme .public-scada-sale-panel--ended .public-scada-sale-panel__badge,
+.public-theme .public-scada-sale-panel--sold-out .public-scada-sale-panel__badge,
+.public-theme .public-scada-sale-panel--unavailable .public-scada-sale-panel__badge {
+  border-color: rgba(139, 122, 153, 0.35);
+  background: rgba(241, 232, 255, 0.9);
+  color: var(--public-text-secondary);
+}
+
 /* Botones */
 .public-theme .public-btn-primary {
   background: var(--public-primary);
@@ -414,4 +584,650 @@ body {
 .admin-form select option {
   background-color: #18181b;
   color: #fafafa;
+}
+
+/* Admin · Publicidad SCADA claro */
+.admin-ad-scada-page {
+  --ad-bg: #f8f6fc;
+  --ad-surface: #ffffff;
+  --ad-border: #e4ddf0;
+  --ad-border-strong: #d4c8e8;
+  --ad-text: #1f1a2e;
+  --ad-muted: #6f6783;
+  --ad-accent: #8b6cb8;
+  --ad-accent-soft: #f1ebfb;
+  --ad-green: #2f8f5b;
+  --ad-blue: #4f6fd8;
+  --ad-amber: #b8891d;
+  --ad-gray: #7a738d;
+  --ad-red: #c44b4b;
+  color: var(--ad-text);
+}
+
+.admin-ad-scada-page__header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+@media (min-width: 640px) {
+  .admin-ad-scada-page__header {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+}
+
+.admin-ad-scada-page__kicker {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ad-accent);
+}
+
+.admin-ad-scada-page__title {
+  margin-top: 0.25rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--ad-text);
+}
+
+.admin-ad-scada-page__description {
+  margin-top: 0.25rem;
+  font-size: 0.9rem;
+  color: var(--ad-muted);
+}
+
+.admin-ad-scada-page__cta {
+  width: 100%;
+}
+
+@media (min-width: 640px) {
+  .admin-ad-scada-page__cta {
+    width: auto;
+    flex-shrink: 0;
+  }
+}
+
+.admin-ad-scada-back {
+  display: inline-flex;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+  color: var(--ad-accent);
+}
+
+.admin-ad-scada-back:hover {
+  text-decoration: underline;
+}
+
+.admin-ad-scada-muted {
+  color: var(--ad-muted);
+  font-size: 0.875rem;
+}
+
+.admin-ad-scada-summary {
+  display: grid;
+  gap: 0.75rem;
+  margin: 1rem 0 1.25rem;
+}
+
+.admin-ad-scada-summary__row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+@media (min-width: 768px) {
+  .admin-ad-scada-summary__row {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .admin-ad-scada-summary__row--metrics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    max-width: 48rem;
+  }
+}
+
+.admin-ad-scada-module {
+  min-height: 4.5rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--ad-border);
+  border-radius: 0.75rem;
+  background: linear-gradient(180deg, #ffffff 0%, var(--ad-bg) 100%);
+  box-shadow: 0 1px 0 rgba(139, 108, 184, 0.05);
+}
+
+.admin-ad-scada-module__head {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.admin-ad-scada-module__icon {
+  display: inline-flex;
+  color: var(--ad-accent);
+}
+
+.admin-ad-scada-module__label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ad-muted);
+}
+
+.admin-ad-scada-module__value {
+  margin-top: 0.35rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--ad-text);
+}
+
+.admin-ad-scada-module__detail {
+  margin-top: 0.15rem;
+  font-size: 0.68rem;
+  color: var(--ad-muted);
+}
+
+.admin-ad-scada-tabs {
+  display: flex;
+  gap: 0.35rem;
+  overflow-x: auto;
+  padding-bottom: 0.15rem;
+}
+
+.admin-ad-scada-tabs button {
+  flex-shrink: 0;
+  border: 1px solid var(--ad-border);
+  border-radius: 999px;
+  background: var(--ad-surface);
+  padding: 0.4rem 0.8rem;
+  font-size: 0.8rem;
+  color: var(--ad-muted);
+}
+
+.admin-ad-scada-tabs button.is-active {
+  border-color: var(--ad-accent);
+  background: var(--ad-accent-soft);
+  color: var(--ad-text);
+  font-weight: 600;
+}
+
+.admin-ad-scada-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: end;
+}
+
+.admin-ad-scada-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.admin-ad-scada-field--grow {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.admin-ad-scada-field__label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ad-muted);
+}
+
+.admin-ad-scada-input,
+.admin-ad-scada-select {
+  width: 100%;
+  border: 1px solid var(--ad-border);
+  border-radius: 0.65rem;
+  background: var(--ad-surface);
+  padding: 0.55rem 0.7rem;
+  font-size: 0.875rem;
+  color: var(--ad-text);
+}
+
+.admin-ad-scada-input:focus-visible,
+.admin-ad-scada-select:focus-visible,
+.admin-ad-scada-btn:focus-visible,
+.admin-ad-scada-icon-btn:focus-visible {
+  outline: 2px solid var(--ad-accent);
+  outline-offset: 2px;
+}
+
+.admin-ad-scada-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--ad-border-strong);
+  border-radius: 0.65rem;
+  background: var(--ad-surface);
+  padding: 0.55rem 0.9rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ad-text);
+  text-decoration: none;
+}
+
+.admin-ad-scada-btn--primary {
+  border-color: var(--ad-accent);
+  background: var(--ad-accent);
+  color: #fff;
+}
+
+.admin-ad-scada-btn--ghost {
+  background: transparent;
+}
+
+.admin-ad-scada-btn--danger {
+  border-color: #e9b4b4;
+  color: var(--ad-red);
+}
+
+.admin-ad-scada-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.admin-ad-scada-grid {
+  display: grid;
+  gap: 0.85rem;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (min-width: 768px) {
+  .admin-ad-scada-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1280px) {
+  .admin-ad-scada-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.admin-ad-scada-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 22rem;
+  border: 1px solid var(--ad-border);
+  border-radius: 1rem;
+  background: var(--ad-surface);
+  box-shadow: 0 8px 24px rgba(74, 54, 112, 0.06);
+  overflow: hidden;
+}
+
+.admin-ad-scada-card__media {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: var(--ad-bg);
+  border-bottom: 1px dashed var(--ad-border);
+}
+
+.admin-ad-scada-card__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.admin-ad-scada-card__fallback {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  font-size: 0.8rem;
+  color: var(--ad-muted);
+  background: repeating-linear-gradient(
+    -45deg,
+    #f3eefb,
+    #f3eefb 8px,
+    #ece5f7 8px,
+    #ece5f7 16px
+  );
+}
+
+.admin-ad-scada-badge {
+  position: absolute;
+  top: 0.55rem;
+  left: 0.55rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.admin-ad-scada-badge--active {
+  color: var(--ad-green);
+  border-color: #b9e3cb;
+}
+
+.admin-ad-scada-badge--scheduled {
+  color: var(--ad-blue);
+  border-color: #c7d4f8;
+}
+
+.admin-ad-scada-badge--paused {
+  color: var(--ad-amber);
+  border-color: #ecd9a1;
+}
+
+.admin-ad-scada-badge--finished,
+.admin-ad-scada-badge--incomplete {
+  color: var(--ad-gray);
+  border-color: #d7d2e2;
+}
+
+.admin-ad-scada-badge--incomplete {
+  color: var(--ad-red);
+  border-color: #efc5c5;
+}
+
+.admin-ad-scada-card__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 0.8rem;
+}
+
+.admin-ad-scada-card__header {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+
+.admin-ad-scada-card__kicker {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ad-muted);
+}
+
+.admin-ad-scada-card__title {
+  margin-top: 0.15rem;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.admin-ad-scada-card__placement {
+  margin-top: 0.15rem;
+  font-size: 0.75rem;
+  color: var(--ad-muted);
+}
+
+.admin-ad-scada-icon-btn {
+  border: 1px solid var(--ad-border);
+  border-radius: 0.5rem;
+  background: var(--ad-surface);
+  width: 2rem;
+  height: 2rem;
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--ad-muted);
+}
+
+.admin-ad-scada-menu {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  right: 0;
+  z-index: 20;
+  min-width: 10rem;
+  border: 1px solid var(--ad-border);
+  border-radius: 0.75rem;
+  background: var(--ad-surface);
+  padding: 0.25rem;
+  box-shadow: 0 10px 30px rgba(31, 26, 46, 0.12);
+}
+
+.admin-ad-scada-menu__item {
+  display: block;
+  width: 100%;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  padding: 0.5rem 0.65rem;
+  text-align: left;
+  font-size: 0.82rem;
+  color: var(--ad-text);
+  text-decoration: none;
+}
+
+.admin-ad-scada-menu__item:hover {
+  background: var(--ad-accent-soft);
+}
+
+.admin-ad-scada-menu__item--danger {
+  color: var(--ad-red);
+}
+
+.admin-ad-scada-schedule {
+  border: 1px solid var(--ad-border);
+  border-radius: 0.75rem;
+  background: var(--ad-bg);
+  padding: 0.55rem 0.65rem;
+}
+
+.admin-ad-scada-schedule__title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.admin-ad-scada-schedule__prefix,
+.admin-ad-scada-schedule__detail {
+  font-size: 0.8rem;
+  color: var(--ad-muted);
+}
+
+.admin-ad-scada-schedule__prefix {
+  margin-top: 0.2rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.admin-ad-scada-meta {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.admin-ad-scada-meta__label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ad-muted);
+}
+
+.admin-ad-scada-meta__value,
+.admin-ad-scada-meta__link {
+  margin-top: 0.1rem;
+  font-size: 0.82rem;
+  color: var(--ad-text);
+}
+
+.admin-ad-scada-meta__link {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ad-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.admin-ad-scada-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.35rem;
+  border-top: 1px dashed var(--ad-border);
+  padding-top: 0.55rem;
+}
+
+.admin-ad-scada-metrics__label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ad-muted);
+}
+
+.admin-ad-scada-metrics__value {
+  margin-top: 0.1rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.admin-ad-scada-metrics__empty {
+  grid-column: 1 / -1;
+  font-size: 0.8rem;
+  color: var(--ad-muted);
+}
+
+.admin-ad-scada-alerts {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--ad-red);
+}
+
+.admin-ad-scada-error {
+  font-size: 0.8rem;
+  color: var(--ad-red);
+}
+
+.admin-ad-scada-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: auto;
+  padding-top: 0.35rem;
+}
+
+.admin-ad-scada-empty {
+  display: grid;
+  gap: 0.75rem;
+  justify-items: start;
+  border: 1px dashed var(--ad-border-strong);
+  border-radius: 1rem;
+  background: var(--ad-bg);
+  padding: 1.25rem;
+}
+
+.admin-ad-scada-form-layout {
+  display: grid;
+  gap: 1rem;
+}
+
+@media (min-width: 1024px) {
+  .admin-ad-scada-form-layout {
+    grid-template-columns: minmax(0, 1.2fr) minmax(18rem, 0.8fr);
+  }
+}
+
+.admin-ad-scada-form,
+.admin-ad-scada-preview {
+  border: 1px solid var(--ad-border);
+  border-radius: 1rem;
+  background: var(--ad-surface);
+  padding: 1rem;
+}
+
+.admin-ad-scada-form {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.admin-ad-scada-form__title {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.admin-ad-scada-form__grid {
+  display: grid;
+  gap: 0.75rem;
+}
+
+@media (min-width: 640px) {
+  .admin-ad-scada-form__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.admin-ad-scada-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.admin-ad-scada-check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.admin-ad-scada-preview__card {
+  margin-top: 0.75rem;
+  border: 1px solid var(--ad-border);
+  border-radius: 0.9rem;
+  background: var(--ad-bg);
+  padding: 0.85rem;
+}
+
+.admin-ad-scada-preview__image {
+  aspect-ratio: 16 / 9;
+  width: 100%;
+  border-radius: 0.65rem;
+  object-fit: cover;
+}
+
+.admin-ad-scada-preview__fallback {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 16 / 9;
+  border-radius: 0.65rem;
+  background: #ece5f7;
+  color: var(--ad-muted);
+  font-size: 0.8rem;
+}
+
+.admin-ad-scada-preview__heading {
+  margin-top: 0.75rem;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.admin-ad-scada-preview__body {
+  margin-top: 0.35rem;
+  font-size: 0.85rem;
+  color: var(--ad-muted);
+}
+
+.admin-ad-scada-preview__button {
+  display: inline-flex;
+  margin-top: 0.75rem;
+  border-radius: 0.65rem;
+  background: var(--ad-accent);
+  padding: 0.45rem 0.8rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #fff;
 }

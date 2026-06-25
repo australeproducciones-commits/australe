@@ -9,6 +9,7 @@ import {
 } from "@/lib/site/actions";
 import type { Partner } from "@/lib/site/types";
 import { SectionHeading } from "@/components/ui/public/SectionHeading";
+import { cn } from "@/lib/utils/cn";
 
 type PartnersSectionProps = {
   partners: Partner[];
@@ -83,10 +84,19 @@ export function PartnersSection({ partners }: PartnersSectionProps) {
     return null;
   }
 
+  const gridClassName = cn(
+    "mt-8 grid min-w-0 gap-4 sm:gap-5",
+    partners.length === 1
+      ? "mx-auto max-w-xs grid-cols-1"
+      : partners.length === 2
+        ? "mx-auto max-w-2xl grid-cols-2"
+        : "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5",
+  );
+
   return (
     <section
       ref={sectionRef}
-      className="border-t py-10 sm:py-12"
+      className="overflow-hidden border-t py-10 sm:py-14"
       style={{
         borderColor: "var(--public-border)",
         backgroundColor: "var(--public-bg-section)",
@@ -95,12 +105,12 @@ export function PartnersSection({ partners }: PartnersSectionProps) {
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <SectionHeading
           label="Alianzas"
-          title="Partners"
-          subtitle="Marcas que acompañan nuestras experiencias"
+          title="Empresas que nos acompañan"
+          subtitle="Marcas, empresas y emprendimientos que hacen posible cada experiencia de Australe."
           className="text-center"
         />
 
-        <ul className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+        <ul className={gridClassName} aria-label="Empresas que nos acompañan">
           {partners.map((partner) => (
             <PartnerCard key={partner.id} partner={partner} />
           ))}
@@ -111,30 +121,36 @@ export function PartnersSection({ partners }: PartnersSectionProps) {
 }
 
 function PartnerCard({ partner }: { partner: Partner }) {
+  const displayName = partner.label?.trim() || partner.name.trim();
+
   const content = (
     <>
-      <div className="relative h-20 w-full sm:h-24">
+      <div className="flex h-20 w-full items-center justify-center sm:h-24">
         <RemoteImage
           src={partner.image_url}
           alt={partner.name}
-          fill
-          className="p-2"
+          className="max-h-full max-w-full"
         />
       </div>
-      {partner.label ? (
-        <p className="mt-2 text-center text-xs uppercase tracking-wide public-text-soft">
-          {partner.label}
+      {displayName ? (
+        <p className="mt-3 text-center text-xs font-medium leading-snug public-text-muted sm:text-sm">
+          {displayName}
         </p>
       ) : null}
     </>
   );
 
-  const cardClassName =
-    "rounded-2xl border p-4 transition hover:shadow-md public-card";
+  const cardClassName = cn(
+    "flex h-full flex-col items-center rounded-2xl border bg-transparent p-4 transition",
+    "border-[var(--public-border)]/60",
+    partner.destination_url
+      ? "hover:border-[var(--public-border)] hover:shadow-[0_4px_24px_rgba(155,126,222,0.08)] hover:opacity-95"
+      : "cursor-default",
+  );
 
   if (partner.destination_url) {
     return (
-      <li data-partner-id={partner.id}>
+      <li data-partner-id={partner.id} className="min-w-0">
         <Link
           href={partner.destination_url}
           target={partner.open_in_new_tab ? "_blank" : undefined}
@@ -151,7 +167,7 @@ function PartnerCard({ partner }: { partner: Partner }) {
   }
 
   return (
-    <li data-partner-id={partner.id}>
+    <li data-partner-id={partner.id} className="min-w-0">
       <div className={cardClassName}>{content}</div>
     </li>
   );

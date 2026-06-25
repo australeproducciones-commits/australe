@@ -1,0 +1,176 @@
+/**
+ * ARCHIVO HIST�RICO NO EJECUTABLE.
+ *
+ * Este procedimiento fue utilizado una �nica vez para eliminar datos de prueba.
+ * La RPC destructiva fue eliminada del entorno remoto.
+ * No restaurar ni ejecutar este archivo sin una revisi�n de seguridad expl�cita.
+ */
+/**
+ * Smoke test post-reset: crear evento, tipo entrada, producto y asociación.
+ * Ejecutar: node scripts/smoke-test-post-reset.mjs
+ */
+import { createClient } from "@supabase/supabase-js";
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
+function loadEnvFile(path) {
+  if (!existsSync(path)) return {};
+  const out = {};
+  for (const line of readFileSync(path, "utf8").split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const idx = trimmed.indexOf("=");
+    if (idx === -1) continue;
+    out[trimmed.slice(0, idx).trim()] = trimmed.slice(idx + 1).trim();
+  }
+  return out;
+}
+
+const env = {
+  ...loadEnvFile(resolve(process.cwd(), ".env.local")),
+  ...process.env,
+};
+
+const url = env.NEXT_PUBLIC_SUPABASE_URL;
+const serviceKey = env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!url || !serviceKey) {
+  console.error("Faltan variables Supabase");
+  process.exit(1);
+}
+
+const admin = createClient(url, serviceKey, {
+  auth: { persistSession: false, autoRefreshToken: false },
+});
+
+const TEST_SLUG = "smoke-test-post-reset";
+const TEST_PRODUCT_SLUG = "smoke-test-producto";
+
+async function main() {
+  console.log("\n=== Smoke test post-reset ===\n");
+
+  const { data: adminProfile } = await admin
+    .from("profiles")
+    .select("id, role")
+    .eq("role", "admin")
+    .limit(1)
+    .maybeSingle();
+
+  if (!adminProfile) {
+    console.error("✗ No hay perfil admin");
+    process.exit(1);
+  }
+  console.log(`✓ Admin profile: ${adminProfile.id}`);
+
+  const eventDate = new Date();
+  eventDate.setMonth(eventDate.getMonth() + 2);
+  const eventDateStr = eventDate.toISOString().slice(0, 10);
+
+  const { data: event, error: eventErr } = await admin
+    .from("events")
+    .insert({
+      name: "SMOKE TEST — BORRAR",
+      slug: TEST_SLUG,
+      status: "draft",
+      event_date: eventDateStr,
+      audience: "public",
+      created_by: adminProfile.id,
+    })
+    .select("id, slug")
+    .single();
+
+  if (eventErr || !event) {
+    console.error("✗ Crear evento:", eventErr?.message);
+    process.exit(1);
+  }
+  console.log(`✓ Evento creado: ${event.id} (${event.slug})`);
+
+  const { data: ticketType, error: ttErr } = await admin
+    .from("ticket_types")
+    .insert({
+      event_id: event.id,
+      name: "General smoke",
+      public_price: 1000,
+      community_price: 800,
+      stock_total: 100,
+      stock_sold: 0,
+      is_active: true,
+    })
+    .select("id, name")
+    .single();
+
+  if (ttErr || !ticketType) {
+    console.error("✗ Crear ticket_type:", ttErr?.message);
+    process.exit(1);
+  }
+  console.log(`✓ Tipo de entrada creado: ${ticketType.id}`);
+
+  const { data: category } = await admin
+    .from("kiosk_product_categories")
+    .select("id")
+    .eq("name", "Bebidas sin alcohol")
+    .maybeSingle();
+
+  const { data: product, error: prodErr } = await admin
+    .from("kiosk_products")
+    .insert({
+      name: "SMOKE TEST Producto",
+      slug: TEST_PRODUCT_SLUG,
+      default_price: 500,
+      stock_on_hand: 10,
+      stock_reserved: 0,
+      is_active: true,
+      category_id: category?.id ?? null,
+    })
+    .select("id, slug")
+    .single();
+
+  if (prodErr || !product) {
+    console.error("✗ Crear producto:", prodErr?.message);
+    process.exit(1);
+  }
+  console.log(`✓ Producto kiosco creado: ${product.id}`);
+
+  const { data: ekp, error: ekpErr } = await admin
+    .from("event_kiosk_products")
+    .insert({
+      event_id: event.id,
+      product_id: product.id,
+      price: 500,
+      stock_sold: 0,
+      is_available: true,
+    })
+    .select("id")
+    .single();
+
+  if (ekpErr || !ekp) {
+    console.error("✗ Crear event_kiosk_product:", ekpErr?.message);
+    process.exit(1);
+  }
+  console.log(`✓ Asociación producto-evento: ${ekp.id}`);
+
+  await admin.from("event_kiosk_settings").upsert({
+    event_id: event.id,
+    presale_enabled: false,
+    manual_sales_enabled: true,
+  });
+  console.log("✓ event_kiosk_settings creado");
+
+  // Limpieza smoke test (dejar BD vacía de eventos)
+  await admin.from("event_kiosk_products").delete().eq("id", ekp.id);
+  await admin.from("event_kiosk_settings").delete().eq("event_id", event.id);
+  await admin.from("ticket_types").delete().eq("id", ticketType.id);
+  await admin.from("kiosk_products").delete().eq("id", product.id);
+  await admin.from("events").delete().eq("id", event.id);
+
+  const { count: eventsLeft } = await admin
+    .from("events")
+    .select("*", { count: "exact", head: true });
+  console.log(`\n✓ Smoke test OK — limpieza temporal (events=${eventsLeft})`);
+  process.exit(0);
+}
+
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

@@ -1,0 +1,447 @@
+/*
+ * ARCHIVO HIST�RICO NO EJECUTABLE.
+ *
+ * Este procedimiento fue utilizado una �nica vez para eliminar datos de prueba.
+ * La RPC destructiva fue eliminada del entorno remoto.
+ * No restaurar ni ejecutar este archivo sin una revisi�n de seguridad expl�cita.
+ */
+/**
+ * Reset completo: vaciar eventos y productos de prueba antes de producción.
+ *
+ * Dry-run (sin modificar, no requiere RPC instalada):
+ *   npm run reset:production-data -- --dry-run
+ *
+ * Dry-run + opción fidelización total simulada:
+ *   npm run reset:production-data -- --dry-run --reset-all-loyalty
+ *
+ * Ejecución real:
+ *   ALLOW_PRODUCTION_RESET=true RESET_CONFIRMATION=RESET-AUSTRALE-PRODUCCION npm run reset:production-data
+ *
+ * Ejecución real + vaciar fidelización:
+ *   ALLOW_PRODUCTION_RESET=true RESET_CONFIRMATION=RESET-AUSTRALE-PRODUCCION RESET_ALL_LOYALTY=true npm run reset:production-data
+ *
+ * RPC (aplicar manualmente): scripts/sql/reset_production_transactional_data.sql
+ */
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
+const REQUIRED_CONFIRMATION = "RESET-AUSTRALE-PRODUCCION";
+
+const GENERIC_KIOSK_CATEGORY_NAMES = [
+  "bebidas sin alcohol",
+  "bebidas con alcohol",
+  "comidas",
+  "snacks",
+  "combos",
+  "merchandising",
+  "otros",
+];
+
+type Env = Record<string, string | undefined>;
+
+function loadEnvFile(path: string): Env {
+  if (!existsSync(path)) return {};
+  const out: Env = {};
+  for (const line of readFileSync(path, "utf8").split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const idx = trimmed.indexOf("=");
+    if (idx === -1) continue;
+    out[trimmed.slice(0, idx).trim()] = trimmed.slice(idx + 1).trim();
+  }
+  return out;
+}
+
+function parseArgs(argv: string[]): { dryRun: boolean; resetAllLoyalty: boolean } {
+  return {
+    dryRun: argv.includes("--dry-run"),
+    resetAllLoyalty:
+      argv.includes("--reset-all-loyalty") ||
+      process.env.RESET_ALL_LOYALTY === "true",
+  };
+}
+
+function getEnv(): Env {
+  return {
+    ...loadEnvFile(resolve(process.cwd(), ".env.local")),
+    ...process.env,
+  };
+}
+
+function requireEnv(env: Env): { url: string; serviceKey: string } {
+  const url = env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !serviceKey) {
+    console.error(
+      "Faltan NEXT_PUBLIC_SUPABASE_URL y/o SUPABASE_SERVICE_ROLE_KEY en .env.local",
+    );
+    process.exit(1);
+  }
+  return { url, serviceKey };
+}
+
+function assertRealRunAllowed(env: Env): void {
+  if (env.ALLOW_PRODUCTION_RESET !== "true") {
+    console.error(
+      "Abortado: establecé ALLOW_PRODUCTION_RESET=true para ejecutar el reset real.",
+    );
+    process.exit(1);
+  }
+  if (env.RESET_CONFIRMATION !== REQUIRED_CONFIRMATION) {
+    console.error(
+      `Abortado: RESET_CONFIRMATION debe ser exactamente "${REQUIRED_CONFIRMATION}".`,
+    );
+    process.exit(1);
+  }
+}
+
+async function countTable(
+  admin: SupabaseClient,
+  table: string,
+): Promise<number | null> {
+  const { count, error } = await admin
+    .from(table)
+    .select("*", { count: "exact", head: true });
+  if (error) return null;
+  return count ?? 0;
+}
+
+async function runDetailedDryRun(
+  admin: SupabaseClient,
+  resetAllLoyalty: boolean,
+): Promise<void> {
+  console.log("══════════════════════════════════════════════════════════════");
+  console.log("  DRY-RUN — Vaciado completo eventos/productos de prueba");
+  console.log("  (solo lectura — no se modificaron datos)");
+  console.log("══════════════════════════════════════════════════════════════\n");
+  console.log(`Opción fidelización simulada: p_reset_all_loyalty = ${resetAllLoyalty}\n`);
+
+  const [
+    events,
+    ticketTypes,
+    tickets,
+    kioskProducts,
+    eventKioskProducts,
+    eventKioskSettings,
+    kioskOrders,
+    kioskOrderItems,
+    stockMovements,
+    eventStreams,
+    eventExpenses,
+    eventExpensePayments,
+    eventOtherIncome,
+    invitations,
+    cashClosures,
+    analyticsEvents,
+    adImpressions,
+    profiles,
+    categories,
+    loyaltyTx,
+    loyaltyAccounts,
+    redemptions,
+    siteSettings,
+    partners,
+    adCampaigns,
+    communitySettings,
+    communityLevels,
+    communityRewards,
+    expenseCategories,
+  ] = await Promise.all([
+    admin.from("events").select("id, name, slug, status").order("name"),
+    admin.from("ticket_types").select("id, name, event_id, stock_sold").order("name"),
+    countTable(admin, "tickets"),
+    admin.from("kiosk_products").select("id, name, slug, stock_on_hand, stock_reserved").order("name"),
+    countTable(admin, "event_kiosk_products"),
+    countTable(admin, "event_kiosk_settings"),
+    countTable(admin, "kiosk_orders"),
+    countTable(admin, "kiosk_order_items"),
+    countTable(admin, "kiosk_product_stock_movements"),
+    countTable(admin, "event_streams"),
+    countTable(admin, "event_expenses"),
+    countTable(admin, "event_expense_payments"),
+    countTable(admin, "event_other_income"),
+    countTable(admin, "community_event_invitations"),
+    countTable(admin, "cash_closures"),
+    countTable(admin, "analytics_events"),
+    countTable(admin, "advertising_impressions"),
+    admin.from("profiles").select("id, full_name, role").order("full_name"),
+    admin.from("kiosk_product_categories").select("id, name, sort_order").order("sort_order"),
+    admin
+      .from("loyalty_transactions")
+      .select(
+        "id, user_id, transaction_type, source_type, points, balance_after, description, idempotency_key, created_at",
+      )
+      .order("created_at"),
+    countTable(admin, "loyalty_accounts"),
+    countTable(admin, "community_redemptions"),
+    countTable(admin, "site_settings"),
+    countTable(admin, "partners"),
+    countTable(admin, "advertising_campaigns"),
+    countTable(admin, "community_settings"),
+    countTable(admin, "community_levels"),
+    countTable(admin, "community_rewards"),
+    countTable(admin, "event_expense_categories"),
+  ]);
+
+  const profileMap = new Map(
+    (profiles.data ?? []).map((p) => [p.id, p.full_name ?? p.id]),
+  );
+
+  console.log("── ELIMINAR (eventos y productos de prueba) ──\n");
+
+  console.log(`Eventos (${events.data?.length ?? 0}):`);
+  for (const e of events.data ?? []) {
+    console.log(`  · ${e.name} (${e.slug}) — ${e.status}`);
+  }
+
+  console.log(`\nTipos de entrada (${ticketTypes.data?.length ?? 0}):`);
+  for (const tt of ticketTypes.data ?? []) {
+    console.log(`  · ${tt.name} — stock_sold=${tt.stock_sold}`);
+  }
+
+  console.log(`\nProductos kiosco (${kioskProducts.data?.length ?? 0}):`);
+  for (const kp of kioskProducts.data ?? []) {
+    console.log(
+      `  · ${kp.name} (${kp.slug}) — on_hand=${kp.stock_on_hand}, reserved=${kp.stock_reserved}`,
+    );
+  }
+
+  console.log(`\nAsociaciones producto/evento (event_kiosk_products): ${eventKioskProducts}`);
+  console.log(`Configuraciones kiosco (event_kiosk_settings): ${eventKioskSettings}`);
+  console.log(`Streams (event_streams): ${eventStreams}`);
+  console.log(`Gastos de evento (event_expenses): ${eventExpenses}`);
+  console.log(`Pagos de gastos (event_expense_payments): ${eventExpensePayments}`);
+  console.log(`Otros ingresos (event_other_income): ${eventOtherIncome}`);
+  console.log(`Invitaciones comunidad (community_event_invitations): ${invitations}`);
+  console.log(`Tickets: ${tickets}`);
+  console.log(`Órdenes kiosco: ${kioskOrders}`);
+  console.log(`Ítems de órdenes: ${kioskOrderItems}`);
+  console.log(`Movimientos stock: ${stockMovements}`);
+  console.log(`Cierres de caja: ${cashClosures}`);
+  console.log(`Analítica web: ${analyticsEvents}`);
+  console.log(`Impresiones publicidad: ${adImpressions}`);
+
+  console.log("\n── CONSERVAR (configuración global) ──\n");
+  console.log(`Perfiles / usuarios internos (${profiles.data?.length ?? 0}) — NO se tocan:`);
+  for (const p of profiles.data ?? []) {
+    console.log(`  · ${p.full_name ?? "—"} (${p.role})`);
+  }
+  console.log(`site_settings: ${siteSettings}`);
+  console.log(`partners: ${partners}`);
+  console.log(`advertising_campaigns: ${adCampaigns}`);
+  console.log(`community_settings: ${communitySettings}`);
+  console.log(`community_levels: ${communityLevels}`);
+  console.log(`community_rewards: ${communityRewards}`);
+  console.log(`event_expense_categories (globales): ${expenseCategories}`);
+
+  console.log(`\n── KIOSK_PRODUCT_CATEGORIES (${categories.data?.length ?? 0}) ──\n`);
+  let allGeneric = true;
+  for (const c of categories.data ?? []) {
+    const isGeneric = GENERIC_KIOSK_CATEGORY_NAMES.includes(c.name.trim().toLowerCase());
+    if (!isGeneric) allGeneric = false;
+    console.log(
+      `  · ${c.name} → ${isGeneric ? "CONSERVAR (genérica reutilizable)" : "REVISAR (no está en seed genérico)"}`,
+    );
+  }
+  console.log(
+    `\n  Decisión: ${allGeneric ? "CONSERVAR las 7 categorías (Bebidas, Comidas, Combos, etc.)" : "CONSERVAR por defecto; revisar categorías no genéricas manualmente"}`,
+  );
+
+  console.log("\n── FIDELIZACIÓN — movimientos actuales ──\n");
+  if (!loyaltyTx.data?.length) {
+    console.log("  (sin movimientos)");
+  } else {
+    for (const lt of loyaltyTx.data) {
+      console.log(`  · ${lt.created_at}`);
+      console.log(`    usuario: ${profileMap.get(lt.user_id) ?? lt.user_id}`);
+      console.log(`    tipo: ${lt.transaction_type} / origen: ${lt.source_type}`);
+      console.log(`    puntos: ${lt.points} (saldo después: ${lt.balance_after})`);
+      console.log(`    descripción: ${lt.description ?? "—"}`);
+      console.log(`    idempotency_key: ${lt.idempotency_key}`);
+    }
+  }
+  console.log(`\n  Cuentas loyalty_accounts: ${loyaltyAccounts}`);
+  console.log(`  Canjes community_redemptions: ${redemptions}`);
+  if (resetAllLoyalty) {
+    console.log(
+      "\n  Con --reset-all-loyalty: se eliminarían TODAS las transacciones y canjes; saldos → 0.",
+    );
+  } else {
+    console.log(
+      "\n  Sin --reset-all-loyalty: solo se eliminarían movimientos source_type=ticket; se conservarían ajustes admin.",
+    );
+  }
+
+  console.log("\n── FK / ORDEN DE ELIMINACIÓN ──\n");
+  console.log("  Bloqueadores para kiosk_products:");
+  console.log("    · event_kiosk_products.product_id → ON DELETE RESTRICT");
+  console.log("    · kiosk_product_stock_movements.product_id → ON DELETE RESTRICT");
+  console.log("  Bloqueadores para events:");
+  console.log("    · kiosk_order_items.event_kiosk_product_id → ON DELETE RESTRICT");
+  console.log("\n  Orden aplicado en RPC:");
+  console.log("    impressions → analytics → loyalty → invitations → finanzas evento →");
+  console.log("    stock_movements → order_items → orders → tickets → cierres → streams →");
+  console.log("    staff → event_kiosk_products → event_kiosk_settings → event_products →");
+  console.log("    ticket_types → events → kiosk_products → reset contadores");
+
+  console.log("\n── RESULTADO ESPERADO POST-RESET ──\n");
+  const expected = [
+    "events = 0",
+    "ticket_types = 0",
+    "tickets = 0",
+    "kiosk_products = 0",
+    "event_kiosk_products = 0",
+    "event_kiosk_settings = 0",
+    "kiosk_orders = 0",
+    "kiosk_order_items = 0",
+    "kiosk_product_stock_movements = 0",
+    "event_streams = 0",
+    "event_expenses = 0",
+    "event_expense_payments = 0",
+    "event_other_income = 0",
+    "community_event_invitations = 0",
+    "cash_closures = 0",
+    "analytics_events = 0",
+    "advertising_impressions = 0",
+    "recaudación = 0",
+    "stock vendido/reservado = 0",
+  ];
+  for (const line of expected) {
+    console.log(`  ${line}`);
+  }
+
+  console.log("\n── TABLAS QUE NO IMPIDEN EL VACIADO (con orden correcto) ──\n");
+  console.log("  Ninguna FK irrecuperable detectada si se respeta el orden de la RPC.");
+  console.log("  auth.users no se toca (profiles conservados).");
+  console.log("  kiosk_product_categories se conservan (sin FK desde productos eliminados).");
+
+  console.log("\n══════════════════════════════════════════════════════════════");
+  console.log("  Fin dry-run. RPC NO aplicada. Reset real NO ejecutado.");
+  console.log("══════════════════════════════════════════════════════════════\n");
+}
+
+async function rpcAvailable(admin: SupabaseClient): Promise<boolean> {
+  const { error } = await admin.rpc("reset_production_transactional_data", {
+    p_dry_run: true,
+    p_reset_all_loyalty: false,
+  });
+  if (error) {
+    if (
+      error.message.includes("Could not find the function") ||
+      error.message.includes("does not exist")
+    ) {
+      return false;
+    }
+    throw new Error(`RPC dry-run falló: ${error.message}`);
+  }
+  return true;
+}
+
+async function runViaRpc(
+  admin: SupabaseClient,
+  dryRun: boolean,
+  resetAllLoyalty: boolean,
+): Promise<Record<string, unknown>> {
+  const { data, error } = await admin.rpc("reset_production_transactional_data", {
+    p_dry_run: dryRun,
+    p_reset_all_loyalty: resetAllLoyalty,
+  });
+  if (error) {
+    throw new Error(`RPC reset falló: ${error.message}`);
+  }
+  return (data ?? {}) as Record<string, unknown>;
+}
+
+async function verifyPostReset(admin: SupabaseClient): Promise<boolean> {
+  let ok = true;
+  const mustBeZero = [
+    "events",
+    "ticket_types",
+    "tickets",
+    "kiosk_products",
+    "event_kiosk_products",
+    "event_kiosk_settings",
+    "kiosk_orders",
+    "kiosk_order_items",
+    "kiosk_product_stock_movements",
+    "event_streams",
+    "event_expenses",
+    "event_expense_payments",
+    "event_other_income",
+    "community_event_invitations",
+    "cash_closures",
+    "analytics_events",
+    "advertising_impressions",
+  ];
+
+  console.log("\n--- Verificación posterior ---");
+  for (const table of mustBeZero) {
+    const count = await countTable(admin, table);
+    const pass = count === 0;
+    console.log(`${pass ? "✓" : "✗"} ${table}: ${count ?? "error"}`);
+    if (!pass) ok = false;
+  }
+
+  const { data: preserved } = await admin.from("profiles").select("id");
+  console.log(`✓ profiles conservados: ${preserved?.length ?? 0}`);
+  const { data: cats } = await admin.from("kiosk_product_categories").select("id");
+  console.log(`✓ kiosk_product_categories conservadas: ${cats?.length ?? 0}`);
+
+  return ok;
+}
+
+async function main(): Promise<void> {
+  const args = process.argv.slice(2);
+  if (!args.includes("--dry-run") && !process.env.ALLOW_PRODUCTION_RESET) {
+    console.error("Usá --dry-run para simular, o ALLOW_PRODUCTION_RESET=true para ejecución real.");
+    process.exit(1);
+  }
+
+  const { dryRun, resetAllLoyalty } = parseArgs(args);
+  const env = getEnv();
+  const { url, serviceKey } = requireEnv(env);
+
+  const admin = createClient(url, serviceKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+  console.log("\n=== Reset vaciado completo — Australe Producciones ===");
+  console.log(`Modo: ${dryRun ? "DRY-RUN" : "EJECUCIÓN REAL"}`);
+  console.log(`Supabase: ${url}`);
+
+  if (dryRun) {
+    await runDetailedDryRun(admin, resetAllLoyalty);
+    const hasRpc = await rpcAvailable(admin);
+    if (hasRpc) {
+      console.log("RPC instalada — respuesta JSON adicional:\n");
+      const rpcResult = await runViaRpc(admin, true, resetAllLoyalty);
+      console.log(JSON.stringify(rpcResult, null, 2));
+    } else {
+      console.log(
+        "ℹ RPC no instalada aún. Aplicá scripts/sql/reset_production_transactional_data.sql cuando autorices.",
+      );
+    }
+    return;
+  }
+
+  assertRealRunAllowed(env);
+  const hasRpc = await rpcAvailable(admin);
+  if (!hasRpc) {
+    console.error("Reset real abortado: aplicá la RPC SQL primero.");
+    process.exit(1);
+  }
+
+  console.log(`reset_all_loyalty: ${resetAllLoyalty}\n`);
+  const result = await runViaRpc(admin, false, resetAllLoyalty);
+  console.log(JSON.stringify(result, null, 2));
+
+  const ok = await verifyPostReset(admin);
+  if (!ok) process.exit(1);
+  console.log("\nReset completado y verificado.");
+}
+
+main().catch((err: unknown) => {
+  console.error(err);
+  process.exit(1);
+});

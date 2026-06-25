@@ -1,0 +1,299 @@
+-- ARCHIVO HIST�RICO NO EJECUTABLE.
+--
+-- Este procedimiento fue utilizado una �nica vez para eliminar datos de prueba.
+-- La RPC destructiva fue eliminada del entorno remoto.
+-- No restaurar ni ejecutar este archivo sin una revisi�n de seguridad expl�cita.
+-- =============================================================================
+-- RPC transaccional: vaciado completo de eventos/productos de prueba
+-- Aplicar manualmente en Supabase SQL Editor (NO auto-deploy).
+-- Solo ejecutable vía service_role.
+--
+-- reset_production_transactional_data(p_dry_run, p_reset_all_loyalty)
+--   p_dry_run=true           → simula, no modifica
+--   p_reset_all_loyalty=true → elimina TODA fidelización (tx + canjes + saldos)
+-- =============================================================================
+
+CREATE OR REPLACE FUNCTION public.reset_production_transactional_data(
+  p_dry_run boolean DEFAULT true,
+  p_reset_all_loyalty boolean DEFAULT false
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_report jsonb := '{}'::jsonb;
+  v_n bigint;
+  v_ticket_revenue numeric;
+  v_kiosk_revenue numeric;
+  v_loyalty_tx jsonb;
+  v_categories jsonb;
+BEGIN
+  -- ── Conteos y listados (dry-run y log pre-delete) ──
+  SELECT COALESCE(sum(price_paid) FILTER (WHERE payment_status = 'confirmed'), 0)
+  INTO v_ticket_revenue FROM public.tickets;
+
+  SELECT COALESCE(sum(total_amount) FILTER (WHERE payment_status = 'paid'), 0)
+  INTO v_kiosk_revenue FROM public.kiosk_orders;
+
+  SELECT COALESCE(jsonb_agg(jsonb_build_object(
+    'id', lt.id,
+    'user_id', lt.user_id,
+    'profile_name', p.full_name,
+    'transaction_type', lt.transaction_type,
+    'source_type', lt.source_type,
+    'points', lt.points,
+    'balance_after', lt.balance_after,
+    'description', lt.description,
+    'idempotency_key', lt.idempotency_key,
+    'created_at', lt.created_at
+  ) ORDER BY lt.created_at), '[]'::jsonb)
+  INTO v_loyalty_tx
+  FROM public.loyalty_transactions lt
+  LEFT JOIN public.profiles p ON p.id = lt.user_id;
+
+  SELECT COALESCE(jsonb_agg(jsonb_build_object(
+    'id', c.id,
+    'name', c.name,
+    'sort_order', c.sort_order,
+    'decision', 'conservar (categoría genérica reutilizable)'
+  ) ORDER BY c.sort_order), '[]'::jsonb)
+  INTO v_categories
+  FROM public.kiosk_product_categories c;
+
+  v_report := jsonb_build_object(
+    'dry_run', p_dry_run,
+    'p_reset_all_loyalty', p_reset_all_loyalty,
+    'revenue_tickets', v_ticket_revenue,
+    'revenue_kiosk', v_kiosk_revenue,
+    'to_delete', jsonb_build_object(
+      'events', (SELECT count(*) FROM public.events),
+      'events_list', COALESCE((
+        SELECT jsonb_agg(jsonb_build_object('id', e.id, 'name', e.name, 'slug', e.slug, 'status', e.status) ORDER BY e.name)
+        FROM public.events e
+      ), '[]'::jsonb),
+      'ticket_types', (SELECT count(*) FROM public.ticket_types),
+      'ticket_types_list', COALESCE((
+        SELECT jsonb_agg(jsonb_build_object('id', tt.id, 'name', tt.name, 'event_id', tt.event_id, 'stock_sold', tt.stock_sold) ORDER BY tt.name)
+        FROM public.ticket_types tt
+      ), '[]'::jsonb),
+      'tickets', (SELECT count(*) FROM public.tickets),
+      'kiosk_products', (SELECT count(*) FROM public.kiosk_products),
+      'kiosk_products_list', COALESCE((
+        SELECT jsonb_agg(jsonb_build_object('id', kp.id, 'name', kp.name, 'slug', kp.slug, 'stock_on_hand', kp.stock_on_hand, 'stock_reserved', kp.stock_reserved) ORDER BY kp.name)
+        FROM public.kiosk_products kp
+      ), '[]'::jsonb),
+      'event_kiosk_products', (SELECT count(*) FROM public.event_kiosk_products),
+      'event_kiosk_settings', (SELECT count(*) FROM public.event_kiosk_settings),
+      'kiosk_orders', (SELECT count(*) FROM public.kiosk_orders),
+      'kiosk_order_items', (SELECT count(*) FROM public.kiosk_order_items),
+      'kiosk_product_stock_movements', (SELECT count(*) FROM public.kiosk_product_stock_movements),
+      'event_streams', (SELECT count(*) FROM public.event_streams),
+      'event_expenses', (SELECT count(*) FROM public.event_expenses),
+      'event_expense_payments', (SELECT count(*) FROM public.event_expense_payments),
+      'event_other_income', (SELECT count(*) FROM public.event_other_income),
+      'community_event_invitations', (SELECT count(*) FROM public.community_event_invitations),
+      'event_staff', (SELECT count(*) FROM public.event_staff),
+      'event_products_legacy', (SELECT count(*) FROM public.event_products),
+      'cash_closures', (SELECT count(*) FROM public.cash_closures),
+      'analytics_events', (SELECT count(*) FROM public.analytics_events),
+      'advertising_impressions', (SELECT count(*) FROM public.advertising_impressions),
+      'loyalty_transactions_ticket', (
+        SELECT count(*) FROM public.loyalty_transactions
+        WHERE source_type = 'ticket' OR idempotency_key LIKE 'ticket:%'
+      ),
+      'loyalty_transactions_all', (SELECT count(*) FROM public.loyalty_transactions),
+      'community_redemptions', (SELECT count(*) FROM public.community_redemptions)
+    ),
+    'to_preserve', jsonb_build_object(
+      'profiles', (SELECT count(*) FROM public.profiles),
+      'profiles_list', COALESCE((
+        SELECT jsonb_agg(jsonb_build_object('id', p.id, 'full_name', p.full_name, 'role', p.role) ORDER BY p.full_name)
+        FROM public.profiles p
+      ), '[]'::jsonb),
+      'site_settings', (SELECT count(*) FROM public.site_settings),
+      'partners', (SELECT count(*) FROM public.partners),
+      'advertising_campaigns', (SELECT count(*) FROM public.advertising_campaigns),
+      'community_settings', (SELECT count(*) FROM public.community_settings),
+      'community_levels', (SELECT count(*) FROM public.community_levels),
+      'community_rewards', (SELECT count(*) FROM public.community_rewards),
+      'event_expense_categories', (SELECT count(*) FROM public.event_expense_categories),
+      'kiosk_product_categories', (SELECT count(*) FROM public.kiosk_product_categories),
+      'kiosk_product_categories_detail', v_categories,
+      'kiosk_product_categories_decision', 'conservar — categorías genéricas del seed (Bebidas, Comidas, Combos, etc.)'
+    ),
+    'loyalty_movements', v_loyalty_tx,
+    'fk_delete_order', jsonb_build_array(
+      '1 advertising_impressions',
+      '2 analytics_events',
+      '3 loyalty (ticket-only OR all si p_reset_all_loyalty)',
+      '4 community_redemptions (solo si p_reset_all_loyalty)',
+      '5 community_event_invitations',
+      '6 event_expense_payments',
+      '7 event_expenses',
+      '8 event_other_income',
+      '9 kiosk_product_stock_movements (RESTRICT → antes de kiosk_products)',
+      '10 kiosk_order_items (RESTRICT event_kiosk_product_id)',
+      '11 kiosk_orders',
+      '12 tickets',
+      '13 cash_closures',
+      '14 event_streams',
+      '15 event_staff',
+      '16 event_kiosk_products (RESTRICT product_id)',
+      '17 event_kiosk_settings',
+      '18 event_products (legacy)',
+      '19 ticket_types',
+      '20 events',
+      '21 kiosk_products',
+      '22 reset contadores partners/campaigns',
+      '23 recalcular loyalty_accounts'
+    ),
+    'fk_blockers', jsonb_build_object(
+      'kiosk_products', jsonb_build_array(
+        'event_kiosk_products.product_id → ON DELETE RESTRICT',
+        'kiosk_product_stock_movements.product_id → ON DELETE RESTRICT'
+      ),
+      'events', jsonb_build_array(
+        'kiosk_order_items.event_kiosk_product_id → ON DELETE RESTRICT (eliminar ítems antes)',
+        'kiosk_product_stock_movements con order_id (eliminar movimientos antes)'
+      )
+    ),
+    'expected_after', jsonb_build_object(
+      'events', 0,
+      'ticket_types', 0,
+      'tickets', 0,
+      'kiosk_products', 0,
+      'event_kiosk_products', 0,
+      'event_kiosk_settings', 0,
+      'kiosk_orders', 0,
+      'kiosk_order_items', 0,
+      'kiosk_product_stock_movements', 0,
+      'event_streams', 0,
+      'event_expenses', 0,
+      'event_expense_payments', 0,
+      'event_other_income', 0,
+      'community_event_invitations', 0,
+      'cash_closures', 0,
+      'analytics_events', 0,
+      'advertising_impressions', 0,
+      'revenue', 0,
+      'stock_sold', 0,
+      'stock_reserved', 0
+    )
+  );
+
+  IF p_dry_run THEN
+    RETURN v_report || jsonb_build_object('message', 'Simulación: no se modificaron datos.');
+  END IF;
+
+  -- ═══════════════════════════════════════════════════════════════════════════
+  -- EJECUCIÓN REAL (transacción implícita de la función)
+  -- ═══════════════════════════════════════════════════════════════════════════
+
+  -- 1–2) Estadísticas (WHERE true: requerido por política Supabase en DELETE sin filtro)
+  DELETE FROM public.advertising_impressions WHERE true;
+  DELETE FROM public.analytics_events WHERE true;
+
+  -- 3) Fidelización
+  IF p_reset_all_loyalty THEN
+    DELETE FROM public.community_redemptions WHERE true;
+    DELETE FROM public.loyalty_transactions WHERE true;
+    UPDATE public.loyalty_accounts
+    SET points_balance = 0, lifetime_points = 0, current_level_id = NULL, updated_at = now()
+    WHERE true;
+  ELSE
+    DELETE FROM public.loyalty_transactions
+    WHERE source_type = 'ticket' OR idempotency_key LIKE 'ticket:%';
+  END IF;
+
+  -- 4) Invitaciones a eventos
+  DELETE FROM public.community_event_invitations WHERE true;
+
+  -- 5–8) Finanzas por evento
+  DELETE FROM public.event_expense_payments WHERE true;
+  DELETE FROM public.event_expenses WHERE true;
+  DELETE FROM public.event_other_income WHERE true;
+
+  -- 9–11) Kiosco transaccional (orden por RESTRICT)
+  DELETE FROM public.kiosk_product_stock_movements WHERE true;
+  DELETE FROM public.kiosk_order_items WHERE true;
+  DELETE FROM public.kiosk_orders WHERE true;
+
+  -- 12–13) Entradas y caja
+  DELETE FROM public.tickets WHERE true;
+  DELETE FROM public.cash_closures WHERE true;
+
+  -- 14–18) Config por evento
+  DELETE FROM public.event_streams WHERE true;
+  DELETE FROM public.event_staff WHERE true;
+  DELETE FROM public.event_kiosk_products WHERE true;
+  DELETE FROM public.event_kiosk_settings WHERE true;
+  DELETE FROM public.event_products WHERE true;
+
+  -- 19–20) Tipos de entrada y eventos
+  DELETE FROM public.ticket_types WHERE true;
+  DELETE FROM public.events WHERE true;
+
+  -- 21) Catálogo kiosco (ya sin FKs RESTRICT pendientes)
+  DELETE FROM public.kiosk_products WHERE true;
+
+  -- 22) Contadores marketing (conserva filas)
+  UPDATE public.partners SET view_count = 0, click_count = 0
+  WHERE view_count <> 0 OR click_count <> 0;
+  UPDATE public.advertising_campaigns
+  SET view_count = 0, click_count = 0, dismiss_count = 0
+  WHERE view_count <> 0 OR click_count <> 0 OR dismiss_count <> 0;
+
+  -- Desvincular recompensas de eventos eliminados (ON DELETE SET NULL ya aplicó si había FK)
+  UPDATE public.community_rewards SET event_id = NULL WHERE event_id IS NOT NULL;
+
+  -- 23) Recalcular fidelización
+  IF p_reset_all_loyalty THEN
+    PERFORM public.recalculate_loyalty_level(user_id) FROM public.loyalty_accounts;
+  ELSE
+    UPDATE public.loyalty_accounts la
+    SET
+      points_balance = GREATEST(0, COALESCE(sub.balance, 0)),
+      lifetime_points = GREATEST(0, COALESCE(sub.lifetime, 0)),
+      updated_at = now()
+    FROM (
+      SELECT
+        user_id,
+        COALESCE(SUM(points), 0)::integer AS balance,
+        COALESCE(SUM(points) FILTER (
+          WHERE transaction_type IN ('earn', 'adjustment') AND points > 0
+        ), 0)::integer AS lifetime
+      FROM public.loyalty_transactions
+      GROUP BY user_id
+    ) sub
+    WHERE la.user_id = sub.user_id;
+
+    UPDATE public.loyalty_accounts la
+    SET points_balance = 0, lifetime_points = 0, current_level_id = NULL, updated_at = now()
+    WHERE NOT EXISTS (
+      SELECT 1 FROM public.loyalty_transactions lt WHERE lt.user_id = la.user_id
+    );
+
+    PERFORM public.recalculate_loyalty_level(user_id) FROM public.loyalty_accounts;
+  END IF;
+
+  RETURN v_report || jsonb_build_object(
+    'success', true,
+    'message', 'Vaciado completo de eventos y productos de prueba completado.'
+  );
+EXCEPTION
+  WHEN OTHERS THEN
+    RAISE;
+END;
+$$;
+
+DROP FUNCTION IF EXISTS public.reset_production_transactional_data(boolean);
+
+REVOKE ALL ON FUNCTION public.reset_production_transactional_data(boolean, boolean) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.reset_production_transactional_data(boolean, boolean) FROM anon;
+REVOKE ALL ON FUNCTION public.reset_production_transactional_data(boolean, boolean) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.reset_production_transactional_data(boolean, boolean) TO service_role;
+
+COMMENT ON FUNCTION public.reset_production_transactional_data IS
+  'Vacía eventos, productos y datos transaccionales de prueba. p_dry_run=true simula. p_reset_all_loyalty=true borra toda fidelización. Solo service_role.';

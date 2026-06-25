@@ -122,6 +122,16 @@ async function detectDevPort() {
   return 3001;
 }
 
+async function httpGetPage(path) {
+  const port = await detectDevPort();
+  const res = await fetch(`http://localhost:${port}${path}`, {
+    redirect: "manual",
+    signal: AbortSignal.timeout(15000),
+  });
+  const body = await res.text();
+  return { port, status: res.status, body, location: res.headers.get("location") ?? "" };
+}
+
 async function httpRedirect(path, expectedSubstring) {
   const port = await detectDevPort();
   const res = await fetch(`http://localhost:${port}${path}`, {
@@ -266,6 +276,7 @@ async function testInvitationLifecycle() {
       status: "prepared",
       message: `${PREFIX} mensaje de prueba`,
       public_token: token,
+      expires_at: new Date(Date.now() + 7 * 86400000).toISOString(),
       created_by: state.adminId,
       metadata: { test_run: RUN_ID, keep: true },
     })
@@ -310,32 +321,29 @@ async function testInvitationLifecycle() {
     fail("Metadata preservada tras RPC", JSON.stringify(afterOpen?.metadata));
   }
 
-  const { port, status, location, ok } = await httpRedirect(
-    `/invitacion/${token}`,
-    state.eventSlug ? `/eventos/${state.eventSlug}` : "/eventos",
-  );
-  if (ok) {
-    pass("HTTP /invitacion/[token] redirect", `${status} → ${location} (puerto ${port})`);
+  const { port, status, body } = await httpGetPage(`/invitacion/${token}`);
+  if (status === 200 && body.includes("Iniciar sesión para aceptar")) {
+    pass("HTTP /invitacion/[token] página login", `status=${status} (puerto ${port})`);
   } else {
-    fail("HTTP /invitacion/[token] redirect", `${status} location=${location}`);
+    fail("HTTP /invitacion/[token] página login", `${status}`);
   }
 
-  const invalid = await httpRedirect("/invitacion/token-inexistente-xyz", "/eventos");
-  if (invalid.ok) {
-    pass("HTTP token inválido → eventos", invalid.location);
+  const invalid = await httpGetPage("/invitacion/token-inexistente-xyz");
+  if (invalid.status === 200 && invalid.body.includes("Iniciar sesión para aceptar")) {
+    pass("HTTP token inválido → pantalla genérica");
   } else {
-    fail("HTTP token inválido", `${invalid.status} ${invalid.location}`);
+    fail("HTTP token inválido", `${invalid.status}`);
   }
 
   await admin
     .from("community_event_invitations")
     .update({ cancelled_at: new Date().toISOString(), status: "cancelled" })
     .eq("id", row.id);
-  const cancelled = await httpRedirect(`/invitacion/${token}`, "/eventos");
-  if (cancelled.ok) {
-    pass("HTTP token cancelado → eventos");
+  const cancelled = await httpGetPage(`/invitacion/${token}`);
+  if (cancelled.status === 200 && cancelled.body.includes("Iniciar sesión para aceptar")) {
+    pass("HTTP token cancelado → pantalla genérica");
   } else {
-    fail("HTTP token cancelado", cancelled.location);
+    fail("HTTP token cancelado", `${cancelled.status}`);
   }
 
   await admin.from("community_event_invitations").delete().eq("id", row.id);
@@ -353,6 +361,7 @@ async function testDuplicateDetection() {
       channel: "whatsapp",
       status: "prepared",
       public_token: token1,
+      expires_at: new Date(Date.now() + 7 * 86400000).toISOString(),
       created_by: state.adminId,
     })
     .select("id")
@@ -464,6 +473,7 @@ async function testConcurrentInvitationOpen() {
       channel: "manual",
       status: "prepared",
       public_token: token,
+      expires_at: new Date(Date.now() + 7 * 86400000).toISOString(),
       created_by: state.adminId,
       metadata: { test_run: RUN_ID, concurrent: true },
     })

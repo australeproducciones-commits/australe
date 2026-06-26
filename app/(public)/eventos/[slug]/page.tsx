@@ -13,6 +13,7 @@ import {
 } from "@/components/events/EventTicketActions";
 import { PageContainer, PublicButton, PublicCard } from "@/components/ui/public";
 import { ROUTES } from "@/lib/constants/routes";
+import { isEventContent } from "@/lib/events/contentRules";
 import { getPublishedEventBySlug } from "@/lib/events/queries";
 import { getProfile } from "@/lib/auth/getProfile";
 import { isActiveCommunityMember } from "@/lib/community/membership";
@@ -41,7 +42,7 @@ export default async function EventoPage({ params }: EventoPageProps) {
   const { slug } = await params;
   const event = await getPublishedEventBySlug(slug);
 
-  if (!event) {
+  if (!event || !isEventContent(event)) {
     notFound();
   }
 

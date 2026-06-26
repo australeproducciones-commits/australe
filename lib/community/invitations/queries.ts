@@ -65,7 +65,7 @@ export async function getInviteableEventsForAdmin(): Promise<InviteableEvent[]> 
   return (data ?? []).filter(
     (event) =>
       event.status === EVENT_STATUS.PUBLISHED ||
-      new Date(event.event_date) >= now,
+      (event.event_date != null && new Date(event.event_date) >= now),
   ) as InviteableEvent[];
 }
 

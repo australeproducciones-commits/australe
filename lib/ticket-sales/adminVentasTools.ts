@@ -125,7 +125,7 @@ export function countTicketsByVentasFilter(
 
 export function computeVentasAlerts(
   tickets: TicketWithTypeName[],
-  eventDate: string,
+  eventDate: string | null,
   startTime: string | null,
 ): VentasAlert[] {
   const alerts: VentasAlert[] = [];

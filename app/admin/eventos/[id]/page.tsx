@@ -7,6 +7,7 @@ import { EventSalesQrAdminCard } from "@/components/events/EventSalesQrAdminCard
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { ROUTES } from "@/lib/constants/routes";
+import { canHaveGallery, canHaveStreaming } from "@/lib/events/contentRules";
 import { updateEventFormAction } from "@/lib/events/actions";
 import { isReservedEventAdminSegment, isUuid } from "@/lib/events/adminRoutes";
 import { getEventByIdForAdmin } from "@/lib/events/queries";
@@ -86,13 +87,24 @@ export default async function AdminEditEventoPage({
           >
             Kiosco / Consumisiones
           </Button>
-          <Button
-            href={ROUTES.adminEventoStreaming(event.id)}
-            variant="outline"
-            size="sm"
-          >
-            Streaming
-          </Button>
+          {canHaveStreaming(event) ? (
+            <Button
+              href={ROUTES.adminEventoStreaming(event.id)}
+              variant="outline"
+              size="sm"
+            >
+              Streaming
+            </Button>
+          ) : null}
+          {canHaveGallery(event) ? (
+            <Button
+              href={ROUTES.adminEventoGaleria(event.id)}
+              variant="outline"
+              size="sm"
+            >
+              Galería
+            </Button>
+          ) : null}
           <Button
             href={ROUTES.adminEventoGestion(event.id)}
             variant="secondary"

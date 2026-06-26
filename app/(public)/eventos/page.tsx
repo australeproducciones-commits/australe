@@ -4,6 +4,7 @@ import { EventCard } from "@/components/events/EventCard";
 import { PublicQueryError } from "@/components/ui/PublicQueryError";
 import { ROUTES } from "@/lib/constants/routes";
 import { buildCarteleraEvents } from "@/lib/events/cartelera";
+import { filterCarteleraEvents } from "@/lib/events/filters";
 import { getPublishedEvents } from "@/lib/events/queries";
 import type { Event } from "@/lib/events/types";
 import { isSupabaseQueryError } from "@/lib/supabase/queryError";
@@ -18,6 +19,7 @@ export default async function EventosPage() {
 
   try {
     events = await getPublishedEvents();
+    events = filterCarteleraEvents(events);
   } catch (error) {
     if (isSupabaseQueryError(error)) {
       loadError = error.userMessage;

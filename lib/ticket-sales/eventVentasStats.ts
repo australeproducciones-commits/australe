@@ -43,9 +43,13 @@ function emptyStatusCounts(): Record<TicketStatus, number> {
 }
 
 export function getEventStartDateTime(
-  eventDate: string,
+  eventDate: string | null,
   startTime: string | null,
 ): Date {
+  if (!eventDate) {
+    return new Date(0);
+  }
+
   if (startTime) {
     const normalized = startTime.length === 5 ? `${startTime}:00` : startTime;
     return new Date(`${eventDate}T${normalized}`);
@@ -55,7 +59,7 @@ export function getEventStartDateTime(
 }
 
 export function formatTimeUntilEvent(
-  eventDate: string,
+  eventDate: string | null,
   startTime: string | null,
   now: Date = new Date(),
 ): { label: string; isPast: boolean } {
@@ -94,7 +98,7 @@ export function formatTimeUntilEvent(
 export function buildEventVentasDashboard(
   tickets: TicketWithTypeName[],
   ticketTypes: TicketType[],
-  eventDate: string,
+  eventDate: string | null,
   startTime: string | null,
   eventDateLabel: string,
 ): EventVentasDashboard {

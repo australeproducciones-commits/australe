@@ -14,6 +14,8 @@ export const ROUTES = {
   eventoListaPrecios: (slug: string) => `/eventos/${slug}/lista-precios`,
   eventoEnVivo: (slug: string) => `/eventos/${slug}/en-vivo`,
   enVivo: "/en-vivo",
+  galerias: "/galerias",
+  galeria: (slug: string) => `/galerias/${slug}`,
   ventaEvento: (code: string) => `/venta/e/${code}`,
   invitacion: (token: string) => `/invitacion/${token}`,
   comunidad: "/comunidad",
@@ -29,6 +31,7 @@ export const ROUTES = {
   adminEventoKiosco: (id: string) => `/admin/eventos/${id}/kiosco`,
   adminEventoGestion: (id: string) => `/admin/eventos/${id}/gestion`,
   adminEventoStreaming: (id: string) => `/admin/eventos/${id}/streaming`,
+  adminEventoGaleria: (id: string) => `/admin/eventos/${id}/galeria`,
   adminComunidad: "/admin/comunidad",
   adminComunidadPublicidad: "/admin/comunidad/publicidad",
   adminProductos: "/admin/productos",
@@ -50,6 +53,7 @@ export const ROUTES = {
 export const PUBLIC_HEADER_LINKS = [
   { href: ROUTES.home, label: "Inicio" },
   { href: ROUTES.eventos, label: "Eventos" },
+  { href: ROUTES.galerias, label: "Galerías" },
   { href: ROUTES.enVivo, label: "En vivo" },
   { href: ROUTES.comunidad, label: "Comunidad" },
 ] as const;

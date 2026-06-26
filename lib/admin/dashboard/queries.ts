@@ -1172,7 +1172,7 @@ export async function getAdminDashboardData(
       );
       return timing.isFinished;
     })
-    .sort((a, b) => b.event_date.localeCompare(a.event_date))
+    .sort((a, b) => (b.event_date ?? "").localeCompare(a.event_date ?? ""))
     .slice(0, 6)
     .map((event) =>
       buildEventRow(

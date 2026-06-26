@@ -57,7 +57,9 @@ export type EventRow = {
   social_presale_price: number | null;
   social_regular_price: number | null;
   box_office_preview: string | null;
-  event_date: string;
+  content_kind: string;
+  event_date: string | null;
+  event_end_date: string | null;
   start_time: string | null;
   end_time: string | null;
   location_name: string | null;
@@ -508,6 +510,20 @@ export type AdvertisingImpressionRow = {
   dismissed_at: string | null;
 };
 
+export type EventGalleryItemRow = {
+  id: string;
+  event_id: string;
+  media_type: "image" | "youtube" | "vimeo";
+  media_url: string;
+  thumbnail_url: string | null;
+  caption: string | null;
+  sort_order: number;
+  is_published: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type Database = {
   public: {
     Tables: {
@@ -526,6 +542,24 @@ export type Database = {
         };
         Update: Partial<EventRow>;
         Relationships: [];
+      };
+      event_gallery_items: {
+        Row: EventGalleryItemRow;
+        Insert: Omit<EventGalleryItemRow, "id" | "created_at" | "updated_at"> & {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<EventGalleryItemRow>;
+        Relationships: [
+          {
+            foreignKeyName: "event_gallery_items_event_id_fkey";
+            columns: ["event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       event_streams: {
         Row: EventStreamRow;

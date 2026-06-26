@@ -378,11 +378,11 @@ async function testUsersListPagination() {
   }
 
   const { count: activeCount } = await admin
-    .from("community_members")
-    .select("profile_id, profiles!inner(id)", { count: "exact", head: true })
-    .eq("status", "active")
-    .eq("profiles.role", "customer")
-    .ilike("profiles.full_name", `%${PAG_PREFIX}%`);
+    .from("profiles")
+    .select("id", { count: "exact", head: true })
+    .eq("role", "customer")
+    .eq("is_active", true)
+    .ilike("full_name", `%${PAG_PREFIX}%`);
 
   if ((activeCount ?? 0) > 0) {
     pass("Paginación: filtro estado en servidor", `activos=${activeCount}`);

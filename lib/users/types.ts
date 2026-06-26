@@ -27,7 +27,7 @@ export type AssignedEventSummary = {
   id: string;
   event_id: string;
   event_name: string;
-  event_date: string;
+  event_date: string | null;
   role: EventStaffRole;
   is_active: boolean;
 };

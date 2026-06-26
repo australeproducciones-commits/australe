@@ -3,6 +3,7 @@ import { HomeHeroSection } from "@/components/home/HomeHeroSection";
 import { HomeCartelera } from "@/components/home/HomeCartelera";
 import { PublicQueryError } from "@/components/ui/PublicQueryError";
 import { buildCarteleraEvents } from "@/lib/events/cartelera";
+import { filterCarteleraEvents } from "@/lib/events/filters";
 import {
   getFeaturedEventsForHome,
   getPublishedEvents,
@@ -19,8 +20,8 @@ export default async function Home() {
     const publishedEvents = await getPublishedEvents();
     featuredEvents = await getFeaturedEventsForHome(publishedEvents);
     carteleraItems = await buildCarteleraEvents(
-      publishedEvents,
-      featuredEvents[0]?.id,
+      filterCarteleraEvents(publishedEvents),
+      featuredEvents.find((event) => event.content_kind === "event")?.id,
     );
   } catch (error) {
     if (isSupabaseQueryError(error)) {

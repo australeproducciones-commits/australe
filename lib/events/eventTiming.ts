@@ -57,27 +57,55 @@ export function mendozaEventInstant(
   return new Date(`${eventDate}T${normalized}${MENDOZA_OFFSET}`);
 }
 
+export function resolveEventEndCalendarDate(
+  eventDate: string | null,
+  eventEndDate: string | null,
+): string | null {
+  if (!eventDate) {
+    return null;
+  }
+
+  return eventEndDate ?? eventDate;
+}
+
 export function getEventTiming(
-  eventDate: string,
+  eventDate: string | null,
   startTime: string | null,
   endTime: string | null,
   now: Date = new Date(),
+  eventEndDate: string | null = null,
 ): EventTimingResult {
+  if (!eventDate) {
+    return {
+      state: "upcoming_many",
+      calendarDaysUntilStart: 0,
+      daysSinceEnd: 0,
+      shortLabel: "SIN FECHA",
+      fullLabel: "Sin fecha programada",
+      isFinished: false,
+      isInProgress: false,
+      isUpcoming: true,
+    };
+  }
+
+  const endCalendarDate = resolveEventEndCalendarDate(eventDate, eventEndDate);
   const today = calendarDateInTz(now, EVENT_TIMEZONE);
   const calendarDaysUntilStart = diffCalendarDays(today, eventDate);
 
   const startAt = mendozaEventInstant(eventDate, startTime, "start");
-  let endAt = endTime
-    ? mendozaEventInstant(eventDate, endTime, "end")
-    : startTime
-      ? new Date(
-          mendozaEventInstant(eventDate, startTime, "start").getTime() +
-            4 * 60 * 60 * 1000,
-        )
-      : mendozaEventInstant(eventDate, null, "end");
+  let endAt: Date;
 
-  if (endTime && startTime && endAt.getTime() <= startAt.getTime()) {
-    endAt = new Date(endAt.getTime() + 24 * 60 * 60 * 1000);
+  if (endTime) {
+    endAt = mendozaEventInstant(endCalendarDate ?? eventDate, endTime, "end");
+    if (endAt.getTime() <= startAt.getTime()) {
+      endAt = new Date(endAt.getTime() + 24 * 60 * 60 * 1000);
+    }
+  } else if (eventEndDate && eventEndDate !== eventDate) {
+    endAt = mendozaEventInstant(eventEndDate, null, "end");
+  } else if (startTime) {
+    endAt = new Date(startAt.getTime() + 4 * 60 * 60 * 1000);
+  } else {
+    endAt = mendozaEventInstant(endCalendarDate ?? eventDate, null, "end");
   }
 
   const nowMs = now.getTime();
@@ -85,7 +113,7 @@ export function getEventTiming(
   if (nowMs >= endAt.getTime()) {
     const daysSinceEnd = Math.max(
       0,
-      diffCalendarDays(eventDate, today),
+      diffCalendarDays(endCalendarDate ?? eventDate, today),
     );
 
     if (daysSinceEnd === 0) {
@@ -165,7 +193,9 @@ export function getEventTiming(
 }
 
 export function compareEventsBySchedule(a: EventScheduleSortable, b: EventScheduleSortable): number {
-  const dateCmp = a.event_date.localeCompare(b.event_date);
+  const dateA = a.event_date ?? "9999-12-31";
+  const dateB = b.event_date ?? "9999-12-31";
+  const dateCmp = dateA.localeCompare(dateB);
   if (dateCmp !== 0) {
     return dateCmp;
   }
@@ -182,6 +212,27 @@ export function compareEventsBySchedule(a: EventScheduleSortable, b: EventSchedu
 
 export type EventScheduleSortable = {
   name: string;
-  event_date: string;
+  event_date: string | null;
+  event_end_date?: string | null;
   start_time: string | null;
 };
+
+export function isEventFinished(
+  event: Pick<
+    EventScheduleSortable,
+    "event_date" | "event_end_date" | "start_time"
+  > & { end_time?: string | null },
+  now: Date = new Date(),
+): boolean {
+  if (!event.event_date) {
+    return false;
+  }
+
+  return getEventTiming(
+    event.event_date,
+    event.start_time,
+    event.end_time ?? null,
+    now,
+    event.event_end_date ?? null,
+  ).isFinished;
+}

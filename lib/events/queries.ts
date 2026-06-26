@@ -2,7 +2,7 @@ import { requireAdminPage } from "@/lib/auth/requestAuth";
 import { EVENT_AUDIENCE } from "@/lib/constants/event-audience";
 import { EVENT_STATUS } from "@/lib/constants/event-status";
 import type { Event } from "@/lib/events/types";
-import { isEventFeaturedActive } from "@/lib/events/utils";
+import { filterFeaturedHomeContent } from "@/lib/events/filters";
 import {
   EVENTS_LOAD_ERROR_MESSAGE,
   PUBLIC_EVENTS_LOAD_ERROR_MESSAGE,
@@ -20,7 +20,7 @@ import { createClient } from "@/lib/supabase/server";
 import { unstable_cache } from "next/cache";
 
 const EVENT_COLUMNS =
-  "id, name, slug, description, main_image_url, thumbnail_url, flyer_url, banner_url, social_presale_price, social_regular_price, box_office_preview, event_date, start_time, end_time, location_name, address, capacity, status, audience, financial_management_status, financial_closed_at, financial_closed_by, ticket_sale_mode, external_ticket_url, sale_web_enabled, external_sale_enabled, sale_whatsapp_enabled, reservation_enabled, whatsapp_sale_number, whatsapp_sale_message, is_featured, featured_ticket_label, featured_until, home_order, sales_qr_enabled, sales_qr_code, sales_qr_url, qr_sell_tickets, qr_products_enabled, qr_show_price_list, qr_sell_products, created_by, created_at, updated_at";
+  "id, name, slug, description, content_kind, main_image_url, thumbnail_url, flyer_url, banner_url, social_presale_price, social_regular_price, box_office_preview, event_date, event_end_date, start_time, end_time, location_name, address, capacity, status, audience, financial_management_status, financial_closed_at, financial_closed_by, ticket_sale_mode, external_ticket_url, sale_web_enabled, external_sale_enabled, sale_whatsapp_enabled, reservation_enabled, whatsapp_sale_number, whatsapp_sale_message, is_featured, featured_ticket_label, featured_until, home_order, sales_qr_enabled, sales_qr_code, sales_qr_url, qr_sell_tickets, qr_products_enabled, qr_show_price_list, qr_sell_products, created_by, created_at, updated_at";
 
 export { requireAdminPage } from "@/lib/auth/requestAuth";
 
@@ -75,6 +75,8 @@ export async function getPublishedEvents(): Promise<Event[]> {
 function normalizeEventRow(row: Event): Event {
   return {
     ...row,
+    content_kind: row.content_kind ?? "event",
+    event_end_date: row.event_end_date ?? null,
     audience: row.audience ?? EVENT_AUDIENCE.PUBLIC,
     financial_management_status: row.financial_management_status ?? "open",
     financial_closed_at: row.financial_closed_at ?? null,
@@ -159,17 +161,7 @@ export async function getFeaturedEventsForHome(
   publishedEvents?: Event[],
 ): Promise<Event[]> {
   const events = publishedEvents ?? (await getPublishedEvents());
-  return events.filter(isEventFeaturedActive).sort((left, right) => {
-    const order = left.home_order - right.home_order;
-    if (order !== 0) {
-      return order;
-    }
-    const date = left.event_date.localeCompare(right.event_date);
-    if (date !== 0) {
-      return date;
-    }
-    return (left.start_time ?? "").localeCompare(right.start_time ?? "");
-  });
+  return filterFeaturedHomeContent(events);
 }
 
 /** Eventos publicados exclusivos para miembros activos de la comunidad. */

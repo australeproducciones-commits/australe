@@ -3,4 +3,5 @@ export const CACHE_TAGS = {
   partners: "public-partners",
   publishedEvents: "public-published-events",
   ticketTypes: "public-ticket-types",
+  eventGalleries: "public-event-galleries",
 } as const;

@@ -1,3 +1,4 @@
+import type { EventContentKind } from "@/lib/constants/event-content-kind";
 import type {
   EventStatus,
   TicketSaleMode,
@@ -12,6 +13,7 @@ export type Event = {
   name: string;
   slug: string;
   description: string | null;
+  content_kind: EventContentKind;
   main_image_url: string | null;
   thumbnail_url: string | null;
   flyer_url: string | null;
@@ -19,7 +21,8 @@ export type Event = {
   social_presale_price: number | null;
   social_regular_price: number | null;
   box_office_preview: string | null;
-  event_date: string;
+  event_date: string | null;
+  event_end_date: string | null;
   start_time: string | null;
   end_time: string | null;
   location_name: string | null;
@@ -55,6 +58,7 @@ export type Event = {
 };
 
 export type EventFormInput = {
+  content_kind: EventContentKind;
   name: string;
   slug: string;
   description: string;
@@ -63,6 +67,7 @@ export type EventFormInput = {
   flyer_url: string;
   banner_url: string;
   event_date: string;
+  event_end_date: string;
   start_time: string;
   end_time: string;
   location_name: string;

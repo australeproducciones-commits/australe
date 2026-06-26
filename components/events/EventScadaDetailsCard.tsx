@@ -15,6 +15,7 @@ type EventScadaDetailsCardProps = {
     | "name"
     | "description"
     | "event_date"
+    | "event_end_date"
     | "start_time"
     | "end_time"
     | "location_name"
@@ -31,6 +32,7 @@ export function EventScadaDetailsCard({
     event.event_date,
     event.start_time,
     event.end_time,
+    event.event_end_date,
   );
   const locationName = event.location_name?.trim() ?? "";
   const address = event.address?.trim() ?? "";

@@ -31,7 +31,7 @@ export async function buildCarteleraEvents(
       return 1;
     }
 
-    return left.event_date.localeCompare(right.event_date);
+    return left.event_date?.localeCompare(right.event_date ?? "") ?? 0;
   });
 
   const ticketTypesByEvent = await getActiveTicketTypesForPublishedEvents(

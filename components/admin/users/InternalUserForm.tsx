@@ -14,7 +14,7 @@ import type { InternalRole, InternalUserListItem } from "@/lib/users/types";
 type EventOption = {
   id: string;
   name: string;
-  event_date: string;
+  event_date: string | null;
 };
 
 type InternalUserFormProps = {
@@ -45,7 +45,7 @@ export function InternalUserForm({ mode, user, events }: InternalUserFormProps) 
   const sortedEvents = useMemo(
     () =>
       [...events].sort((left, right) =>
-        right.event_date.localeCompare(left.event_date),
+        (right.event_date ?? "").localeCompare(left.event_date ?? ""),
       ),
     [events],
   );

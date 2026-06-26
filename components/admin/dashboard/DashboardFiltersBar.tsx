@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useTransition } from "react";
 import type { DashboardFilters } from "@/lib/admin/dashboard/types";
+import { cn } from "@/lib/utils/cn";
 
 type DashboardFiltersBarProps = {
   filters: DashboardFilters;
@@ -46,13 +47,13 @@ export function DashboardFiltersBar({
   );
 
   return (
-    <div className="public-card flex flex-col gap-3 p-4 sm:flex-row sm:flex-wrap sm:items-end">
+    <div className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-zinc-900/80 p-4 sm:flex-row sm:flex-wrap sm:items-end">
       <div className="min-w-[140px] flex-1">
-        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[var(--public-text-soft)]">
+        <label className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
           Período
         </label>
         <select
-          className="public-input w-full"
+          className="w-full rounded-xl border border-white/10 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-purple-400/50"
           value={filters.period}
           disabled={isPending}
           onChange={(e) => updateParams({ period: e.target.value })}
@@ -66,16 +67,14 @@ export function DashboardFiltersBar({
       </div>
 
       <div className="min-w-[180px] flex-[2]">
-        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[var(--public-text-soft)]">
+        <label className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
           Evento
         </label>
         <select
-          className="public-input w-full"
+          className="w-full rounded-xl border border-white/10 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-purple-400/50"
           value={filters.eventId ?? ""}
           disabled={isPending}
-          onChange={(e) =>
-            updateParams({ event: e.target.value || null })
-          }
+          onChange={(e) => updateParams({ event: e.target.value || null })}
         >
           <option value="">Todos los eventos</option>
           {events.map((event) => (
@@ -86,8 +85,27 @@ export function DashboardFiltersBar({
         </select>
       </div>
 
+      <div className="flex flex-wrap gap-2">
+        {(["today", "7d", "30d"] as const).map((period) => (
+          <button
+            key={period}
+            type="button"
+            disabled={isPending}
+            onClick={() => updateParams({ period })}
+            className={cn(
+              "rounded-full px-3 py-1.5 text-xs font-semibold transition",
+              filters.period === period
+                ? "bg-purple-500/20 text-purple-100 ring-1 ring-purple-400/30"
+                : "border border-white/10 text-zinc-300 hover:bg-white/5",
+            )}
+          >
+            {period === "today" ? "Hoy" : period === "7d" ? "7 días" : "30 días"}
+          </button>
+        ))}
+      </div>
+
       {isPending ? (
-        <p className="text-xs text-[var(--public-text-soft)]">Actualizando…</p>
+        <p className="text-xs text-zinc-500">Actualizando…</p>
       ) : null}
     </div>
   );

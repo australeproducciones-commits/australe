@@ -4,8 +4,90 @@ import type {
   AdminCommunitySummary,
   CommunityReward,
   CommunitySettings,
+  InvitationStatusCounts,
   LoyaltyTransaction,
 } from "@/lib/community/loyalty/types";
+
+type InvitationStatusRow = { status: string };
+
+function aggregateInvitationStatuses(
+  rows: InvitationStatusRow[] | null,
+): InvitationStatusCounts {
+  const counts: InvitationStatusCounts = {
+    pending: 0,
+    opened: 0,
+    accepted: 0,
+    used: 0,
+    expired: 0,
+    cancelled: 0,
+    total: 0,
+  };
+
+  for (const row of rows ?? []) {
+    counts.total += 1;
+    switch (row.status) {
+      case "prepared":
+      case "sent":
+      case "draft":
+        counts.pending += 1;
+        break;
+      case "opened":
+        counts.opened += 1;
+        break;
+      case "accepted":
+        counts.accepted += 1;
+        break;
+      case "used":
+        counts.used += 1;
+        break;
+      case "expired":
+        counts.expired += 1;
+        break;
+      case "cancelled":
+        counts.cancelled += 1;
+        break;
+      default:
+        break;
+    }
+  }
+
+  return counts;
+}
+
+async function getInvitationStatusCounts(
+  admin: ReturnType<typeof createAdminClient>,
+): Promise<InvitationStatusCounts> {
+  try {
+    const { data, error } = await admin
+      .from("community_event_invitations")
+      .select("status");
+
+    if (error) {
+      console.error("getInvitationStatusCounts:", error.message);
+      return {
+        pending: 0,
+        opened: 0,
+        accepted: 0,
+        used: 0,
+        expired: 0,
+        cancelled: 0,
+        total: 0,
+      };
+    }
+
+    return aggregateInvitationStatuses(data);
+  } catch {
+    return {
+      pending: 0,
+      opened: 0,
+      accepted: 0,
+      used: 0,
+      expired: 0,
+      cancelled: 0,
+      total: 0,
+    };
+  }
+}
 
 export async function getAdminCommunitySummary(): Promise<AdminCommunitySummary> {
   const admin = createAdminClient();
@@ -13,6 +95,9 @@ export async function getAdminCommunitySummary(): Promise<AdminCommunitySummary>
   monthStart.setDate(1);
   monthStart.setHours(0, 0, 0, 0);
   const monthStartIso = monthStart.toISOString();
+  const recentCutoff = new Date();
+  recentCutoff.setDate(recentCutoff.getDate() - 30);
+  const recentCutoffIso = recentCutoff.toISOString();
 
   const [
     { count: activeMembers },
@@ -21,6 +106,12 @@ export async function getAdminCommunitySummary(): Promise<AdminCommunitySummary>
     { data: redeemTx },
     { count: pendingRedemptions },
     { count: activeRewards },
+    { count: totalRegisteredUsers },
+    { count: recentActiveUsers },
+    { data: loyaltyBalances },
+    { count: completedRedemptions },
+    invitationCounts,
+    { count: activeAdvertisingCampaigns },
   ] = await Promise.all([
     admin
       .from("loyalty_accounts")
@@ -46,11 +137,33 @@ export async function getAdminCommunitySummary(): Promise<AdminCommunitySummary>
       .from("community_rewards")
       .select("id", { count: "exact", head: true })
       .eq("is_active", true),
+    admin
+      .from("profiles")
+      .select("id", { count: "exact", head: true })
+      .eq("role", "customer"),
+    admin
+      .from("loyalty_accounts")
+      .select("user_id", { count: "exact", head: true })
+      .gte("updated_at", recentCutoffIso),
+    admin.from("loyalty_accounts").select("points_balance"),
+    admin
+      .from("community_redemptions")
+      .select("id", { count: "exact", head: true })
+      .in("status", ["approved", "used"]),
+    getInvitationStatusCounts(admin),
+    admin
+      .from("advertising_campaigns")
+      .select("id", { count: "exact", head: true })
+      .eq("is_active", true),
   ]);
 
   const pointsIssued = (earnTx ?? []).reduce((sum, row) => sum + row.points, 0);
   const pointsRedeemed = Math.abs(
     (redeemTx ?? []).reduce((sum, row) => sum + row.points, 0),
+  );
+  const pointsInCirculation = (loyaltyBalances ?? []).reduce(
+    (sum, row) => sum + (row.points_balance ?? 0),
+    0,
   );
 
   return {
@@ -60,6 +173,17 @@ export async function getAdminCommunitySummary(): Promise<AdminCommunitySummary>
     pointsRedeemed,
     pendingRedemptions: pendingRedemptions ?? 0,
     activeRewards: activeRewards ?? 0,
+    totalRegisteredUsers: totalRegisteredUsers ?? 0,
+    recentActiveUsers: recentActiveUsers ?? 0,
+    pointsInCirculation,
+    completedRedemptions: completedRedemptions ?? 0,
+    invitationsSent: invitationCounts.total,
+    invitationsOpened: invitationCounts.opened,
+    invitationsPending: invitationCounts.pending,
+    invitationsAccepted: invitationCounts.accepted,
+    invitationsUsed: invitationCounts.used,
+    invitationsExpired: invitationCounts.expired,
+    activeAdvertisingCampaigns: activeAdvertisingCampaigns ?? 0,
   };
 }
 

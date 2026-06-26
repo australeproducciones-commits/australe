@@ -6,6 +6,10 @@ import { createClient } from "@supabase/supabase-js";
 import { randomBytes, randomUUID } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import {
+  resolveValidateBaseUrl,
+  waitForServer,
+} from "./lib/wait-for-server.mjs";
 
 function loadEnvFile(path) {
   if (!existsSync(path)) return {};
@@ -19,6 +23,8 @@ function loadEnvFile(path) {
   }
   return out;
 }
+
+const validateBaseUrl = resolveValidateBaseUrl();
 
 function sanitizeReturnTo(path) {
   if (!path) return null;
@@ -173,30 +179,13 @@ async function cleanup() {
   }
 }
 
-async function detectDevPort() {
-  for (const port of [3000, 3001]) {
-    try {
-      const res = await fetch(`http://localhost:${port}/`, {
-        method: "HEAD",
-        redirect: "manual",
-        signal: AbortSignal.timeout(3000),
-      });
-      if (res.status < 500) return port;
-    } catch {
-      /* next */
-    }
-  }
-  return 3000;
-}
-
 async function fetchInvitationPage(token) {
-  const port = await detectDevPort();
-  const res = await fetch(`http://localhost:${port}/invitacion/${token}`, {
+  const res = await fetch(`${validateBaseUrl}/invitacion/${token}`, {
     redirect: "manual",
-    signal: AbortSignal.timeout(15000),
+    signal: AbortSignal.timeout(30_000),
   });
   const body = await res.text();
-  return { port, status: res.status, body };
+  return { port: validateBaseUrl, status: res.status, body };
 }
 
 async function runTests() {
@@ -555,6 +544,8 @@ async function runTests() {
 
 async function main() {
   try {
+    await waitForServer(validateBaseUrl);
+    pass("Servidor HTTP listo", validateBaseUrl);
     await runTests();
   } catch (err) {
     fail("ejecución", err instanceof Error ? err.message : String(err));

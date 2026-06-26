@@ -7,6 +7,16 @@ import { ROUTES } from "@/lib/constants/routes";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 
+function revalidateAdminCommunity() {
+  revalidatePath(ROUTES.adminComunidad);
+  revalidatePath(ROUTES.adminComunidadUsuarios);
+  revalidatePath(ROUTES.adminComunidadRecompensas);
+  revalidatePath(ROUTES.adminComunidadPublicidad);
+  revalidatePath(ROUTES.adminComunidadMovimientos);
+  revalidatePath(ROUTES.adminComunidadConfiguracion);
+  revalidatePath(ROUTES.adminComunidadInvitaciones);
+}
+
 export async function adjustMemberPointsAction(
   userId: string,
   points: number,
@@ -28,7 +38,7 @@ export async function adjustMemberPointsAction(
 
   try {
     await adjustLoyaltyPointsAdmin(userId, points, trimmed, auth.profile.id);
-    revalidatePath(ROUTES.adminComunidad);
+    revalidateAdminCommunity();
     return { success: true };
   } catch (error) {
     return {
@@ -66,7 +76,7 @@ export async function updateCommunitySettingsAction(
     return { success: false, error: "No se pudo guardar la configuración." };
   }
 
-  revalidatePath(ROUTES.adminComunidad);
+  revalidateAdminCommunity();
   revalidatePath(ROUTES.comunidad);
   return { success: true };
 }
@@ -118,7 +128,7 @@ export async function saveCommunityRewardAction(
     return { success: false, error: "No se pudo guardar la recompensa." };
   }
 
-  revalidatePath(ROUTES.adminComunidad);
+  revalidateAdminCommunity();
   revalidatePath(ROUTES.comunidad);
   return { success: true };
 }
@@ -142,7 +152,7 @@ export async function toggleCommunityRewardAction(
     return { success: false, error: "No se pudo actualizar la recompensa." };
   }
 
-  revalidatePath(ROUTES.adminComunidad);
+  revalidateAdminCommunity();
   revalidatePath(ROUTES.comunidad);
   return { success: true };
 }
@@ -182,6 +192,6 @@ export async function updateMemberStatusAction(
     return { success: false, error: "No se pudo actualizar el estado del miembro." };
   }
 
-  revalidatePath(ROUTES.adminComunidad);
+  revalidateAdminCommunity();
   return { success: true };
 }

@@ -107,6 +107,16 @@ export type CommunityUpcomingEvent = {
   ticketStatus: string;
 };
 
+export type InvitationStatusCounts = {
+  pending: number;
+  opened: number;
+  accepted: number;
+  used: number;
+  expired: number;
+  cancelled: number;
+  total: number;
+};
+
 export type AdminCommunitySummary = {
   activeMembers: number;
   newMembersThisMonth: number;
@@ -114,6 +124,17 @@ export type AdminCommunitySummary = {
   pointsRedeemed: number;
   pendingRedemptions: number;
   activeRewards: number;
+  totalRegisteredUsers: number;
+  recentActiveUsers: number;
+  pointsInCirculation: number;
+  completedRedemptions: number;
+  invitationsSent: number;
+  invitationsOpened: number;
+  invitationsPending: number;
+  invitationsAccepted: number;
+  invitationsUsed: number;
+  invitationsExpired: number;
+  activeAdvertisingCampaigns: number;
 };
 
 export type AdminCommunityMember = {

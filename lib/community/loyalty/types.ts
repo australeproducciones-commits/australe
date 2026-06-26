@@ -114,6 +114,13 @@ export type AdminCommunitySummary = {
   pointsRedeemed: number;
   pendingRedemptions: number;
   activeRewards: number;
+  totalRegisteredUsers: number;
+  recentActiveUsers: number;
+  pointsInCirculation: number;
+  completedRedemptions: number;
+  invitationsSent: number;
+  invitationsOpened: number;
+  activeAdvertisingCampaigns: number;
 };
 
 export type AdminCommunityMember = {

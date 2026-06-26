@@ -1,14 +1,10 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
-import { AdminCommunityPanel } from "@/components/admin/community/AdminCommunityPanel";
-import {
-  getAdminCommunityMembers,
-  getAdminCommunityRewards,
-  getAdminCommunitySettings,
-  getAdminCommunitySummary,
-  getAdminLoyaltyTransactions,
-} from "@/lib/community/loyalty/admin-queries";
+import { redirect } from "next/navigation";
+import { AdminCommunityShell } from "@/components/admin/community/AdminCommunityShell";
+import { AdminCommunitySummaryPanel } from "@/components/admin/community/AdminCommunitySummary";
+import { getAdminCommunitySummary } from "@/lib/community/loyalty/admin-queries";
 import { requireAdminPage } from "@/lib/events/queries";
+import { ROUTES } from "@/lib/constants/routes";
 
 export const metadata: Metadata = {
   title: "Admin · Comunidad",
@@ -18,47 +14,36 @@ type PageProps = {
   searchParams: Promise<{ tab?: string }>;
 };
 
-export default async function AdminComunidadPage({ searchParams }: PageProps) {
+export default async function AdminComunidadResumenPage({
+  searchParams,
+}: PageProps) {
   await requireAdminPage();
   const params = await searchParams;
-  const tab = params.tab ?? "resumen";
 
-  const [summary, members, rewards, transactions, settings] = await Promise.all([
-    getAdminCommunitySummary(),
-    getAdminCommunityMembers(),
-    getAdminCommunityRewards(),
-    getAdminLoyaltyTransactions(),
-    getAdminCommunitySettings(),
-  ]);
+  if (params.tab === "miembros") {
+    redirect(ROUTES.adminComunidadUsuarios);
+  }
+  if (params.tab === "recompensas") {
+    redirect(ROUTES.adminComunidadRecompensas);
+  }
+  if (params.tab === "movimientos") {
+    redirect(ROUTES.adminComunidadMovimientos);
+  }
+  if (params.tab === "configuracion") {
+    redirect(ROUTES.adminComunidadConfiguracion);
+  }
+  if (params.tab === "invitaciones") {
+    redirect(ROUTES.adminComunidadInvitaciones);
+  }
 
-  const defaultSettings = {
-    id: 1,
-    community_enabled: true,
-    ticket_points_enabled: true,
-    consumption_points_enabled: false,
-    amount_per_point: 1000,
-    welcome_points: 0,
-    public_title: "Comunidad Australe",
-    public_description: "",
-  };
+  const summary = await getAdminCommunitySummary();
 
   return (
-    <Suspense fallback={<p className="text-sm text-zinc-500">Cargando…</p>}>
-      <AdminCommunityPanel
-        summary={summary}
-        members={members}
-        rewards={rewards}
-        transactions={transactions}
-        settings={settings ?? defaultSettings}
-        initialTab={
-          tab === "miembros" ||
-          tab === "recompensas" ||
-          tab === "movimientos" ||
-          tab === "configuracion"
-            ? tab
-            : "resumen"
-        }
-      />
-    </Suspense>
+    <AdminCommunityShell
+      title="Comunidad"
+      description="Resumen de fidelización, usuarios, recompensas e invitaciones."
+    >
+      <AdminCommunitySummaryPanel summary={summary} />
+    </AdminCommunityShell>
   );
 }

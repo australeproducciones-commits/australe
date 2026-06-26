@@ -7,12 +7,36 @@ import type {
   LoyaltyTransaction,
 } from "@/lib/community/loyalty/types";
 
+async function countInvitations(
+  admin: ReturnType<typeof createAdminClient>,
+  filter?: { openedOnly?: boolean },
+): Promise<number> {
+  try {
+    let query = admin
+      .from("community_event_invitations")
+      .select("id", { count: "exact", head: true });
+    if (filter?.openedOnly) {
+      query = query.not("opened_at", "is", null);
+    }
+    const { count, error } = await query;
+    if (error) {
+      return 0;
+    }
+    return count ?? 0;
+  } catch {
+    return 0;
+  }
+}
+
 export async function getAdminCommunitySummary(): Promise<AdminCommunitySummary> {
   const admin = createAdminClient();
   const monthStart = new Date();
   monthStart.setDate(1);
   monthStart.setHours(0, 0, 0, 0);
   const monthStartIso = monthStart.toISOString();
+  const recentCutoff = new Date();
+  recentCutoff.setDate(recentCutoff.getDate() - 30);
+  const recentCutoffIso = recentCutoff.toISOString();
 
   const [
     { count: activeMembers },
@@ -21,6 +45,13 @@ export async function getAdminCommunitySummary(): Promise<AdminCommunitySummary>
     { data: redeemTx },
     { count: pendingRedemptions },
     { count: activeRewards },
+    { count: totalRegisteredUsers },
+    { count: recentActiveUsers },
+    { data: loyaltyBalances },
+    { count: completedRedemptions },
+    invitationsSent,
+    invitationsOpened,
+    { count: activeAdvertisingCampaigns },
   ] = await Promise.all([
     admin
       .from("loyalty_accounts")
@@ -46,11 +77,34 @@ export async function getAdminCommunitySummary(): Promise<AdminCommunitySummary>
       .from("community_rewards")
       .select("id", { count: "exact", head: true })
       .eq("is_active", true),
+    admin
+      .from("profiles")
+      .select("id", { count: "exact", head: true })
+      .eq("role", "customer"),
+    admin
+      .from("loyalty_accounts")
+      .select("user_id", { count: "exact", head: true })
+      .gte("updated_at", recentCutoffIso),
+    admin.from("loyalty_accounts").select("points_balance"),
+    admin
+      .from("community_redemptions")
+      .select("id", { count: "exact", head: true })
+      .in("status", ["approved", "used"]),
+    countInvitations(admin),
+    countInvitations(admin, { openedOnly: true }),
+    admin
+      .from("advertising_campaigns")
+      .select("id", { count: "exact", head: true })
+      .eq("is_active", true),
   ]);
 
   const pointsIssued = (earnTx ?? []).reduce((sum, row) => sum + row.points, 0);
   const pointsRedeemed = Math.abs(
     (redeemTx ?? []).reduce((sum, row) => sum + row.points, 0),
+  );
+  const pointsInCirculation = (loyaltyBalances ?? []).reduce(
+    (sum, row) => sum + (row.points_balance ?? 0),
+    0,
   );
 
   return {
@@ -60,6 +114,13 @@ export async function getAdminCommunitySummary(): Promise<AdminCommunitySummary>
     pointsRedeemed,
     pendingRedemptions: pendingRedemptions ?? 0,
     activeRewards: activeRewards ?? 0,
+    totalRegisteredUsers: totalRegisteredUsers ?? 0,
+    recentActiveUsers: recentActiveUsers ?? 0,
+    pointsInCirculation,
+    completedRedemptions: completedRedemptions ?? 0,
+    invitationsSent: invitationsSent ?? 0,
+    invitationsOpened: invitationsOpened ?? 0,
+    activeAdvertisingCampaigns: activeAdvertisingCampaigns ?? 0,
   };
 }
 

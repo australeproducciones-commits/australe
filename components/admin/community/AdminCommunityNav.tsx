@@ -7,9 +7,34 @@ import { ROUTES } from "@/lib/constants/routes";
 const TABS = [
   { href: ROUTES.adminComunidad, label: "Resumen", match: "exact" as const },
   {
+    href: ROUTES.adminComunidadUsuarios,
+    label: "Usuarios",
+    match: "prefix" as const,
+  },
+  {
+    href: ROUTES.adminComunidadMovimientos,
+    label: "Movimientos",
+    match: "exact" as const,
+  },
+  {
+    href: ROUTES.adminComunidadRecompensas,
+    label: "Recompensas",
+    match: "exact" as const,
+  },
+  {
+    href: ROUTES.adminComunidadInvitaciones,
+    label: "Invitaciones",
+    match: "exact" as const,
+  },
+  {
     href: ROUTES.adminComunidadPublicidad,
     label: "Publicidad",
     match: "prefix" as const,
+  },
+  {
+    href: ROUTES.adminComunidadConfiguracion,
+    label: "Configuración",
+    match: "exact" as const,
   },
 ];
 

@@ -104,10 +104,8 @@ export function PartnersSection({ partners }: PartnersSectionProps) {
     >
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <SectionHeading
-          label="Alianzas"
           title="Empresas que nos acompañan"
           subtitle="Marcas, empresas y emprendimientos que hacen posible cada experiencia de Australe."
-          className="text-center"
         />
 
         <ul className={gridClassName} aria-label="Empresas que nos acompañan">
@@ -121,27 +119,18 @@ export function PartnersSection({ partners }: PartnersSectionProps) {
 }
 
 function PartnerCard({ partner }: { partner: Partner }) {
-  const displayName = partner.label?.trim() || partner.name.trim();
-
   const content = (
-    <>
-      <div className="flex h-20 w-full items-center justify-center sm:h-24">
-        <RemoteImage
-          src={partner.image_url}
-          alt={partner.name}
-          className="max-h-full max-w-full"
-        />
-      </div>
-      {displayName ? (
-        <p className="mt-3 text-center text-xs font-medium leading-snug public-text-muted sm:text-sm">
-          {displayName}
-        </p>
-      ) : null}
-    </>
+    <div className="flex h-20 w-full items-center justify-center sm:h-24">
+      <RemoteImage
+        src={partner.image_url}
+        alt={partner.name}
+        className="max-h-full max-w-full object-contain"
+      />
+    </div>
   );
 
   const cardClassName = cn(
-    "flex h-full flex-col items-center rounded-2xl border bg-transparent p-4 transition",
+    "flex h-full min-h-[7.5rem] items-center justify-center rounded-2xl border bg-transparent p-4 transition",
     "border-[var(--public-border)]/60",
     partner.destination_url
       ? "hover:border-[var(--public-border)] hover:shadow-[0_4px_24px_rgba(155,126,222,0.08)] hover:opacity-95"
@@ -156,6 +145,8 @@ function PartnerCard({ partner }: { partner: Partner }) {
           target={partner.open_in_new_tab ? "_blank" : undefined}
           rel={partner.open_in_new_tab ? "noopener noreferrer" : undefined}
           className={cardClassName}
+          title={partner.name}
+          aria-label={`Visitar sitio de ${partner.name}`}
           onClick={() => {
             void recordPartnerClickAction(partner.id).catch(() => undefined);
           }}
@@ -168,7 +159,9 @@ function PartnerCard({ partner }: { partner: Partner }) {
 
   return (
     <li data-partner-id={partner.id} className="min-w-0">
-      <div className={cardClassName}>{content}</div>
+      <div className={cardClassName} title={partner.name}>
+        {content}
+      </div>
     </li>
   );
 }

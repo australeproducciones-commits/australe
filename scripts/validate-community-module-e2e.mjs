@@ -8,6 +8,10 @@ import { createClient } from "@supabase/supabase-js";
 import { randomBytes, randomUUID } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import {
+  resolveValidateBaseUrl,
+  waitForServer,
+} from "./lib/wait-for-server.mjs";
 
 function loadEnvFile(path) {
   if (!existsSync(path)) return {};
@@ -31,7 +35,8 @@ const url = env.NEXT_PUBLIC_SUPABASE_URL;
 const anonKey = env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const serviceKey = env.SUPABASE_SERVICE_ROLE_KEY;
 const siteUrl =
-  env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? "http://localhost:3001";
+  env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? "https://australeproducciones.com";
+const validateBaseUrl = resolveValidateBaseUrl();
 
 if (!url || !anonKey || !serviceKey) {
   console.error("Faltan variables Supabase en .env.local");
@@ -106,43 +111,22 @@ function isConfirmedSale(ticketStatus, paymentStatus) {
   );
 }
 
-async function detectDevPort() {
-  for (const port of [3001, 3000]) {
-    try {
-      const res = await fetch(`http://localhost:${port}/`, {
-        method: "HEAD",
-        redirect: "manual",
-        signal: AbortSignal.timeout(3000),
-      });
-      if (res.status < 500) return port;
-    } catch {
-      /* try next */
-    }
-  }
-  return 3001;
-}
-
 async function httpGetPage(path) {
-  const port = await detectDevPort();
-  const res = await fetch(`http://localhost:${port}${path}`, {
+  const res = await fetch(`${validateBaseUrl}${path}`, {
     redirect: "manual",
-    signal: AbortSignal.timeout(15000),
+    signal: AbortSignal.timeout(30_000),
   });
   const body = await res.text();
-  return { port, status: res.status, body, location: res.headers.get("location") ?? "" };
+  return { port: validateBaseUrl, status: res.status, body, location: res.headers.get("location") ?? "" };
 }
 
 async function httpRedirect(path, expectedSubstring) {
-  const port = await detectDevPort();
-  const res = await fetch(`http://localhost:${port}${path}`, {
+  const res = await fetch(`${validateBaseUrl}${path}`, {
     redirect: "manual",
-    signal: AbortSignal.timeout(15000),
+    signal: AbortSignal.timeout(30_000),
   });
   const location = res.headers.get("location") ?? "";
-  const ok =
-    (res.status === 307 || res.status === 302 || res.status === 308) &&
-    location.includes(expectedSubstring);
-  return { port, status: res.status, location, ok };
+  return { port: validateBaseUrl, status: res.status, location, ok: location.includes(expectedSubstring) };
 }
 
 async function createTestAdmin() {
@@ -531,9 +515,12 @@ async function testRlsNoPublicPolicies() {
 
 async function main() {
   console.log(`\n=== Validación E2E Comunidad (${PREFIX}) ===\n`);
-  console.log(`Site URL config: ${siteUrl}\n`);
+  console.log(`Site URL config: ${siteUrl}`);
+  console.log(`HTTP base: ${validateBaseUrl}\n`);
 
   try {
+    await waitForServer(validateBaseUrl);
+    pass("Servidor HTTP listo", validateBaseUrl);
     await testRlsNoPublicPolicies();
     await testRpcSecurity();
     await createTestAdmin();

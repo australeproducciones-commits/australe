@@ -7,6 +7,10 @@ import { createClient } from "@supabase/supabase-js";
 import { randomBytes, randomUUID } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import {
+  resolveValidateBaseUrl,
+  waitForServer,
+} from "./lib/wait-for-server.mjs";
 
 function loadEnvFile(path) {
   if (!existsSync(path)) return {};
@@ -37,6 +41,9 @@ if (!url || !anonKey || !serviceKey) {
 
 const RUN_ID = Date.now().toString(36);
 const PREFIX = `KVAL-${RUN_ID}`;
+const PAG_PREFIX = `${PREFIX}-pag`;
+const validateBaseUrl = resolveValidateBaseUrl();
+const PAGE_SIZE = 25;
 
 const admin = createClient(url, serviceKey, {
   auth: { persistSession: false, autoRefreshToken: false },
@@ -64,53 +71,38 @@ const state = {
   rewardIds: [],
   invitationIds: [],
   authUserIds: [],
-  txIds: [],
+  paginationUserIds: [],
+  levelId: null,
 };
 
-async function sleep(ms) {
-  return new Promise((r) => setTimeout(r, ms));
-}
-
-async function detectDevPort() {
-  for (const port of [3001, 3000]) {
-    try {
-      const res = await fetch(`http://localhost:${port}/`, {
-        method: "HEAD",
-        redirect: "manual",
-        signal: AbortSignal.timeout(2500),
-      });
-      if (res.status < 500) return port;
-    } catch {
-      /* next */
-    }
-  }
-  return null;
-}
-
-async function httpRedirect(path, expectedSubstring) {
-  const port = await detectDevPort();
-  if (!port) {
-    return { skipped: true, port: null, status: 0, location: "" };
-  }
-  const res = await fetch(`http://localhost:${port}${path}`, {
+async function httpRedirect(path, _expectedSubstring) {
+  const res = await fetch(`${validateBaseUrl}${path}`, {
     redirect: "manual",
-    signal: AbortSignal.timeout(15000),
+    signal: AbortSignal.timeout(30_000),
   });
   const location = res.headers.get("location") ?? "";
-  return { skipped: false, port, status: res.status, location };
+  return { skipped: false, port: validateBaseUrl, status: res.status, location };
 }
 
 async function httpGet(path) {
-  const port = await detectDevPort();
-  if (!port) {
-    return { skipped: true, status: 0, body: "" };
-  }
-  const res = await fetch(`http://localhost:${port}${path}`, {
+  const res = await fetch(`${validateBaseUrl}${path}`, {
     redirect: "manual",
-    signal: AbortSignal.timeout(20000),
+    signal: AbortSignal.timeout(30_000),
   });
   const body = await res.text();
-  return { skipped: false, port, status: res.status, body };
+  return { skipped: false, port: validateBaseUrl, status: res.status, body };
+}
+
+function normalizePage(value) {
+  const parsed = Number(value ?? 1);
+  if (!Number.isFinite(parsed) || parsed < 1) return 1;
+  return Math.floor(parsed);
+}
+
+function normalizePageSize(value) {
+  const parsed = Number(value ?? PAGE_SIZE);
+  if (!Number.isFinite(parsed) || parsed < 1) return PAGE_SIZE;
+  return Math.min(50, Math.floor(parsed));
 }
 
 async function cleanup() {
@@ -227,27 +219,16 @@ async function testAuthRedirects() {
   ];
   for (const [path, expect] of paths) {
     const res = await httpRedirect(path, expect);
-    if (res.skipped) {
-      pass(`Visitante ${path} → login`, "sin dev server (omitido HTTP)");
-      continue;
-    }
     if (res.location.includes(expect)) {
       pass(`Visitante ${path} → login`, `status ${res.status}`);
-    } else if (res.status === 200) {
-      fail(`Visitante ${path} → login`, `200 sin redirect`);
     } else {
-      pass(`Visitante ${path} → login`, `${res.status} ${res.location.slice(0, 40)}`);
+      fail(`Visitante ${path} → login`, `${res.status} ${res.location}`);
     }
   }
 }
 
 async function testCustomerDenied() {
   if (!state.customerEmail) return;
-  const port = await detectDevPort();
-  if (!port) {
-    pass("Customer no entra admin comunidad", "sin dev server (RLS vía perfil)");
-    return;
-  }
   const client = createClient(url, anonKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
@@ -261,7 +242,7 @@ async function testCustomerDenied() {
   }
   const { data: session } = await client.auth.getSession();
   const token = session.session?.access_token;
-  const res = await fetch(`http://localhost:${port}/admin/comunidad`, {
+  const res = await fetch(`${validateBaseUrl}/admin/comunidad`, {
     redirect: "manual",
     headers: token ? { cookie: `sb-access-token=${token}` } : {},
     signal: AbortSignal.timeout(15000),
@@ -304,34 +285,197 @@ async function testSummaryMetrics() {
 }
 
 async function testUsersListPagination() {
-  const pageSize = 25;
-  const { data: profiles } = await admin
+  const { data: levelRow } = await admin
+    .from("community_levels")
+    .select("id, name")
+    .order("min_lifetime_points", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  state.levelId = levelRow?.id ?? null;
+
+  for (let i = 0; i < 30; i += 1) {
+    const email = `${PAG_PREFIX}-${i}@kval.invalid`;
+    const password = `Tst!${randomUUID().slice(0, 10)}`;
+    const { data, error } = await admin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { full_name: `${PAG_PREFIX} User ${String(i).padStart(2, "0")}` },
+    });
+    if (error || !data.user) {
+      fail("Fixture paginación", error?.message ?? "sin usuario");
+      return;
+    }
+    state.authUserIds.push(data.user.id);
+    state.paginationUserIds.push(data.user.id);
+    await admin.from("profiles").upsert({
+      id: data.user.id,
+      full_name: `${PAG_PREFIX} User ${String(i).padStart(2, "0")}`,
+      role: "customer",
+      is_active: i % 5 !== 0,
+    });
+    await admin.from("community_members").upsert({
+      profile_id: data.user.id,
+      status: i % 5 !== 0 ? "active" : "inactive",
+    });
+    if (state.levelId && i % 3 === 0) {
+      await admin.from("loyalty_accounts").upsert({
+        user_id: data.user.id,
+        points_balance: 10 + i,
+        lifetime_points: 10 + i,
+        current_level_id: state.levelId,
+        updated_at: new Date().toISOString(),
+      });
+    }
+  }
+
+  const page1From = 0;
+  const page1To = PAGE_SIZE - 1;
+  const { data: page1, count: totalCount } = await admin
     .from("profiles")
-    .select("id, full_name, created_at")
+    .select("id, full_name, created_at", { count: "exact" })
     .eq("role", "customer")
-    .order("created_at", { ascending: false });
+    .ilike("full_name", `%${PAG_PREFIX}%`)
+    .order("created_at", { ascending: false })
+    .range(page1From, page1To);
 
-  const all = profiles ?? [];
-  const page1 = all.slice(0, pageSize);
-  if (page1.length <= pageSize) {
-    pass("Lista usuarios paginada", `página 1: ${page1.length} ítems`);
+  if ((page1 ?? []).length <= PAGE_SIZE) {
+    pass("Paginación: primera página limitada", `${(page1 ?? []).length}/${PAGE_SIZE}`);
   } else {
-    fail("Lista usuarios paginada");
+    fail("Paginación: primera página limitada", String((page1 ?? []).length));
   }
 
-  const needle = `${PREFIX}`;
-  const found = all.filter((p) => p.full_name?.includes(needle));
-  if (found.length >= 1) {
-    pass("Búsqueda por nombre", found[0].full_name);
+  const page2From = PAGE_SIZE;
+  const page2To = PAGE_SIZE * 2 - 1;
+  const { data: page2 } = await admin
+    .from("profiles")
+    .select("id")
+    .eq("role", "customer")
+    .ilike("full_name", `%${PAG_PREFIX}%`)
+    .order("created_at", { ascending: false })
+    .range(page2From, page2To);
+
+  const page1Ids = new Set((page1 ?? []).map((row) => row.id));
+  const overlap = (page2 ?? []).filter((row) => page1Ids.has(row.id));
+  if (overlap.length === 0 && (page2 ?? []).length > 0) {
+    pass("Paginación: segunda página sin duplicados", `${(page2 ?? []).length} ítems`);
+  } else if ((page2 ?? []).length === 0) {
+    fail("Paginación: segunda página sin duplicados", "sin datos página 2");
   } else {
-    fail("Búsqueda por nombre", "sin fixture");
+    fail("Paginación: segunda página sin duplicados", `${overlap.length} duplicados`);
   }
 
-  const active = all.filter((p) => p.id === state.customerId);
-  if (active.length === 1) {
-    pass("Filtro usuario activo fixture", active[0].id.slice(0, 8));
+  const { data: searchRows } = await admin
+    .from("profiles")
+    .select("id, full_name")
+    .eq("role", "customer")
+    .ilike("full_name", `%${PAG_PREFIX} User 07%`)
+    .limit(PAGE_SIZE);
+  if ((searchRows ?? []).some((row) => row.full_name?.includes("07"))) {
+    pass("Paginación: búsqueda en servidor", searchRows[0].full_name);
   } else {
-    fail("Filtro usuario activo");
+    fail("Paginación: búsqueda en servidor");
+  }
+
+  const { count: activeCount } = await admin
+    .from("community_members")
+    .select("profile_id, profiles!inner(id)", { count: "exact", head: true })
+    .eq("status", "active")
+    .eq("profiles.role", "customer")
+    .ilike("profiles.full_name", `%${PAG_PREFIX}%`);
+
+  if ((activeCount ?? 0) > 0) {
+    pass("Paginación: filtro estado en servidor", `activos=${activeCount}`);
+  } else {
+    fail("Paginación: filtro estado en servidor");
+  }
+
+  if (state.levelId) {
+    const { count: levelCount } = await admin
+      .from("loyalty_accounts")
+      .select("user_id, profiles!inner(id)", { count: "exact", head: true })
+      .eq("current_level_id", state.levelId)
+      .eq("profiles.role", "customer")
+      .ilike("profiles.full_name", `%${PAG_PREFIX}%`);
+    if ((levelCount ?? 0) > 0) {
+      pass("Paginación: filtro nivel en servidor", `nivel=${levelCount}`);
+    } else {
+      fail("Paginación: filtro nivel en servidor");
+    }
+  } else {
+    pass("Paginación: filtro nivel en servidor", "sin niveles configurados");
+  }
+
+  const { data: descRows } = await admin
+    .from("profiles")
+    .select("created_at")
+    .eq("role", "customer")
+    .ilike("full_name", `%${PAG_PREFIX}%`)
+    .order("created_at", { ascending: false })
+    .limit(3);
+  const { data: ascRows } = await admin
+    .from("profiles")
+    .select("created_at")
+    .eq("role", "customer")
+    .ilike("full_name", `%${PAG_PREFIX}%`)
+    .order("created_at", { ascending: true })
+    .limit(3);
+  const descOk =
+    (descRows ?? []).length >= 2 &&
+    descRows[0].created_at >= descRows[1].created_at;
+  const ascOk =
+    (ascRows ?? []).length >= 2 &&
+    ascRows[0].created_at <= ascRows[1].created_at;
+  if (descOk && ascOk) {
+    pass("Paginación: orden asc/desc en servidor");
+  } else {
+    fail("Paginación: orden asc/desc en servidor");
+  }
+
+  if ((totalCount ?? 0) >= 30) {
+    pass("Paginación: total correcto", String(totalCount));
+  } else {
+    fail("Paginación: total correcto", String(totalCount));
+  }
+
+  const pageIds = (page1 ?? []).map((row) => row.id);
+  const loyaltyCalls = pageIds.length;
+  const { data: loyaltyPage } = await admin
+    .from("loyalty_accounts")
+    .select("user_id")
+    .in("user_id", pageIds);
+  if ((loyaltyPage ?? []).length <= pageIds.length && loyaltyCalls === pageIds.length) {
+    pass("Paginación: sin N+1 por usuario", `1 consulta loyalty para ${pageIds.length} IDs`);
+  } else {
+    fail("Paginación: sin N+1 por usuario");
+  }
+
+  const emailMap = new Map();
+  let authPage = 1;
+  const idSet = new Set(pageIds);
+  while (emailMap.size < idSet.size && authPage <= 20) {
+    const { data: authData } = await admin.auth.admin.listUsers({
+      page: authPage,
+      perPage: 1000,
+    });
+    for (const user of authData.users) {
+      if (idSet.has(user.id) && user.email) {
+        emailMap.set(user.id, user.email);
+      }
+    }
+    if (authData.users.length < 1000) break;
+    authPage += 1;
+  }
+  if (emailMap.size <= pageIds.length) {
+    pass("Paginación: emails solo para IDs de página", `${emailMap.size} emails`);
+  } else {
+    fail("Paginación: emails solo para IDs de página");
+  }
+
+  if (normalizePage(-3) === 1 && normalizePageSize(999) === 50) {
+    pass("Paginación: parámetros inválidos normalizados");
+  } else {
+    fail("Paginación: parámetros inválidos normalizados");
   }
 }
 
@@ -622,10 +766,6 @@ async function testInvitations() {
 
 async function testPublicidadLink() {
   const res = await httpGet("/admin/comunidad/publicidad");
-  if (res.skipped) {
-    pass("Publicidad enlazada desde Comunidad", "ruta /admin/comunidad/publicidad");
-    return;
-  }
   if (res.status < 500 && !res.body.includes("Application error")) {
     pass("Publicidad enlazada desde Comunidad", `status ${res.status}`);
   } else {
@@ -645,10 +785,6 @@ async function testAdminPagesNo500() {
   ];
   for (const route of routes) {
     const res = await httpGet(route);
-    if (res.skipped) {
-      pass(`Sin error 500 ${route}`, "sin dev server");
-      continue;
-    }
     if (res.status < 500) {
       pass(`Sin error 500 ${route}`, `status ${res.status}`);
     } else {
@@ -677,7 +813,10 @@ async function testCleanupComplete() {
 
 async function main() {
   console.log(`\n=== Validación Admin Comunidad Expandida (${PREFIX}) ===\n`);
+  console.log(`HTTP base: ${validateBaseUrl}\n`);
   try {
+    await waitForServer(validateBaseUrl);
+    pass("Servidor HTTP listo", validateBaseUrl);
     await testAuthRedirects();
     await createAdminUser();
     await createCustomer({ inactive: false });

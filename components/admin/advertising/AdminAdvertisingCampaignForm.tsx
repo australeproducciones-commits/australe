@@ -117,7 +117,6 @@ export function AdminAdvertisingCampaignForm({
             ["internal_name", "Nombre interno", true],
             ["title", "Título público", false],
             ["body", "Texto", false],
-            ["image_url", "URL de imagen", false],
             ["button_label", "Texto del botón", false],
             ["destination_url", "Enlace del botón", false],
           ] as const
@@ -137,6 +136,26 @@ export function AdminAdvertisingCampaignForm({
             />
           </div>
         ))}
+        <div>
+          <label className="admin-ad-scada-field__label" htmlFor="image_url">
+            URL de imagen
+          </label>
+          <input
+            id="image_url"
+            className="admin-ad-scada-input"
+            value={draft.image_url ?? ""}
+            onChange={(event) =>
+              setDraft((current) => ({ ...current, image_url: event.target.value }))
+            }
+          />
+          <p className="admin-ad-scada-field__hint">
+            Medida recomendada: 1600 × 1200 px · proporción 4:3.
+            <br />
+            WebP o JPG · peso ideal entre 200 y 800 KB.
+            <br />
+            Mantené textos y logos dentro del área central para evitar recortes.
+          </p>
+        </div>
         <div className="admin-ad-scada-form__grid">
           <div>
             <label className="admin-ad-scada-field__label" htmlFor="starts_at">
@@ -267,11 +286,20 @@ export function AdminAdvertisingCampaignForm({
           ) : (
             <div className="admin-ad-scada-preview__fallback">Sin imagen</div>
           )}
-          <h3 className="admin-ad-scada-preview__heading">{previewTitle}</h3>
-          <p className="admin-ad-scada-preview__body">{previewBody}</p>
-          {draft.destination_url && draft.button_label ? (
-            <span className="admin-ad-scada-preview__button">{draft.button_label}</span>
-          ) : null}
+          <div className="admin-ad-scada-preview__content">
+            <h3 className="admin-ad-scada-preview__heading">{previewTitle}</h3>
+            {draft.body?.trim() ? (
+              <p className="admin-ad-scada-preview__body">{previewBody}</p>
+            ) : null}
+            {draft.destination_url && draft.button_label ? (
+              <div className="admin-ad-scada-preview__actions">
+                <span className="admin-ad-scada-preview__button">{draft.button_label}</span>
+                <span className="admin-ad-scada-preview__button admin-ad-scada-preview__button--muted">
+                  Cerrar
+                </span>
+              </div>
+            ) : null}
+          </div>
         </div>
       </aside>
     </div>

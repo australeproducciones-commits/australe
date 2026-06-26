@@ -1225,48 +1225,83 @@ body {
 
 .admin-ad-scada-preview__card {
   margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   border: 1px solid var(--ad-border);
   border-radius: 0.9rem;
   background: var(--ad-bg);
-  padding: 0.85rem;
+}
+
+.admin-ad-scada-preview__content {
+  padding: 0.75rem 0.85rem 0.85rem;
+}
+
+.admin-ad-scada-preview__heading {
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.admin-ad-scada-preview__body {
+  margin-top: 0.25rem;
+  font-size: 0.85rem;
+  line-height: 1.35;
+  color: var(--ad-muted);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.admin-ad-scada-preview__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.65rem;
+}
+
+.admin-ad-scada-field__hint {
+  margin-top: 0.4rem;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--ad-muted);
 }
 
 .admin-ad-scada-preview__image {
-  aspect-ratio: 16 / 9;
+  aspect-ratio: 4 / 3;
   width: 100%;
   border-radius: 0.65rem;
-  object-fit: cover;
+  object-fit: contain;
+  background: #f3f0f8;
 }
 
 .admin-ad-scada-preview__fallback {
   display: grid;
   place-items: center;
-  aspect-ratio: 16 / 9;
+  aspect-ratio: 4 / 3;
   border-radius: 0.65rem;
   background: #ece5f7;
   color: var(--ad-muted);
   font-size: 0.8rem;
 }
 
-.admin-ad-scada-preview__heading {
-  margin-top: 0.75rem;
-  font-size: 1rem;
-  font-weight: 700;
-}
-
-.admin-ad-scada-preview__body {
-  margin-top: 0.35rem;
-  font-size: 0.85rem;
-  color: var(--ad-muted);
-}
-
 .admin-ad-scada-preview__button {
   display: inline-flex;
-  margin-top: 0.75rem;
   border-radius: 0.65rem;
   background: var(--ad-accent);
   padding: 0.45rem 0.8rem;
   font-size: 0.8rem;
   font-weight: 600;
   color: #fff;
+}
+
+.admin-ad-scada-preview__button--muted {
+  background: transparent;
+  border: 1px solid var(--ad-border);
+  color: var(--ad-text);
 }

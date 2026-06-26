@@ -428,15 +428,6 @@ export async function cancelTicketAction(
     };
   }
 
-  try {
-    const { reverseLoyaltyPointsForTicket } = await import(
-      "@/lib/community/loyalty/service"
-    );
-    await reverseLoyaltyPointsForTicket(ticketId);
-  } catch (loyaltyError) {
-    console.error("cancelTicketAction loyalty:", loyaltyError);
-  }
-
   if (data?.event_id) {
     const event = await assertPublishedEventForReservation(data.event_id);
     if (event) {

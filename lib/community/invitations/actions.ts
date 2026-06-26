@@ -31,6 +31,7 @@ import { fetchAuthEmailsByIds } from "@/lib/users/authEmails";
 
 function revalidateCommunityPaths() {
   revalidatePath(ROUTES.adminComunidad);
+  revalidatePath(ROUTES.adminComunidadInvitaciones);
 }
 
 export async function getInviteableEventsAction() {

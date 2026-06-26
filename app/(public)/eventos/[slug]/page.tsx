@@ -21,6 +21,8 @@ import { CommunityEventGate } from "@/components/events/CommunityEventGate";
 import { createClient } from "@/lib/supabase/server";
 import { getPublicEventKiosk } from "@/lib/kiosk/queries";
 import { getWhatsAppSaleUrl } from "@/lib/events/saleChannels";
+import { EventStreamingSection } from "@/components/streaming/EventStreamingSection";
+import { getPublicStreamForEventPage } from "@/lib/streaming/queries";
 import { getActiveTicketTypesForPublishedEvent } from "@/lib/tickets/queries";
 
 type EventoPageProps = {
@@ -55,10 +57,11 @@ export default async function EventoPage({ params }: EventoPageProps) {
     return <CommunityEventGate />;
   }
 
-  const [activeTicketTypes, publicKiosk, isCommunityMember] = await Promise.all([
+  const [activeTicketTypes, publicKiosk, isCommunityMember, eventStream] = await Promise.all([
     getActiveTicketTypesForPublishedEvent(event.id, event.status),
     getPublicEventKiosk(event.id),
     isActiveCommunityMember(profile?.id),
+    getPublicStreamForEventPage(event.id),
   ]);
   const isLoggedIn = profile !== null;
   const hasTicketTypes = activeTicketTypes.length > 0;
@@ -74,6 +77,8 @@ export default async function EventoPage({ params }: EventoPageProps) {
       <EventFlyer event={event} purpose="hero" className="mb-8" />
 
       <EventScadaDetailsCard event={event} />
+
+      {eventStream ? <EventStreamingSection stream={eventStream} /> : null}
 
       {!hasTicketTypes && hasPublicSaleChannels(event, false) ? (
         <div className="mt-8">

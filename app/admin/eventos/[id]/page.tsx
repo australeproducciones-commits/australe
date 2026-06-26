@@ -87,6 +87,13 @@ export default async function AdminEditEventoPage({
             Kiosco / Consumisiones
           </Button>
           <Button
+            href={ROUTES.adminEventoStreaming(event.id)}
+            variant="outline"
+            size="sm"
+          >
+            Streaming
+          </Button>
+          <Button
             href={ROUTES.adminEventoGestion(event.id)}
             variant="secondary"
             size="sm"

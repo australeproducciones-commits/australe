@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { AdminHeader } from "@/components/layout/AdminHeader";
 import { AdminPartnersPanel } from "@/components/site/AdminPartnersPanel";
 import { requireAdminPage } from "@/lib/events/queries";
 import { getAllPartnersForAdmin } from "@/lib/site/queries";
@@ -13,14 +12,8 @@ export default async function AdminPartnersPage() {
   const partners = await getAllPartnersForAdmin();
 
   return (
-    <>
-      <AdminHeader
-        title="Partners"
-        description="Administrá marcas y patrocinadores visibles antes del footer."
-      />
-      <div className="px-4 py-8 sm:px-8">
-        <AdminPartnersPanel partners={partners} />
-      </div>
-    </>
+    <div className="bg-zinc-950 px-4 py-6 sm:px-8">
+      <AdminPartnersPanel partners={partners} />
+    </div>
   );
 }

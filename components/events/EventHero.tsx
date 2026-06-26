@@ -4,6 +4,7 @@ import Link from "next/link";
 import { EventImage } from "@/components/events/EventImage";
 import { EventInfoBadges } from "@/components/events/EventInfoBadges";
 import { ROUTES } from "@/lib/constants/routes";
+import { isPromotionContent } from "@/lib/events/contentRules";
 import { buildEventHeroBadges } from "@/lib/events/eventInfoBadges";
 import { type EventMerchandisingContext } from "@/lib/events/eventMerchandising";
 import type { Event } from "@/lib/events/types";
@@ -55,12 +56,15 @@ export function EventHero({
     kioskPresaleEnabled,
   });
 
-  const saleActions = buildHeroSaleActions(event, hasTicketTypes);
+  const isPromotion = isPromotionContent(event);
+  const saleActions = isPromotion
+    ? buildPromotionHeroActions(event)
+    : buildHeroSaleActions(event, hasTicketTypes);
 
   return (
     <section
       className={cn("public-card overflow-hidden rounded-3xl", className)}
-      aria-label={`Evento ${event.name}`}
+      aria-label={isPromotion ? `Promoción ${event.name}` : `Evento ${event.name}`}
     >
       <EventImage
         event={event}
@@ -72,18 +76,18 @@ export function EventHero({
         sizes="(max-width: 768px) 100vw, (max-width: 1280px) 92vw, 1152px"
       />
 
-      <div className="px-5 py-6 sm:px-8 sm:py-8">
-        <EventInfoBadges badges={badges} className="mb-5" />
+      <div className="px-5 py-6 text-center sm:px-8 sm:py-8">
+        <EventInfoBadges badges={badges} className="mb-5 justify-center" />
 
         <TitleTag
-          className="public-heading max-w-none text-balance text-2xl font-black leading-tight sm:text-3xl lg:text-4xl"
+          className="public-heading mx-auto max-w-3xl text-balance text-2xl font-black leading-tight sm:text-3xl lg:text-4xl"
           style={{ textWrap: "balance" }}
         >
           {event.name}
         </TitleTag>
 
-        {event.description ? (
-          <p className="mt-4 max-w-3xl whitespace-pre-line text-base leading-relaxed public-text-muted sm:text-lg">
+        {isPromotion && event.description ? (
+          <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed public-text-muted sm:text-lg">
             {event.description}
           </p>
         ) : null}
@@ -101,7 +105,7 @@ export function EventHero({
           </p>
         ) : null}
 
-        {minPrice != null ? (
+        {!isPromotion && minPrice != null ? (
           <p className="mt-5 text-base public-text-muted">
             Entradas desde{" "}
             <span className="public-heading text-xl font-bold sm:text-2xl">
@@ -110,7 +114,7 @@ export function EventHero({
           </p>
         ) : null}
 
-        {minCommunityPrice != null ? (
+        {!isPromotion && minCommunityPrice != null ? (
           <p className="mt-1 text-sm public-text-muted sm:text-base">
             Precio comunidad desde{" "}
             <span className="font-semibold text-[var(--public-primary)]">
@@ -119,7 +123,7 @@ export function EventHero({
           </p>
         ) : null}
 
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+        <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:flex-wrap sm:justify-center">
           {saleActions.length > 0 ? (
             saleActions.map((action) =>
               action.external ? (
@@ -139,17 +143,41 @@ export function EventHero({
               ),
             )
           ) : (
-            <p className="rounded-2xl border px-4 py-3 text-sm public-text-muted" style={{ borderColor: "var(--public-border)" }}>
-              Las entradas no están disponibles en este momento.
+            <p
+              className="rounded-2xl border px-4 py-3 text-sm public-text-muted"
+              style={{ borderColor: "var(--public-border)" }}
+            >
+              {isPromotion
+                ? "La promoción no tiene enlace de destino configurado."
+                : "Las entradas no están disponibles en este momento."}
             </p>
           )}
-          <Link href={ROUTES.comunidad} className={getActionClassName(false, true)}>
-            Sumarse a la comunidad
-          </Link>
+          {!isPromotion ? (
+            <Link href={ROUTES.comunidad} className={getActionClassName(false, true)}>
+              Sumarse a la comunidad
+            </Link>
+          ) : null}
         </div>
       </div>
     </section>
   );
+}
+
+function buildPromotionHeroActions(event: Event): HeroAction[] {
+  const externalUrl = getValidExternalTicketUrl(event);
+  if (!externalUrl) {
+    return [];
+  }
+
+  return [
+    {
+      key: "promo",
+      label: event.featured_ticket_label?.trim() || "Ver más",
+      href: externalUrl,
+      external: true,
+      primary: true,
+    },
+  ];
 }
 
 function getActionClassName(primary?: boolean, outline = false) {

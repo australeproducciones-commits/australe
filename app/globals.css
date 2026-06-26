@@ -243,6 +243,45 @@ body {
   padding: 1.15rem 1.25rem;
 }
 
+.public-theme .public-page-title {
+  max-width: 42rem;
+  text-wrap: balance;
+}
+
+.public-theme .public-prose-justified {
+  max-width: 42rem;
+  text-align: justify;
+  hyphens: auto;
+  overflow-wrap: break-word;
+}
+
+@media (max-width: 640px) {
+  .public-theme .public-prose-justified {
+    text-align: left;
+    hyphens: manual;
+  }
+}
+
+.public-theme .public-header-community-btn {
+  border: 1px solid rgba(155, 126, 222, 0.28);
+  background: rgba(155, 126, 222, 0.1);
+  color: var(--public-primary-hover);
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.public-theme .public-header-community-btn:hover {
+  background: rgba(155, 126, 222, 0.16);
+  border-color: rgba(155, 126, 222, 0.4);
+}
+
+.public-theme .public-header-community-btn:focus-visible {
+  outline: 2px solid var(--public-primary);
+  outline-offset: 2px;
+}
+
 .public-theme .public-scada-ticket-card {
   border: 1px solid var(--public-border);
   background:

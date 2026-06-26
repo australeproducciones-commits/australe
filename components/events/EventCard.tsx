@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { EventImage } from "@/components/events/EventImage";
+import { EventInfoBadge } from "@/components/events/EventInfoBadge";
 import { EventInfoBadges } from "@/components/events/EventInfoBadges";
 import { ROUTES } from "@/lib/constants/routes";
 import { buildEventCardBadges } from "@/lib/events/eventInfoBadges";
@@ -15,14 +16,14 @@ type EventCardProps = {
   featured?: boolean;
 };
 
-function getSaleStatusLabel(status: Event["status"]) {
+function getSaleStatusBadge(status: Event["status"]) {
   switch (status) {
     case EVENT_STATUS.SOLD_OUT:
-      return "Agotado";
+      return { label: "Agotado", tone: "soldOut" as const };
     case EVENT_STATUS.PUBLISHED:
-      return "Disponible";
+      return { label: "Entradas disponibles", tone: "success" as const };
     default:
-      return "Próximamente";
+      return { label: "Próximamente", tone: "upcoming" as const };
   }
 }
 
@@ -33,7 +34,7 @@ export function EventCard({
   featured = false,
 }: EventCardProps) {
   const badges = buildEventCardBadges({ event, minPrice, featured });
-  const saleStatus = getSaleStatusLabel(event.status);
+  const saleStatus = getSaleStatusBadge(event.status);
 
   return (
     <article
@@ -58,37 +59,37 @@ export function EventCard({
         <div className="flex flex-1 flex-col p-4 sm:p-5">
           <EventInfoBadges badges={badges} size="compact" className="mb-3" />
 
-          <h3 className="public-heading line-clamp-2 text-lg font-bold leading-snug sm:text-xl">
+          <h3 className="public-heading line-clamp-2 text-center text-lg font-bold leading-snug sm:text-xl">
             {event.name}
           </h3>
 
           {event.location_name ? (
-            <p className="mt-2 text-sm public-text-soft">
+            <p className="mt-2 text-center text-sm public-text-soft">
               {event.location_name}
             </p>
           ) : null}
 
-          <div className="mt-auto space-y-1 pt-4">
+          <div className="mt-auto space-y-2 pt-4">
             {minPrice != null ? (
-              <p className="text-sm public-text-muted">
+              <p className="text-center text-sm public-text-muted">
                 Desde{" "}
                 <span className="public-heading text-base font-bold">
                   {formatTicketPrice(minPrice)}
                 </span>
               </p>
             ) : (
-              <p className="text-sm public-text-soft">Consultar entradas</p>
+              <p className="text-center text-sm public-text-soft">Consultar entradas</p>
             )}
 
             {minCommunityPrice != null ? (
-              <p className="text-xs public-text-soft sm:text-sm">
+              <p className="text-center text-xs public-text-soft sm:text-sm">
                 Comunidad desde {formatTicketPrice(minCommunityPrice)}
               </p>
             ) : null}
 
-            <p className="text-xs font-medium uppercase tracking-wide public-text-soft">
-              {saleStatus}
-            </p>
+            <div className="flex justify-center">
+              <EventInfoBadge tone={saleStatus.tone}>{saleStatus.label}</EventInfoBadge>
+            </div>
 
             <span className="public-btn-primary mt-3 flex w-full items-center justify-center rounded-xl py-3 text-sm font-semibold">
               Ver evento

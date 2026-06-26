@@ -28,20 +28,25 @@ export function GalleryEventCard({ event }: GalleryEventCardProps) {
         className="aspect-[16/9] w-full border-0"
         sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
       />
-      <div className="space-y-4 p-5 sm:p-6">
-        <div>
-          <p className="public-label text-xs font-semibold uppercase tracking-[0.28em]">
-            Galería
-          </p>
-          <h2 className="public-heading mt-2 text-2xl font-bold">{event.name}</h2>
+      <div className="space-y-4 p-5 text-center sm:p-6">
+        <div className="flex justify-center">
+          <span className="inline-flex rounded-full border border-[rgba(127,168,196,0.24)] bg-[rgba(232,244,252,0.95)] px-3 py-1 text-xs font-medium text-[#3f6278]">
+            Galería disponible
+          </span>
+        </div>
+        <h2
+          className="public-heading public-page-title mx-auto text-2xl font-bold"
+          style={{ textWrap: "balance" }}
+        >
+          {event.name}
+        </h2>
           {dateLabel ? (
             <p className="mt-2 text-sm public-text-soft">{dateLabel}</p>
           ) : null}
           {event.location_name ? (
             <p className="mt-1 text-sm public-text-soft">{event.location_name}</p>
           ) : null}
-        </div>
-        <Button href={ROUTES.galeria(event.slug)} variant="secondary" size="sm">
+        <Button href={ROUTES.galeria(event.slug)} variant="secondary" size="sm" className="mx-auto">
           Ver galería
         </Button>
       </div>

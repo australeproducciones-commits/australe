@@ -41,14 +41,17 @@ export function EventScadaDetailsCard({
 
   return (
     <article className={cn("public-scada-event-card public-card rounded-2xl", className)}>
-      <div className="public-scada-event-card__header">
+      <div className="public-scada-event-card__header text-center">
         <span className="public-scada-kicker">EVENTO</span>
-        <h1 className="public-scada-event-card__title public-heading mt-3 text-3xl font-black leading-tight sm:text-4xl">
+        <h1
+          className="public-heading public-page-title mx-auto mt-3 text-3xl font-black leading-tight sm:text-4xl"
+          style={{ textWrap: "balance" }}
+        >
           {event.name}
         </h1>
 
         {dateLabel ? (
-          <div className="public-scada-date-badge mt-4 inline-flex max-w-full items-start gap-2 rounded-xl border px-3 py-2.5 text-sm sm:items-center">
+          <div className="public-scada-date-badge mx-auto mt-4 inline-flex max-w-full items-start gap-2 rounded-full border px-3 py-2 text-sm sm:items-center">
             <CalendarIcon className="mt-0.5 text-[var(--public-primary)] sm:mt-0" />
             <span className="public-heading font-medium leading-snug break-words">
               {dateLabel}
@@ -110,8 +113,8 @@ export function EventScadaDetailsCard({
           className="public-scada-description-panel mt-8"
           aria-label="Descripción del evento"
         >
-          <p className="public-scada-label mb-3">DESCRIPCIÓN</p>
-          <p className="whitespace-pre-line text-base leading-7 public-text-muted sm:text-[1.05rem]">
+          <p className="public-scada-label mb-3 text-center">DESCRIPCIÓN</p>
+          <p className="public-prose-justified mx-auto max-w-3xl whitespace-pre-line text-base leading-7 public-text-muted sm:text-[1.05rem]">
             {event.description}
           </p>
         </section>

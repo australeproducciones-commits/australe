@@ -10,8 +10,10 @@ type CommunityHeroProps = {
 export function CommunityHero({ settings, isAuthenticated }: CommunityHeroProps) {
   return (
     <PublicCard padding="lg" className="mt-8">
-      <h2 className="public-heading text-xl font-bold">{settings.public_title}</h2>
-      <p className="mt-3 text-sm public-text-muted">{settings.public_description}</p>
+      <h2 className="public-heading text-center text-xl font-bold">{settings.public_title}</h2>
+      <p className="public-prose-justified mx-auto mt-3 max-w-3xl text-sm public-text-muted">
+        {settings.public_description}
+      </p>
 
       {!isAuthenticated ? (
         <>

@@ -29,14 +29,17 @@ export default async function GaleriasPage() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-16">
-      <div className="mb-10">
+      <div className="mb-10 text-center">
         <p className="public-label text-xs font-semibold uppercase tracking-[0.35em]">
           Recuerdos
         </p>
-        <h1 className="public-heading mt-3 text-3xl font-black tracking-tight sm:text-4xl">
+        <h1
+          className="public-heading public-page-title mx-auto mt-3 text-3xl font-black tracking-tight sm:text-4xl"
+          style={{ textWrap: "balance" }}
+        >
           Galerías
         </h1>
-        <p className="mt-3 max-w-2xl text-sm public-text-soft">
+        <p className="mx-auto mt-3 max-w-2xl text-sm public-text-soft">
           Reviví los momentos de nuestros eventos finalizados.
         </p>
       </div>

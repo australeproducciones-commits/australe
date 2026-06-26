@@ -58,47 +58,6 @@ export function EventImageAdminPreview({
         </p>
       </div>
 
-      <details className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
-        <summary className="cursor-pointer text-sm font-medium text-zinc-300">
-          Campos avanzados (compatibilidad con eventos anteriores)
-        </summary>
-        <div className="mt-4 grid gap-4 md:grid-cols-3">
-          <Field label="Imagen principal (legacy)" hint="Solo si no hay banner">
-            <input
-              name="main_image_url"
-              type="url"
-              value={values.main_image_url}
-              onChange={(e) => onChange("main_image_url", e.target.value)}
-              className={inputClassName}
-              placeholder="https://..."
-              disabled={disabled}
-            />
-          </Field>
-          <Field label="Flyer (legacy)" hint="Respaldo si no hay banner">
-            <input
-              name="flyer_url"
-              type="url"
-              value={values.flyer_url}
-              onChange={(e) => onChange("flyer_url", e.target.value)}
-              className={inputClassName}
-              placeholder="https://..."
-              disabled={disabled}
-            />
-          </Field>
-          <Field label="Miniatura (legacy)" hint="Respaldo si no hay banner">
-            <input
-              name="thumbnail_url"
-              type="url"
-              value={values.thumbnail_url}
-              onChange={(e) => onChange("thumbnail_url", e.target.value)}
-              className={inputClassName}
-              placeholder="https://..."
-              disabled={disabled}
-            />
-          </Field>
-        </div>
-      </details>
-
       {!hasAnyImage ? (
         <p className="text-sm text-zinc-500">
           Cargá la URL del banner para ver la vista previa.

@@ -1,5 +1,5 @@
 import { CommunitySection } from "@/components/home/CommunitySection";
-import { FeaturedEventsHero } from "@/components/home/FeaturedEventsHero";
+import { HomeHeroSection } from "@/components/home/HomeHeroSection";
 import { HomeCartelera } from "@/components/home/HomeCartelera";
 import { PublicQueryError } from "@/components/ui/PublicQueryError";
 import { buildCarteleraEvents } from "@/lib/events/cartelera";
@@ -38,7 +38,7 @@ export default async function Home() {
         </div>
       ) : (
         <>
-          <FeaturedEventsHero events={featuredEvents} />
+          <HomeHeroSection featuredEvents={featuredEvents} />
           <HomeCartelera items={carteleraItems} />
         </>
       )}

@@ -92,6 +92,30 @@ export type EventRow = {
   updated_at: string;
 };
 
+export type EventStreamRow = {
+  id: string;
+  event_id: string;
+  title: string | null;
+  subtitle: string | null;
+  is_enabled: boolean;
+  status: string;
+  provider: string;
+  stream_url: string | null;
+  starts_at: string | null;
+  ends_at: string | null;
+  access_type: string;
+  stream_banner_url: string | null;
+  stream_banner_mobile_url: string | null;
+  home_featured: boolean;
+  home_order: number;
+  show_on_streaming_page: boolean;
+  show_on_event_page: boolean;
+  button_label: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type TicketTypeRow = {
   id: string;
   event_id: string;
@@ -502,6 +526,24 @@ export type Database = {
         };
         Update: Partial<EventRow>;
         Relationships: [];
+      };
+      event_streams: {
+        Row: EventStreamRow;
+        Insert: Omit<EventStreamRow, "id" | "created_at" | "updated_at"> & {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<EventStreamRow>;
+        Relationships: [
+          {
+            foreignKeyName: "event_streams_event_id_fkey";
+            columns: ["event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       ticket_types: {
         Row: TicketTypeRow;

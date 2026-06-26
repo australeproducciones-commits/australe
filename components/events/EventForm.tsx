@@ -137,6 +137,9 @@ export function EventForm({
   return (
     <Card padding="lg">
       <form action={formAction} className="space-y-8">
+        <input type="hidden" name="main_image_url" value={values.main_image_url} />
+        <input type="hidden" name="flyer_url" value={values.flyer_url} />
+        <input type="hidden" name="thumbnail_url" value={values.thumbnail_url} />
         <FormSection
           title="Información principal"
           description="Datos básicos del evento y visibilidad."

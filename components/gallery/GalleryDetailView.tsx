@@ -35,11 +35,18 @@ export function GalleryDetailView({ event, items }: GalleryDetailViewProps) {
           className="aspect-[21/9] w-full border-0"
           sizes="100vw"
         />
-        <div className="space-y-3 p-6 sm:p-8">
-          <p className="public-label text-xs font-semibold uppercase tracking-[0.28em]">
-            Galería
-          </p>
-          <h1 className="public-heading text-3xl font-black sm:text-4xl">{event.name}</h1>
+        <div className="space-y-3 p-6 text-center sm:p-8">
+          <div className="flex justify-center">
+            <span className="inline-flex rounded-full border border-[rgba(127,168,196,0.24)] bg-[rgba(232,244,252,0.95)] px-3 py-1 text-xs font-medium text-[#3f6278]">
+              Galería
+            </span>
+          </div>
+          <h1
+            className="public-heading public-page-title mx-auto text-3xl font-black sm:text-4xl"
+            style={{ textWrap: "balance" }}
+          >
+            {event.name}
+          </h1>
           {dateLabel ? <p className="public-text-soft">{dateLabel}</p> : null}
           {event.location_name ? (
             <p className="public-text-soft">{event.location_name}</p>

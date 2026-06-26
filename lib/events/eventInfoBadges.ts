@@ -125,10 +125,18 @@ export function buildEventHeroBadges({
     });
   }
 
+  if (event.event_end_date && event.event_end_date !== event.event_date) {
+    badges.push({
+      key: "multi-day",
+      label: "Varios días",
+      tone: "multiDay",
+    });
+  }
+
   if (isEventFeaturedActive(event)) {
     badges.push({
       key: "featured",
-      label: "Evento destacado",
+      label: "Destacado",
       tone: "featured",
       icon: "star",
     });
@@ -222,6 +230,18 @@ export function buildEventCardBadges({
       key: "featured",
       label: "Destacado",
       tone: "featured",
+    });
+  }
+
+  if (
+    event.event_end_date &&
+    event.event_date &&
+    event.event_end_date !== event.event_date
+  ) {
+    badges.push({
+      key: "multi-day",
+      label: "Varios días",
+      tone: "multiDay",
     });
   }
 

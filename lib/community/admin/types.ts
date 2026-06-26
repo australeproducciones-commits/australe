@@ -1,7 +1,9 @@
 export const COMMUNITY_USERS_SORT = {
   REGISTERED_DESC: "registered_desc",
+  REGISTERED_ASC: "registered_asc",
   NAME_ASC: "name_asc",
   POINTS_DESC: "points_desc",
+  POINTS_ASC: "points_asc",
   PURCHASES_DESC: "purchases_desc",
   ACTIVITY_DESC: "activity_desc",
 } as const;
@@ -37,6 +39,7 @@ export type CommunityUserListItem = {
   lastActivity: string | null;
   status: string;
   isActive: boolean;
+  levelId: string | null;
 };
 
 export type CommunityUsersPageResult = {

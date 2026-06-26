@@ -21,9 +21,13 @@ type AdminCommunityUsersPanelProps = {
     pageSize: number;
     totalPages: number;
   };
+  levels: Array<{ id: string; name: string }>;
   initialSearch: string;
   initialFilter: CommunityUsersFilter;
   initialSort: CommunityUsersSort;
+  initialLevelId: string;
+  initialMinBalance: string;
+  initialMaxBalance: string;
 };
 
 function initials(name: string | null): string {
@@ -50,9 +54,13 @@ function formatDate(value: string | null): string {
 
 export function AdminCommunityUsersPanel({
   result,
+  levels,
   initialSearch,
   initialFilter,
   initialSort,
+  initialLevelId,
+  initialMinBalance,
+  initialMaxBalance,
 }: AdminCommunityUsersPanelProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -160,6 +168,47 @@ export function AdminCommunityUsersPanel({
             </select>
           </label>
           <label className="flex flex-col gap-1 text-sm">
+            <span className="text-zinc-400">Nivel</span>
+            <select
+              value={initialLevelId}
+              onChange={(e) =>
+                pushParams({ level: e.target.value || undefined })
+              }
+              className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-zinc-100"
+            >
+              <option value="">Todos</option>
+              {levels.map((level) => (
+                <option key={level.id} value={level.id}>
+                  {level.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="text-zinc-400">Saldo mín.</span>
+            <input
+              type="number"
+              min={0}
+              value={initialMinBalance}
+              onChange={(e) =>
+                pushParams({ minBalance: e.target.value || undefined })
+              }
+              className="w-24 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-zinc-100"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="text-zinc-400">Saldo máx.</span>
+            <input
+              type="number"
+              min={0}
+              value={initialMaxBalance}
+              onChange={(e) =>
+                pushParams({ maxBalance: e.target.value || undefined })
+              }
+              className="w-24 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-zinc-100"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
             <span className="text-zinc-400">Orden</span>
             <select
               value={initialSort}
@@ -171,8 +220,12 @@ export function AdminCommunityUsersPanel({
               <option value={COMMUNITY_USERS_SORT.REGISTERED_DESC}>
                 Registro reciente
               </option>
+              <option value={COMMUNITY_USERS_SORT.REGISTERED_ASC}>
+                Registro antiguo
+              </option>
               <option value={COMMUNITY_USERS_SORT.NAME_ASC}>Nombre</option>
-              <option value={COMMUNITY_USERS_SORT.POINTS_DESC}>Puntos</option>
+              <option value={COMMUNITY_USERS_SORT.POINTS_DESC}>Puntos ↓</option>
+              <option value={COMMUNITY_USERS_SORT.POINTS_ASC}>Puntos ↑</option>
               <option value={COMMUNITY_USERS_SORT.PURCHASES_DESC}>Compras</option>
               <option value={COMMUNITY_USERS_SORT.ACTIVITY_DESC}>
                 Última actividad

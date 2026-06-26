@@ -4,27 +4,88 @@ import type {
   AdminCommunitySummary,
   CommunityReward,
   CommunitySettings,
+  InvitationStatusCounts,
   LoyaltyTransaction,
 } from "@/lib/community/loyalty/types";
 
-async function countInvitations(
+type InvitationStatusRow = { status: string };
+
+function aggregateInvitationStatuses(
+  rows: InvitationStatusRow[] | null,
+): InvitationStatusCounts {
+  const counts: InvitationStatusCounts = {
+    pending: 0,
+    opened: 0,
+    accepted: 0,
+    used: 0,
+    expired: 0,
+    cancelled: 0,
+    total: 0,
+  };
+
+  for (const row of rows ?? []) {
+    counts.total += 1;
+    switch (row.status) {
+      case "prepared":
+      case "sent":
+      case "draft":
+        counts.pending += 1;
+        break;
+      case "opened":
+        counts.opened += 1;
+        break;
+      case "accepted":
+        counts.accepted += 1;
+        break;
+      case "used":
+        counts.used += 1;
+        break;
+      case "expired":
+        counts.expired += 1;
+        break;
+      case "cancelled":
+        counts.cancelled += 1;
+        break;
+      default:
+        break;
+    }
+  }
+
+  return counts;
+}
+
+async function getInvitationStatusCounts(
   admin: ReturnType<typeof createAdminClient>,
-  filter?: { openedOnly?: boolean },
-): Promise<number> {
+): Promise<InvitationStatusCounts> {
   try {
-    let query = admin
+    const { data, error } = await admin
       .from("community_event_invitations")
-      .select("id", { count: "exact", head: true });
-    if (filter?.openedOnly) {
-      query = query.not("opened_at", "is", null);
-    }
-    const { count, error } = await query;
+      .select("status");
+
     if (error) {
-      return 0;
+      console.error("getInvitationStatusCounts:", error.message);
+      return {
+        pending: 0,
+        opened: 0,
+        accepted: 0,
+        used: 0,
+        expired: 0,
+        cancelled: 0,
+        total: 0,
+      };
     }
-    return count ?? 0;
+
+    return aggregateInvitationStatuses(data);
   } catch {
-    return 0;
+    return {
+      pending: 0,
+      opened: 0,
+      accepted: 0,
+      used: 0,
+      expired: 0,
+      cancelled: 0,
+      total: 0,
+    };
   }
 }
 
@@ -49,8 +110,7 @@ export async function getAdminCommunitySummary(): Promise<AdminCommunitySummary>
     { count: recentActiveUsers },
     { data: loyaltyBalances },
     { count: completedRedemptions },
-    invitationsSent,
-    invitationsOpened,
+    invitationCounts,
     { count: activeAdvertisingCampaigns },
   ] = await Promise.all([
     admin
@@ -90,8 +150,7 @@ export async function getAdminCommunitySummary(): Promise<AdminCommunitySummary>
       .from("community_redemptions")
       .select("id", { count: "exact", head: true })
       .in("status", ["approved", "used"]),
-    countInvitations(admin),
-    countInvitations(admin, { openedOnly: true }),
+    getInvitationStatusCounts(admin),
     admin
       .from("advertising_campaigns")
       .select("id", { count: "exact", head: true })
@@ -118,8 +177,12 @@ export async function getAdminCommunitySummary(): Promise<AdminCommunitySummary>
     recentActiveUsers: recentActiveUsers ?? 0,
     pointsInCirculation,
     completedRedemptions: completedRedemptions ?? 0,
-    invitationsSent: invitationsSent ?? 0,
-    invitationsOpened: invitationsOpened ?? 0,
+    invitationsSent: invitationCounts.total,
+    invitationsOpened: invitationCounts.opened,
+    invitationsPending: invitationCounts.pending,
+    invitationsAccepted: invitationCounts.accepted,
+    invitationsUsed: invitationCounts.used,
+    invitationsExpired: invitationCounts.expired,
     activeAdvertisingCampaigns: activeAdvertisingCampaigns ?? 0,
   };
 }

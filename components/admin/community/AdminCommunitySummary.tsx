@@ -73,10 +73,14 @@ export function AdminCommunitySummaryPanel({ summary }: AdminCommunitySummaryPro
         <Metric label="Canjes realizados" value={summary.completedRedemptions} />
         <Metric label="Recompensas activas" value={summary.activeRewards} />
         <Metric label="Invitaciones enviadas" value={summary.invitationsSent} />
+        <Metric label="Invitaciones pendientes" value={summary.invitationsPending} />
         <Metric
           label="Invitaciones abiertas"
           value={summary.invitationsOpened}
         />
+        <Metric label="Invitaciones aceptadas" value={summary.invitationsAccepted} />
+        <Metric label="Invitaciones utilizadas" value={summary.invitationsUsed} />
+        <Metric label="Invitaciones vencidas" value={summary.invitationsExpired} />
         <Metric
           label="Publicidades activas"
           value={summary.activeAdvertisingCampaigns}

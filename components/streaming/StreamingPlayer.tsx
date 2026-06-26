@@ -6,6 +6,7 @@ type StreamingPlayerProps = {
   streamUrl: string | null;
   provider: StreamProvider;
   title: string;
+  linkLabel?: string;
   className?: string;
 };
 
@@ -13,9 +14,10 @@ export function StreamingPlayer({
   streamUrl,
   provider,
   title,
+  linkLabel,
   className,
 }: StreamingPlayerProps) {
-  const embed = resolveStreamEmbed(streamUrl, provider, title);
+  const embed = resolveStreamEmbed(streamUrl, provider, linkLabel ?? title);
 
   if (embed.kind === "unsupported") {
     return (
@@ -26,6 +28,29 @@ export function StreamingPlayer({
         )}
       >
         {embed.message}
+      </div>
+    );
+  }
+
+  if (embed.kind === "external_link") {
+    return (
+      <div
+        className={cn(
+          "flex aspect-video w-full flex-col items-center justify-center gap-4 rounded-2xl border border-purple-100 bg-purple-50/80 p-8 text-center",
+          className,
+        )}
+      >
+        <p className="text-sm text-purple-800">
+          Esta transmisión se abre en una plataforma externa segura.
+        </p>
+        <a
+          href={embed.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex min-h-11 items-center justify-center rounded-full bg-purple-700 px-6 py-3 text-sm font-semibold text-white transition hover:bg-purple-800"
+        >
+          {embed.label}
+        </a>
       </div>
     );
   }

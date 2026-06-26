@@ -38,6 +38,9 @@ export function AdminStreamingForm({
   const boundAction = saveEventStreamAction.bind(null, eventId, eventSlug);
   const [state, formAction, pending] = useActionState(boundAction, initialState);
   const [deleting, setDeleting] = useState(false);
+  const [provider, setProvider] = useState(
+    stream ? stream.provider : STREAM_PROVIDER.YOUTUBE,
+  );
   const defaults = stream
     ? streamToFormInput(stream)
     : {
@@ -165,6 +168,7 @@ export function AdminStreamingForm({
               name="provider"
               defaultValue={defaults.provider}
               className={inputClassName}
+              onChange={(event) => setProvider(event.target.value as typeof provider)}
             >
               {Object.entries(STREAM_PROVIDER_LABELS).map(([value, label]) => (
                 <option key={value} value={value}>
@@ -185,8 +189,23 @@ export function AdminStreamingForm({
             type="url"
             className={inputClassName}
             defaultValue={defaults.stream_url}
-            placeholder="https://www.youtube.com/watch?v=..."
+            placeholder={
+              provider === STREAM_PROVIDER.OTHER
+                ? "https://plataforma.ejemplo.com/sala"
+                : provider === STREAM_PROVIDER.HLS
+                  ? "https://cdn.ejemplo.com/live/stream.m3u8"
+                  : "https://www.youtube.com/watch?v=..."
+            }
           />
+          <p className="mt-2 text-xs text-zinc-500">
+            {provider === STREAM_PROVIDER.OTHER
+              ? "Otro: solo URL HTTPS pública. Se muestra como enlace externo con botón seguro, sin reproductor embebido."
+              : provider === STREAM_PROVIDER.HLS
+                ? "HLS: solo URL HTTPS que termine en .m3u8."
+                : provider === STREAM_PROVIDER.VIMEO
+                  ? "Vimeo: URL del video o ID numérico."
+                  : "YouTube: URL del video, en vivo o ID de 11 caracteres."}
+          </p>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">

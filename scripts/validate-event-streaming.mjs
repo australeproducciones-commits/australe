@@ -569,6 +569,39 @@ async function main() {
     }
     await updateStream({ stream_url: YOUTUBE_URL, status: "scheduled" });
 
+    const OTHER_HTTPS = "https://stream.example.com/live-room";
+    await updateStream({
+      status: "live",
+      provider: "other",
+      stream_url: OTHER_HTTPS,
+      is_enabled: true,
+    });
+    const otherPage = await fetchPage(`/eventos/${eventSlug}/en-vivo`);
+    if (
+      otherPage.status === 200 &&
+      htmlHas(otherPage.html, OTHER_HTTPS) &&
+      htmlHas(otherPage.html, 'rel="noopener noreferrer"') &&
+      htmlHasNo(otherPage.html, "<iframe")
+    ) {
+      ok("other live — enlace externo seguro sin iframe");
+    } else {
+      bad("other live — enlace externo seguro sin iframe");
+    }
+
+    const { error: otherHttpErr } = await admin
+      .from("event_streams")
+      .update({ stream_url: "http://stream.example.com/live" })
+      .eq("id", streamId);
+    if (!otherHttpErr) {
+      const otherHttpPage = await fetchPage(`/eventos/${eventSlug}/en-vivo`);
+      if (htmlHasNo(otherHttpPage.html, "http://stream.example.com/live")) {
+        ok("other HTTP — no expuesto en HTML público");
+      } else {
+        bad("other HTTP — no expuesto en HTML público");
+      }
+    }
+    await updateStream({ provider: "youtube", stream_url: YOUTUBE_URL, status: "scheduled" });
+
     const responsivePage = await fetchPage(`/eventos/${eventSlug}/en-vivo`);
     if (
       responsivePage.status === 200 &&

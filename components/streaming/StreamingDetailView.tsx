@@ -9,6 +9,7 @@ import { ROUTES } from "@/lib/constants/routes";
 import { formatStreamDateTime } from "@/lib/streaming/utils";
 import {
   getStreamDisplayTitle,
+  resolveStreamButtonLabel,
   shouldShowCountdown,
   shouldShowPlayer,
 } from "@/lib/streaming/utils";
@@ -83,6 +84,7 @@ export function StreamingDetailView({ stream }: StreamingDetailViewProps) {
               streamUrl={stream.stream_url}
               provider={stream.provider}
               title={title}
+              linkLabel={resolveStreamButtonLabel(stream)}
             />
           </div>
         ) : null}

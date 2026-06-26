@@ -30,6 +30,81 @@ export function isUnsafeUrl(value: string): boolean {
   );
 }
 
+function parseStreamUrl(value: string): URL | null {
+  try {
+    return new URL(value.trim());
+  } catch {
+    return null;
+  }
+}
+
+function hasEmbeddedCredentials(parsed: URL): boolean {
+  return Boolean(parsed.username || parsed.password);
+}
+
+function isAllowedHttpsPort(port: string): boolean {
+  return !port || port === "443";
+}
+
+function isPrivateOrReservedHost(hostname: string): boolean {
+  const host = hostname.toLowerCase().replace(/^\[|\]$/g, "");
+
+  if (host === "localhost" || host.endsWith(".localhost")) {
+    return true;
+  }
+  if (host === "0.0.0.0" || host === "::1") {
+    return true;
+  }
+
+  const ipv4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host);
+  if (ipv4) {
+    const octets = ipv4.slice(1).map((part) => Number(part));
+    if (octets.some((n) => Number.isNaN(n) || n < 0 || n > 255)) {
+      return true;
+    }
+    const [a, b] = octets;
+    if (a === 127 || a === 10 || a === 0) {
+      return true;
+    }
+    if (a === 172 && b >= 16 && b <= 31) {
+      return true;
+    }
+    if (a === 192 && b === 168) {
+      return true;
+    }
+    if (a === 169 && b === 254) {
+      return true;
+    }
+  }
+
+  if (host.startsWith("fe80:") || host.startsWith("fc") || host.startsWith("fd")) {
+    return true;
+  }
+
+  return false;
+}
+
+export function isValidHttpsStreamUrl(url: string): boolean {
+  const parsed = parseStreamUrl(url);
+  if (!parsed || parsed.protocol !== "https:") {
+    return false;
+  }
+  if (hasEmbeddedCredentials(parsed)) {
+    return false;
+  }
+  if (!isAllowedHttpsPort(parsed.port)) {
+    return false;
+  }
+  if (isPrivateOrReservedHost(parsed.hostname)) {
+    return false;
+  }
+  return true;
+}
+
+export function isValidOtherStreamUrl(url: string): boolean {
+  return isValidHttpsStreamUrl(url);
+}
+
 export function extractYoutubeVideoId(url: string): string | null {
   const match = url.trim().match(YOUTUBE_ID_RE);
   return match?.[1] ?? null;
@@ -56,16 +131,11 @@ export function isValidStreamUrl(
       return extractVimeoVideoId(trimmed) !== null;
     case STREAM_PROVIDER.HLS:
       return (
-        trimmed.startsWith("https://") &&
+        isValidHttpsStreamUrl(trimmed) &&
         trimmed.toLowerCase().includes(".m3u8")
       );
     case STREAM_PROVIDER.OTHER:
-      try {
-        const parsed = new URL(trimmed);
-        return parsed.protocol === "https:" || parsed.protocol === "http:";
-      } catch {
-        return false;
-      }
+      return isValidOtherStreamUrl(trimmed);
     default:
       return false;
   }
@@ -74,6 +144,7 @@ export function isValidStreamUrl(
 export type EmbedResult =
   | { kind: "iframe"; src: string; title: string }
   | { kind: "hls"; src: string; title: string }
+  | { kind: "external_link"; href: string; label: string }
   | { kind: "unsupported"; message: string };
 
 export function resolveStreamEmbed(
@@ -111,21 +182,30 @@ export function resolveStreamEmbed(
   }
 
   if (provider === STREAM_PROVIDER.HLS) {
-    if (!url.toLowerCase().includes(".m3u8")) {
-      return { kind: "unsupported", message: "La URL HLS debe terminar en .m3u8" };
+    if (!isValidHttpsStreamUrl(url) || !url.toLowerCase().includes(".m3u8")) {
+      return {
+        kind: "unsupported",
+        message: "La URL HLS debe ser HTTPS y terminar en .m3u8.",
+      };
     }
     return { kind: "hls", src: url, title };
   }
 
-  try {
-    const parsed = new URL(url);
-    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
-      return { kind: "unsupported", message: "Protocolo no permitido." };
+  if (provider === STREAM_PROVIDER.OTHER) {
+    if (!isValidOtherStreamUrl(url)) {
+      return {
+        kind: "unsupported",
+        message: "La URL externa debe ser HTTPS pública y no puede ser local ni privada.",
+      };
     }
-    return { kind: "iframe", src: url, title };
-  } catch {
-    return { kind: "unsupported", message: "URL no válida." };
+    return {
+      kind: "external_link",
+      href: url,
+      label: title || "Ver transmisión",
+    };
   }
+
+  return { kind: "unsupported", message: "Proveedor de transmisión no soportado." };
 }
 
 export function isStreamPubliclyVisible(stream: Pick<EventStream, "is_enabled" | "status">): boolean {
@@ -321,6 +401,12 @@ export function validateStreamInput(input: ReturnType<typeof parseStreamFormData
   }
 
   if (input.stream_url.trim() && !isValidStreamUrl(input.stream_url, input.provider)) {
+    if (input.provider === STREAM_PROVIDER.OTHER) {
+      return "Para «Otro», usá solo una URL HTTPS pública (sin credenciales, sin hosts locales ni privados). Se mostrará como enlace externo.";
+    }
+    if (input.provider === STREAM_PROVIDER.HLS) {
+      return "Para HLS, usá una URL HTTPS que termine en .m3u8.";
+    }
     return "La URL de transmisión no es válida para el proveedor seleccionado.";
   }
 

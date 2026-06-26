@@ -39,10 +39,7 @@ export default async function AdminComunidadResumenPage({
   const summary = await getAdminCommunitySummary();
 
   return (
-    <AdminCommunityShell
-      title="Comunidad"
-      description="Resumen de fidelización, usuarios, recompensas e invitaciones."
-    >
+    <AdminCommunityShell variant="dashboard">
       <AdminCommunitySummaryPanel summary={summary} />
     </AdminCommunityShell>
   );

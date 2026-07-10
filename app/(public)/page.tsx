@@ -1,8 +1,9 @@
 import { CommunitySection } from "@/components/home/CommunitySection";
-import { FeaturedEventsHero } from "@/components/home/FeaturedEventsHero";
+import { HomeHeroSection } from "@/components/home/HomeHeroSection";
 import { HomeCartelera } from "@/components/home/HomeCartelera";
 import { PublicQueryError } from "@/components/ui/PublicQueryError";
 import { buildCarteleraEvents } from "@/lib/events/cartelera";
+import { filterCarteleraEvents } from "@/lib/events/filters";
 import {
   getFeaturedEventsForHome,
   getPublishedEvents,
@@ -12,14 +13,16 @@ import type { Event } from "@/lib/events/types";
 
 export default async function Home() {
   let featuredEvents: Event[] = [];
-  let publishedEvents: Event[] = [];
+  let carteleraItems: Awaited<ReturnType<typeof buildCarteleraEvents>> = [];
   let loadError: string | null = null;
 
   try {
-    [featuredEvents, publishedEvents] = await Promise.all([
-      getFeaturedEventsForHome(),
-      getPublishedEvents(),
-    ]);
+    const publishedEvents = await getPublishedEvents();
+    featuredEvents = await getFeaturedEventsForHome(publishedEvents);
+    carteleraItems = await buildCarteleraEvents(
+      filterCarteleraEvents(publishedEvents),
+      featuredEvents.find((event) => event.content_kind === "event")?.id,
+    );
   } catch (error) {
     if (isSupabaseQueryError(error)) {
       loadError = error.userMessage;
@@ -27,13 +30,6 @@ export default async function Home() {
       throw error;
     }
   }
-
-  const carteleraItems = loadError
-    ? []
-    : await buildCarteleraEvents(
-        publishedEvents,
-        featuredEvents[0]?.id,
-      );
 
   return (
     <main>
@@ -43,7 +39,7 @@ export default async function Home() {
         </div>
       ) : (
         <>
-          <FeaturedEventsHero events={featuredEvents} />
+          <HomeHeroSection featuredEvents={featuredEvents} />
           <HomeCartelera items={carteleraItems} />
         </>
       )}

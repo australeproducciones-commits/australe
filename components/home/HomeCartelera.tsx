@@ -15,16 +15,17 @@ export function HomeCartelera({ items }: HomeCarteleraProps) {
       id="cartelera"
       className="relative mx-auto max-w-6xl scroll-mt-28 px-4 py-16 sm:px-6 sm:py-20"
     >
-      <div className="mb-10 flex flex-col justify-between gap-4 md:flex-row md:items-end">
-        <div>
-          <p className="public-label text-xs font-semibold uppercase tracking-[0.35em]">
-            Cartelera
-          </p>
-          <h2 className="public-heading mt-3 text-3xl font-black tracking-tight sm:text-4xl">
-            Próximos eventos
-          </h2>
-        </div>
-        <p className="max-w-md text-sm leading-relaxed public-text-soft md:text-right">
+      <div className="mb-10 text-center">
+        <p className="public-label text-xs font-semibold uppercase tracking-[0.35em]">
+          Cartelera
+        </p>
+        <h2
+          className="public-heading public-page-title mx-auto mt-3 text-3xl font-black tracking-tight sm:text-4xl"
+          style={{ textWrap: "balance" }}
+        >
+          Próximos eventos
+        </h2>
+        <p className="mx-auto mt-3 max-w-2xl text-sm leading-relaxed public-text-soft">
           Flyers, fechas, ubicación y entradas en un solo lugar.
         </p>
       </div>

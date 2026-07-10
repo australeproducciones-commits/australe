@@ -13,7 +13,8 @@ import type {
   SiteSettings,
 } from "@/lib/site/types";
 import { createClient } from "@/lib/supabase/server";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
+import { CACHE_TAGS } from "@/lib/supabase/cacheTags";
 
 async function requireAdminAction() {
   const supabase = await createClient();
@@ -29,6 +30,9 @@ async function requireAdminAction() {
 function revalidatePublicSite() {
   revalidatePath(ROUTES.home);
   revalidatePath(ROUTES.eventos);
+  updateTag(CACHE_TAGS.siteSettings);
+  updateTag(CACHE_TAGS.partners);
+  updateTag(CACHE_TAGS.publishedEvents);
 }
 
 export async function updateSiteSettingsAction(
@@ -168,7 +172,35 @@ export async function saveAdvertisingCampaignAction(
     return { ok: false, message: "No se pudo guardar la campaña." };
   }
 
+  revalidatePath(ROUTES.adminComunidadPublicidad);
+  revalidatePublicSite();
   return { ok: true, id: data.id };
+}
+
+export async function setAdvertisingCampaignActiveAction(
+  campaignId: string,
+  isActive: boolean,
+): Promise<AdvertisingActionResult> {
+  const auth = await requireAdminAction();
+  if ("error" in auth) {
+    return { ok: false, message: auth.error ?? "No tenés permiso para realizar esta acción." };
+  }
+
+  const { error } = await auth.supabase
+    .from("advertising_campaigns")
+    .update({
+      is_active: isActive,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", campaignId);
+
+  if (error) {
+    return { ok: false, message: "No se pudo actualizar el estado de la campaña." };
+  }
+
+  revalidatePath(ROUTES.adminComunidadPublicidad);
+  revalidatePublicSite();
+  return { ok: true };
 }
 
 export async function deleteAdvertisingCampaignAction(
@@ -188,12 +220,26 @@ export async function deleteAdvertisingCampaignAction(
     return { ok: false, message: "No se pudo eliminar la campaña." };
   }
 
+  revalidatePath(ROUTES.adminComunidadPublicidad);
+  revalidatePublicSite();
   return { ok: true };
 }
 
 export async function recordPartnerViewAction(partnerId: string): Promise<void> {
+  await recordPartnerViewsAction([partnerId]);
+}
+
+export async function recordPartnerViewsAction(partnerIds: string[]): Promise<void> {
+  if (partnerIds.length === 0) {
+    return;
+  }
+
   const supabase = await createClient();
-  await supabase.rpc("increment_partner_view_count", { p_partner_id: partnerId });
+  await Promise.allSettled(
+    partnerIds.map((partnerId) =>
+      supabase.rpc("increment_partner_view_count", { p_partner_id: partnerId }),
+    ),
+  );
 }
 
 export async function recordPartnerClickAction(partnerId: string): Promise<void> {

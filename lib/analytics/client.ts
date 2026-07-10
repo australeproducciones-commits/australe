@@ -59,6 +59,8 @@ function shouldSkipDuplicatePageView(pagePath: string): boolean {
   }
 }
 
+const ANALYTICS_TIMEOUT_MS = 3_000;
+
 export async function trackAnalyticsEvent(
   eventName: AnalyticsEventName,
   options: {
@@ -95,12 +97,16 @@ export async function trackAnalyticsEvent(
   };
 
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), ANALYTICS_TIMEOUT_MS);
+
     await fetch("/api/analytics", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
       keepalive: true,
-    });
+      signal: controller.signal,
+    }).finally(() => clearTimeout(timeoutId));
   } catch {
     // Analítica no debe bloquear la experiencia del usuario.
   }

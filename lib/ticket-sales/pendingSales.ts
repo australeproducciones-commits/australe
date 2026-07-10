@@ -1,3 +1,4 @@
+import { cache } from "react";
 import {
   isPendingReservation,
 } from "@/lib/ticket-sales/saleStatus";
@@ -6,11 +7,9 @@ import {
   TICKET_STATUS,
 } from "@/lib/ticket-sales/types";
 import { KIOSK_ORDER_PAYMENT_STATUS } from "@/lib/kiosk/types";
-import { getProfile } from "@/lib/auth/getProfile";
+import { getRequestProfile, getRequestSupabase } from "@/lib/auth/requestAuth";
 import { ROLES } from "@/lib/constants/roles";
-import { requireAdminPage } from "@/lib/events/queries";
 import { ROUTES } from "@/lib/constants/routes";
-import { createClient } from "@/lib/supabase/server";
 import { isReservationExpired } from "@/lib/ticket-sales/utils";
 
 export type PendingSaleUrgency =
@@ -73,8 +72,8 @@ const URGENCY_ORDER: Record<PendingSaleUrgency, number> = {
   recent: 2,
 };
 
-export async function getPendingSalesSummary(): Promise<PendingSalesSummary> {
-  const { supabase } = await requireAdminPage();
+async function loadPendingSalesSummary(): Promise<PendingSalesSummary> {
+  const supabase = await getRequestSupabase();
 
   const [{ data: tickets }, { data: kioskOrders }, { data: events }] =
     await Promise.all([
@@ -182,9 +181,10 @@ export async function getPendingSalesSummary(): Promise<PendingSalesSummary> {
   };
 }
 
+export const getPendingSalesSummary = cache(loadPendingSalesSummary);
+
 export async function getPendingSalesCount(): Promise<number> {
-  const supabase = await createClient();
-  const profile = await getProfile(supabase);
+  const profile = await getRequestProfile();
 
   if (!profile || profile.role !== ROLES.ADMIN || !profile.is_active) {
     return 0;

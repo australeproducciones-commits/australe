@@ -1,19 +1,16 @@
 import { AdminSidebar } from "@/components/layout/AdminSidebar";
 import { getAdminNavLinksForRole } from "@/lib/auth/adminNav";
-import { getEffectiveRole } from "@/lib/auth/routeAccess";
-import { getProfile } from "@/lib/auth/getProfile";
+import { getEffectiveRoleFromProfile, getRequestProfile } from "@/lib/auth/requestAuth";
 import { ROLES } from "@/lib/constants/roles";
 import { getPendingSalesCount } from "@/lib/ticket-sales/pendingSales";
-import { createClient } from "@/lib/supabase/server";
 
 export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
-  const profile = await getProfile(supabase);
-  const role = getEffectiveRole(profile);
+  const profile = await getRequestProfile();
+  const role = getEffectiveRoleFromProfile(profile);
 
   let pendingSalesCount = 0;
   if (role === ROLES.ADMIN) {

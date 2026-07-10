@@ -12,7 +12,12 @@ export const ROUTES = {
   eventoEntradaDirecta: (slug: string, entradaSlug: string) =>
     `/eventos/${slug}?entrada=${encodeURIComponent(entradaSlug)}`,
   eventoListaPrecios: (slug: string) => `/eventos/${slug}/lista-precios`,
+  eventoEnVivo: (slug: string) => `/eventos/${slug}/en-vivo`,
+  enVivo: "/en-vivo",
+  galerias: "/galerias",
+  galeria: (slug: string) => `/galerias/${slug}`,
   ventaEvento: (code: string) => `/venta/e/${code}`,
+  invitacion: (token: string) => `/invitacion/${token}`,
   comunidad: "/comunidad",
   login: "/login",
   miCuenta: "/mi-cuenta",
@@ -25,7 +30,16 @@ export const ROUTES = {
   adminEventoVentas: (id: string) => `/admin/eventos/${id}/ventas`,
   adminEventoKiosco: (id: string) => `/admin/eventos/${id}/kiosco`,
   adminEventoGestion: (id: string) => `/admin/eventos/${id}/gestion`,
+  adminEventoStreaming: (id: string) => `/admin/eventos/${id}/streaming`,
+  adminEventoGaleria: (id: string) => `/admin/eventos/${id}/galeria`,
   adminComunidad: "/admin/comunidad",
+  adminComunidadUsuarios: "/admin/comunidad/usuarios",
+  adminComunidadUsuario: (id: string) => `/admin/comunidad/usuarios/${id}`,
+  adminComunidadMovimientos: "/admin/comunidad/movimientos",
+  adminComunidadRecompensas: "/admin/comunidad/recompensas",
+  adminComunidadInvitaciones: "/admin/comunidad/invitaciones",
+  adminComunidadPublicidad: "/admin/comunidad/publicidad",
+  adminComunidadConfiguracion: "/admin/comunidad/configuracion",
   adminProductos: "/admin/productos",
   adminVentas: "/admin/ventas",
   adminCaja: "/admin/caja",
@@ -38,13 +52,15 @@ export const ROUTES = {
   adminUsuario: (id: string) => `/admin/usuarios/${id}`,
   adminConfiguracion: "/admin/configuracion",
   adminPartners: "/admin/partners",
-  adminPublicidad: "/admin/publicidad",
+  adminPublicidad: "/admin/comunidad/publicidad",
 } as const;
 
 /** Enlaces del header público (sin Contacto; el contacto vive en el footer). */
 export const PUBLIC_HEADER_LINKS = [
   { href: ROUTES.home, label: "Inicio" },
   { href: ROUTES.eventos, label: "Eventos" },
+  { href: ROUTES.galerias, label: "Galerías" },
+  { href: ROUTES.enVivo, label: "En vivo" },
   { href: ROUTES.comunidad, label: "Comunidad" },
 ] as const;
 

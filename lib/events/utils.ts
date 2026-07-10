@@ -9,6 +9,12 @@ import {
   type EventStatus,
   type TicketSaleMode,
 } from "@/lib/constants/event-status";
+import {
+  EVENT_CONTENT_KIND,
+  EVENT_CONTENT_KIND_VALUES,
+  type EventContentKind,
+} from "@/lib/constants/event-content-kind";
+import { isPromotionContent } from "@/lib/events/contentRules";
 import type { EventFormInput, Event } from "@/lib/events/types";
 import {
   deriveTicketSaleMode,
@@ -69,7 +75,10 @@ export function isEventFeaturedActive(
   return new Date(event.featured_until) >= new Date();
 }
 
-export function formatEventDateShort(dateStr: string): string {
+export function formatEventDateShort(dateStr: string | null): string {
+  if (!dateStr) {
+    return "Sin fecha";
+  }
   const [year, month, day] = dateStr.split("-").map(Number);
   const date = new Date(year, month - 1, day);
 
@@ -80,7 +89,10 @@ export function formatEventDateShort(dateStr: string): string {
 }
 
 /** Formato compacto para badges: "5 JUL 2026" */
-export function formatEventDateCompact(dateStr: string): string {
+export function formatEventDateCompact(dateStr: string | null): string {
+  if (!dateStr) {
+    return "SIN FECHA";
+  }
   const [year, month, day] = dateStr.split("-").map(Number);
   const date = new Date(year, month - 1, day);
 
@@ -111,7 +123,10 @@ export function isValidSlug(slug: string): boolean {
   return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug);
 }
 
-export function formatEventDate(dateStr: string): string {
+export function formatEventDate(dateStr: string | null): string {
+  if (!dateStr) {
+    return "Sin fecha";
+  }
   const [year, month, day] = dateStr.split("-").map(Number);
   const date = new Date(year, month - 1, day);
 
@@ -132,11 +147,16 @@ export function formatTime(timeStr: string | null): string | null {
 }
 
 export function formatEventDateTime(
-  eventDate: string,
+  eventDate: string | null,
   startTime: string | null,
   endTime: string | null,
+  eventEndDate: string | null = null,
 ): string {
-  const dateLabel = formatEventDate(eventDate);
+  if (!eventDate) {
+    return "Sin fecha programada";
+  }
+
+  const dateLabel = formatEventDateRange(eventDate, eventEndDate);
   const start = formatTime(startTime);
   const end = formatTime(endTime);
 
@@ -149,6 +169,40 @@ export function formatEventDateTime(
   }
 
   return dateLabel;
+}
+
+function parseYmd(dateStr: string): Date {
+  const [year, month, day] = dateStr.split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+
+export function formatEventDateRange(
+  eventDate: string,
+  eventEndDate: string | null = null,
+): string {
+  if (!eventEndDate || eventEndDate === eventDate) {
+    return formatEventDate(eventDate);
+  }
+
+  const start = parseYmd(eventDate);
+  const end = parseYmd(eventEndDate);
+  const sameMonth =
+    start.getFullYear() === end.getFullYear() &&
+    start.getMonth() === end.getMonth();
+
+  if (sameMonth) {
+    const startDay = new Intl.DateTimeFormat("es-AR", { day: "numeric" }).format(
+      start,
+    );
+    const endLabel = new Intl.DateTimeFormat("es-AR", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    }).format(end);
+    return `${startDay} al ${endLabel}`;
+  }
+
+  return `${formatEventDate(eventDate)} al ${formatEventDate(eventEndDate)}`;
 }
 
 function parseNullableNumber(value: string): number | null {
@@ -172,7 +226,13 @@ function parseHomeOrder(value: string): number {
 }
 
 export function parseEventFormData(formData: FormData): EventFormInput {
+  const contentKind = String(formData.get("content_kind") ?? EVENT_CONTENT_KIND.EVENT);
   return {
+    content_kind: (EVENT_CONTENT_KIND_VALUES.includes(
+      contentKind as EventContentKind,
+    )
+      ? contentKind
+      : EVENT_CONTENT_KIND.EVENT) as EventContentKind,
     name: String(formData.get("name") ?? "").trim(),
     slug: String(formData.get("slug") ?? "").trim().toLowerCase(),
     description: String(formData.get("description") ?? "").trim(),
@@ -181,6 +241,7 @@ export function parseEventFormData(formData: FormData): EventFormInput {
     flyer_url: String(formData.get("flyer_url") ?? "").trim(),
     banner_url: String(formData.get("banner_url") ?? "").trim(),
     event_date: String(formData.get("event_date") ?? "").trim(),
+    event_end_date: String(formData.get("event_end_date") ?? "").trim(),
     start_time: String(formData.get("start_time") ?? "").trim(),
     end_time: String(formData.get("end_time") ?? "").trim(),
     location_name: String(formData.get("location_name") ?? "").trim(),
@@ -242,8 +303,24 @@ export function validateEventForm(input: EventFormInput): string | null {
     return "El slug debe estar en minúsculas, sin espacios y usar solo letras, números y guiones.";
   }
 
-  if (!input.event_date) {
-    return "La fecha es obligatoria.";
+  if (!EVENT_CONTENT_KIND_VALUES.includes(input.content_kind)) {
+    return "El tipo de contenido seleccionado no es válido.";
+  }
+
+  if (isPromotionContent(input)) {
+    if (input.event_end_date) {
+      return "Las promociones no admiten fecha final.";
+    }
+  } else if (!input.event_date) {
+    return "La fecha es obligatoria para eventos.";
+  }
+
+  if (
+    input.event_date &&
+    input.event_end_date &&
+    input.event_end_date < input.event_date
+  ) {
+    return "La fecha final debe ser igual o posterior a la fecha inicial.";
   }
 
   const capacityError = validateOptionalNonNegativeNumber(
@@ -275,22 +352,34 @@ export function validateEventForm(input: EventFormInput): string | null {
   }
 
   if (isPublishingStatus(input.status)) {
-    if (!hasAnySaleChannel(input)) {
-      return "Seleccioná al menos un canal de venta o reserva antes de publicar el evento.";
-    }
+    if (isPromotionContent(input)) {
+      if (!input.banner_url && !input.main_image_url) {
+        return "Indicá al menos un banner para publicar la promoción.";
+      }
+      if (
+        input.external_ticket_url &&
+        !isValidExternalTicketUrl(input.external_ticket_url)
+      ) {
+        return "La URL de destino de la promoción debe ser válida y usar https://.";
+      }
+    } else {
+      if (!hasAnySaleChannel(input)) {
+        return "Seleccioná al menos un canal de venta o reserva antes de publicar el evento.";
+      }
 
-    if (
-      input.external_sale_enabled &&
-      !isValidExternalTicketUrl(input.external_ticket_url)
-    ) {
-      return "Indicá una URL externa válida (https://) para publicar con link externo.";
-    }
+      if (
+        input.external_sale_enabled &&
+        !isValidExternalTicketUrl(input.external_ticket_url)
+      ) {
+        return "Indicá una URL externa válida (https://) para publicar con link externo.";
+      }
 
-    if (
-      input.sale_whatsapp_enabled &&
-      !isValidWhatsAppNumber(input.whatsapp_sale_number)
-    ) {
-      return "Indicá un número de WhatsApp válido para publicar con venta por WhatsApp.";
+      if (
+        input.sale_whatsapp_enabled &&
+        !isValidWhatsAppNumber(input.whatsapp_sale_number)
+      ) {
+        return "Indicá un número de WhatsApp válido para publicar con venta por WhatsApp.";
+      }
     }
   }
 
@@ -298,7 +387,10 @@ export function validateEventForm(input: EventFormInput): string | null {
 }
 
 export function eventFormToPayload(input: EventFormInput) {
+  const promotion = isPromotionContent(input);
+
   return {
+    content_kind: input.content_kind,
     name: input.name,
     slug: input.slug,
     description: input.description || null,
@@ -306,7 +398,8 @@ export function eventFormToPayload(input: EventFormInput) {
     thumbnail_url: input.thumbnail_url || null,
     flyer_url: input.flyer_url || null,
     banner_url: input.banner_url || null,
-    event_date: input.event_date,
+    event_date: input.event_date || null,
+    event_end_date: promotion ? null : input.event_end_date || null,
     start_time: input.start_time || null,
     end_time: input.end_time || null,
     location_name: input.location_name || null,
@@ -314,14 +407,14 @@ export function eventFormToPayload(input: EventFormInput) {
     capacity: parseNullableNumber(input.capacity),
     status: input.status,
     audience: input.audience,
-    ticket_sale_mode: deriveTicketSaleMode(input),
+    ticket_sale_mode: promotion ? "internal" : deriveTicketSaleMode(input),
     external_ticket_url: input.external_ticket_url || null,
-    sale_web_enabled: input.sale_web_enabled,
-    external_sale_enabled: input.external_sale_enabled,
-    sale_whatsapp_enabled: input.sale_whatsapp_enabled,
-    reservation_enabled: input.reservation_enabled,
-    whatsapp_sale_number: input.whatsapp_sale_number || null,
-    whatsapp_sale_message: input.whatsapp_sale_message || null,
+    sale_web_enabled: promotion ? false : input.sale_web_enabled,
+    external_sale_enabled: promotion ? false : input.external_sale_enabled,
+    sale_whatsapp_enabled: promotion ? false : input.sale_whatsapp_enabled,
+    reservation_enabled: promotion ? false : input.reservation_enabled,
+    whatsapp_sale_number: promotion ? null : input.whatsapp_sale_number || null,
+    whatsapp_sale_message: promotion ? null : input.whatsapp_sale_message || null,
     is_featured: input.is_featured,
     featured_ticket_label: input.featured_ticket_label || null,
     featured_until: input.featured_until || null,
@@ -347,6 +440,7 @@ export function eventFormToInsertPayload(
 
 export function eventToFormInput(event: Event): EventFormInput {
   return {
+    content_kind: event.content_kind ?? EVENT_CONTENT_KIND.EVENT,
     name: event.name,
     slug: event.slug,
     description: event.description ?? "",
@@ -354,7 +448,8 @@ export function eventToFormInput(event: Event): EventFormInput {
     thumbnail_url: event.thumbnail_url ?? "",
     flyer_url: event.flyer_url ?? "",
     banner_url: event.banner_url ?? "",
-    event_date: event.event_date,
+    event_date: event.event_date ?? "",
+    event_end_date: event.event_end_date ?? "",
     start_time: formatTime(event.start_time) ?? "",
     end_time: formatTime(event.end_time) ?? "",
     location_name: event.location_name ?? "",

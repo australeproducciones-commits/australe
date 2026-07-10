@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils/cn";
 type EventOption = {
   id: string;
   name: string;
-  event_date: string;
+  event_date: string | null;
 };
 
 type AdminUsersPanelProps = {

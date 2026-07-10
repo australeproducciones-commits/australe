@@ -31,7 +31,7 @@ export type InternalUsersFilters = {
 export type StaffAccessibleEvent = {
   id: string;
   name: string;
-  event_date: string;
+  event_date: string | null;
   status: string;
 };
 
@@ -107,7 +107,9 @@ export async function getStaffAccessibleEvents(
       return event as StaffAccessibleEvent;
     })
     .filter((event): event is StaffAccessibleEvent => event != null)
-    .sort((left, right) => right.event_date.localeCompare(left.event_date));
+    .sort((left, right) =>
+      (right.event_date ?? "").localeCompare(left.event_date ?? ""),
+    );
 
   return events;
 }

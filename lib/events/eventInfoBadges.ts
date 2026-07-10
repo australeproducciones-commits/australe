@@ -15,6 +15,7 @@ import {
 } from "@/lib/events/saleChannels";
 import {
   formatEventDateCompact,
+  formatEventDateRange,
   formatTime,
   isEventFeaturedActive,
 } from "@/lib/events/utils";
@@ -52,6 +53,18 @@ type BuildHeroBadgesInput = {
   kioskPresaleEnabled?: boolean;
 };
 
+function formatEventDateBadge(event: Event): string {
+  if (!event.event_date) {
+    return "Sin fecha";
+  }
+
+  if (event.event_end_date && event.event_end_date !== event.event_date) {
+    return formatEventDateRange(event.event_date, event.event_end_date);
+  }
+
+  return formatEventDateCompact(event.event_date);
+}
+
 export function buildEventHeroBadges({
   event,
   minPrice = null,
@@ -63,7 +76,7 @@ export function buildEventHeroBadges({
 
   badges.push({
     key: "date",
-    label: formatEventDateCompact(event.event_date),
+    label: formatEventDateBadge(event),
     icon: "calendar",
   });
 
@@ -112,10 +125,18 @@ export function buildEventHeroBadges({
     });
   }
 
+  if (event.event_end_date && event.event_end_date !== event.event_date) {
+    badges.push({
+      key: "multi-day",
+      label: "Varios días",
+      tone: "multiDay",
+    });
+  }
+
   if (isEventFeaturedActive(event)) {
     badges.push({
       key: "featured",
-      label: "Evento destacado",
+      label: "Destacado",
       tone: "featured",
       icon: "star",
     });
@@ -183,7 +204,7 @@ export function buildEventCardBadges({
 
   badges.push({
     key: "date",
-    label: formatEventDateCompact(event.event_date),
+    label: formatEventDateBadge(event),
     icon: "calendar",
   });
 
@@ -209,6 +230,18 @@ export function buildEventCardBadges({
       key: "featured",
       label: "Destacado",
       tone: "featured",
+    });
+  }
+
+  if (
+    event.event_end_date &&
+    event.event_date &&
+    event.event_end_date !== event.event_date
+  ) {
+    badges.push({
+      key: "multi-day",
+      label: "Varios días",
+      tone: "multiDay",
     });
   }
 

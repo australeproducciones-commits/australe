@@ -8,7 +8,7 @@ import { requireAdminPage } from "@/lib/events/queries";
 import { throwSupabaseQueryError } from "@/lib/supabase/queryError";
 import type { Event } from "@/lib/events/types";
 import { getEventByIdForAdmin } from "@/lib/events/queries";
-import { getPendingSalesSummary } from "@/lib/ticket-sales/pendingSales";
+import { getPendingSalesSummary, type PendingSalesSummary } from "@/lib/ticket-sales/pendingSales";
 
 export type EventManagementData = {
   event: Event;
@@ -133,6 +133,7 @@ export async function getEventManagementData(
 
 export async function getFinancialSummariesByEventIds(
   eventIds: string[],
+  pendingSummary?: PendingSalesSummary,
 ): Promise<Map<string, EventFinancialSummary>> {
   const result = new Map<string, EventFinancialSummary>();
   if (eventIds.length === 0) {
@@ -140,7 +141,7 @@ export async function getFinancialSummariesByEventIds(
   }
 
   const { supabase } = await requireAdminPage();
-  const pendingSummary = await getPendingSalesSummary();
+  const pending = pendingSummary ?? (await getPendingSalesSummary());
 
   const [
     { data: tickets },
@@ -181,7 +182,7 @@ export async function getFinancialSummariesByEventIds(
         kioskOrders: eventKiosk,
         expenses: eventExpenses,
         otherIncome: eventIncome,
-        pendingSalesCount: pendingSummary.byEvent.get(eventId) ?? 0,
+        pendingSalesCount: pending.byEvent.get(eventId) ?? 0,
       }),
     );
   }

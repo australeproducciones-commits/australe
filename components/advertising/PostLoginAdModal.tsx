@@ -10,6 +10,7 @@ import {
 } from "@/lib/site/actions";
 import { POST_LOGIN_AD_SESSION_KEY } from "@/lib/auth/loginRedirect";
 import { PublicButton } from "@/components/ui/public/PublicButton";
+import { cn } from "@/lib/utils/cn";
 
 const SESSION_SEEN_PREFIX = "australe:ad-seen:";
 
@@ -93,8 +94,12 @@ export function PostLoginAdModal() {
     return null;
   }
 
+  const hasBody = Boolean(campaign.body?.trim());
+  const hasTitle = Boolean(campaign.title?.trim());
+  const hasCta = Boolean(campaign.destination_url && campaign.button_label);
+
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-4">
       <button
         type="button"
         aria-label="Cerrar publicidad"
@@ -104,43 +109,78 @@ export function PostLoginAdModal() {
       <div
         role="dialog"
         aria-modal="true"
-        aria-labelledby="post-login-ad-title"
-        className="relative z-10 w-full max-w-md overflow-hidden rounded-3xl border shadow-2xl public-card"
+        aria-labelledby={hasTitle ? "post-login-ad-title" : undefined}
+        className={cn(
+          "relative z-10 flex w-[min(92vw,32.5rem)] min-w-0 max-w-[32.5rem] flex-col overflow-y-auto overscroll-contain",
+          "max-h-[min(90dvh,44rem)] rounded-[1.375rem] border shadow-2xl public-card",
+        )}
         style={{ borderColor: "var(--public-border)" }}
       >
         {campaign.image_url ? (
-          <div className="relative aspect-[16/9] w-full">
+          <div
+            className="relative w-full shrink-0 overflow-hidden bg-neutral-100/95"
+            style={{
+              height: "clamp(14rem, calc(min(90dvh, 44rem) - 9.5rem), 25.625rem)",
+            }}
+          >
             <RemoteImage
               src={campaign.image_url}
               alt={campaign.title ?? "Publicidad"}
               fill
-              objectFit="cover"
+              objectFit="contain"
             />
+            <button
+              type="button"
+              onClick={handleClose}
+              aria-label="Cerrar publicidad"
+              className="absolute right-2 top-2 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-black/45 text-lg leading-none text-white backdrop-blur-sm transition hover:bg-black/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+            >
+              <span aria-hidden="true">×</span>
+            </button>
           </div>
         ) : null}
 
-        <div className="p-5 sm:p-6">
-          {campaign.title ? (
-            <h2 id="post-login-ad-title" className="public-heading text-xl font-bold">
+        <div className="flex shrink-0 flex-col px-4 pb-4 pt-3.5 sm:px-5 sm:pb-5 sm:pt-4">
+          {hasTitle ? (
+            <h2
+              id="post-login-ad-title"
+              className="public-heading line-clamp-2 text-[clamp(1.25rem,4.2vw,1.5rem)] font-bold leading-tight"
+              style={{ fontWeight: 650 }}
+            >
               {campaign.title}
             </h2>
           ) : null}
-          {campaign.body ? (
-            <p className="mt-3 text-sm leading-6 public-text-muted">{campaign.body}</p>
+          {hasBody ? (
+            <p className="mt-1 line-clamp-2 text-[0.9375rem] leading-snug public-text-muted">
+              {campaign.body}
+            </p>
           ) : null}
 
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-            {campaign.destination_url && campaign.button_label ? (
+          <div
+            className={cn(
+              "flex flex-row flex-wrap gap-2 max-[360px]:flex-col",
+              hasTitle || hasBody ? "mt-3" : "mt-0",
+            )}
+          >
+            {hasCta ? (
               <PublicButton
-                href={campaign.destination_url}
+                href={campaign.destination_url!}
                 target={campaign.open_in_new_tab ? "_blank" : undefined}
                 rel={campaign.open_in_new_tab ? "noopener noreferrer" : undefined}
                 onClick={handleClick}
+                size="sm"
+                className="h-11 min-h-[2.5rem] flex-1 px-4 text-sm sm:flex-[1.4]"
               >
                 {campaign.button_label}
               </PublicButton>
             ) : null}
-            <PublicButton type="button" variant="outline" onClick={handleClose}>
+            <PublicButton
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleClose}
+              className="h-11 min-h-[2.5rem] px-4 text-sm sm:flex-1"
+            >
               Cerrar
             </PublicButton>
           </div>

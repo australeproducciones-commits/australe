@@ -4,6 +4,7 @@ import { EventCard } from "@/components/events/EventCard";
 import { PublicQueryError } from "@/components/ui/PublicQueryError";
 import { ROUTES } from "@/lib/constants/routes";
 import { buildCarteleraEvents } from "@/lib/events/cartelera";
+import { filterCarteleraEvents } from "@/lib/events/filters";
 import { getPublishedEvents } from "@/lib/events/queries";
 import type { Event } from "@/lib/events/types";
 import { isSupabaseQueryError } from "@/lib/supabase/queryError";
@@ -18,6 +19,7 @@ export default async function EventosPage() {
 
   try {
     events = await getPublishedEvents();
+    events = filterCarteleraEvents(events);
   } catch (error) {
     if (isSupabaseQueryError(error)) {
       loadError = error.userMessage;
@@ -30,16 +32,17 @@ export default async function EventosPage() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-16">
-      <div className="mb-10 flex flex-col justify-between gap-4 md:flex-row md:items-end">
-        <div>
-          <p className="public-label text-xs font-semibold uppercase tracking-[0.35em]">
-            Cartelera
-          </p>
-          <h1 className="public-heading mt-3 text-3xl font-black tracking-tight sm:text-4xl">
-            Próximos eventos
-          </h1>
-        </div>
-        <p className="max-w-xl text-sm public-text-soft">
+      <div className="mb-10 text-center">
+        <p className="public-label text-xs font-semibold uppercase tracking-[0.35em]">
+          Cartelera
+        </p>
+        <h1
+          className="public-heading public-page-title mx-auto mt-3 text-3xl font-black tracking-tight sm:text-4xl"
+          style={{ textWrap: "balance" }}
+        >
+          Próximos eventos
+        </h1>
+        <p className="mx-auto mt-3 max-w-2xl text-sm public-text-soft">
           Eventos publicados de Australe Producciones.
         </p>
       </div>

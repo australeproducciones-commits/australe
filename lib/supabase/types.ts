@@ -57,7 +57,9 @@ export type EventRow = {
   social_presale_price: number | null;
   social_regular_price: number | null;
   box_office_preview: string | null;
-  event_date: string;
+  content_kind: string;
+  event_date: string | null;
+  event_end_date: string | null;
   start_time: string | null;
   end_time: string | null;
   location_name: string | null;
@@ -87,6 +89,30 @@ export type EventRow = {
   qr_products_enabled: boolean;
   qr_show_price_list: boolean;
   qr_sell_products: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type EventStreamRow = {
+  id: string;
+  event_id: string;
+  title: string | null;
+  subtitle: string | null;
+  is_enabled: boolean;
+  status: string;
+  provider: string;
+  stream_url: string | null;
+  starts_at: string | null;
+  ends_at: string | null;
+  access_type: string;
+  stream_banner_url: string | null;
+  stream_banner_mobile_url: string | null;
+  home_featured: boolean;
+  home_order: number;
+  show_on_streaming_page: boolean;
+  show_on_event_page: boolean;
+  button_label: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -202,6 +228,27 @@ export type CommunityRedemptionRow = {
   cancelled_at: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type CommunityEventInvitationRow = {
+  id: string;
+  user_id: string;
+  event_id: string;
+  invitation_type: string;
+  channel: string;
+  status: string;
+  message: string | null;
+  public_token: string | null;
+  created_by: string | null;
+  created_at: string;
+  sent_at: string | null;
+  opened_at: string | null;
+  accepted_at: string | null;
+  used_at: string | null;
+  cancelled_at: string | null;
+  expires_at: string;
+  accepted_by: string | null;
+  metadata: Json;
 };
 
 export type TicketRow = {
@@ -463,6 +510,20 @@ export type AdvertisingImpressionRow = {
   dismissed_at: string | null;
 };
 
+export type EventGalleryItemRow = {
+  id: string;
+  event_id: string;
+  media_type: "image" | "youtube" | "vimeo";
+  media_url: string;
+  thumbnail_url: string | null;
+  caption: string | null;
+  sort_order: number;
+  is_published: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type Database = {
   public: {
     Tables: {
@@ -481,6 +542,42 @@ export type Database = {
         };
         Update: Partial<EventRow>;
         Relationships: [];
+      };
+      event_gallery_items: {
+        Row: EventGalleryItemRow;
+        Insert: Omit<EventGalleryItemRow, "id" | "created_at" | "updated_at"> & {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<EventGalleryItemRow>;
+        Relationships: [
+          {
+            foreignKeyName: "event_gallery_items_event_id_fkey";
+            columns: ["event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      event_streams: {
+        Row: EventStreamRow;
+        Insert: Omit<EventStreamRow, "id" | "created_at" | "updated_at"> & {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<EventStreamRow>;
+        Relationships: [
+          {
+            foreignKeyName: "event_streams_event_id_fkey";
+            columns: ["event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       ticket_types: {
         Row: TicketTypeRow;
@@ -557,6 +654,20 @@ export type Database = {
           updated_at?: string;
         };
         Update: Partial<CommunityRedemptionRow>;
+        Relationships: [];
+      };
+      community_event_invitations: {
+        Row: CommunityEventInvitationRow;
+        Insert: Partial<
+          Omit<CommunityEventInvitationRow, "id" | "created_at">
+        > & {
+          user_id: string;
+          event_id: string;
+          invitation_type: string;
+          channel: string;
+          status: string;
+        };
+        Update: Partial<CommunityEventInvitationRow>;
         Relationships: [];
       };
       analytics_events: {
@@ -1008,6 +1119,22 @@ export type Database = {
       reverse_loyalty_points_for_ticket: {
         Args: { p_ticket_id: string };
         Returns: string | null;
+      };
+      record_community_invitation_open: {
+        Args: { p_token: string };
+        Returns: CommunityEventInvitationRow;
+      };
+      accept_community_event_invitation: {
+        Args: { p_token: string };
+        Returns: Json;
+      };
+      preview_community_event_invitation: {
+        Args: { p_token: string };
+        Returns: Json;
+      };
+      record_community_invitation_open_authenticated: {
+        Args: { p_token: string };
+        Returns: undefined;
       };
     };
     Enums: Record<string, never>;

@@ -23,7 +23,7 @@ import { adminInputClassName } from "@/lib/utils/adminFormStyles";
 type AdminEventVentasPanelProps = {
   tickets: TicketWithTypeName[];
   eventName: string;
-  eventDate: string;
+  eventDate: string | null;
   startTime: string | null;
   dashboard: EventVentasDashboard;
   initialFilter?: VentasStatusFilter;

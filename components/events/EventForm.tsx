@@ -10,6 +10,11 @@ import { EventImageAdminPreview } from "@/components/events/EventImageAdminPrevi
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import {
+  EVENT_CONTENT_KIND,
+  EVENT_CONTENT_KIND_LABELS,
+  EVENT_CONTENT_KIND_VALUES,
+} from "@/lib/constants/event-content-kind";
+import {
   EVENT_AUDIENCE_LABELS,
   EVENT_AUDIENCE_VALUES,
 } from "@/lib/constants/event-audience";
@@ -37,6 +42,7 @@ type EventFormProps = {
 };
 
 const defaultValues: EventFormInput = {
+  content_kind: EVENT_CONTENT_KIND.EVENT,
   name: "",
   slug: "",
   description: "",
@@ -45,6 +51,7 @@ const defaultValues: EventFormInput = {
   flyer_url: "",
   banner_url: "",
   event_date: "",
+  event_end_date: "",
   start_time: "",
   end_time: "",
   location_name: "",
@@ -97,7 +104,10 @@ export function EventForm({
     initialDuration.minutes,
   );
 
+  const isPromotion = values.content_kind === EVENT_CONTENT_KIND.PROMOTION;
+
   const needsTicketTypesWarning =
+    !isPromotion &&
     (values.sale_web_enabled || values.reservation_enabled) &&
     (values.status === EVENT_STATUS.PUBLISHED ||
       values.status === EVENT_STATUS.SOLD_OUT) &&
@@ -127,6 +137,9 @@ export function EventForm({
   return (
     <Card padding="lg">
       <form action={formAction} className="space-y-8">
+        <input type="hidden" name="main_image_url" value={values.main_image_url} />
+        <input type="hidden" name="flyer_url" value={values.flyer_url} />
+        <input type="hidden" name="thumbnail_url" value={values.thumbnail_url} />
         <FormSection
           title="Información principal"
           description="Datos básicos del evento y visibilidad."
@@ -168,6 +181,31 @@ export function EventForm({
               className={cn(inputClassName, "resize-y")}
               disabled={pending}
             />
+          </Field>
+
+          <Field label="Tipo de contenido *">
+            <select
+              name="content_kind"
+              value={values.content_kind}
+              onChange={(e) =>
+                updateField(
+                  "content_kind",
+                  e.target.value as EventFormInput["content_kind"],
+                )
+              }
+              className={inputClassName}
+              disabled={pending}
+            >
+              {EVENT_CONTENT_KIND_VALUES.map((kind) => (
+                <option key={kind} value={kind} className="bg-zinc-900">
+                  {EVENT_CONTENT_KIND_LABELS[kind]}
+                </option>
+              ))}
+            </select>
+            <p className="mt-2 text-xs text-zinc-500">
+              Evento: cartelera, entradas y galería. Promoción: solo hero destacado
+              sin fecha obligatoria.
+            </p>
           </Field>
 
           <div className="grid gap-5 md:grid-cols-2">
@@ -217,20 +255,39 @@ export function EventForm({
         </FormSection>
 
         <FormSection
-          title="Fecha y horario"
+          title={isPromotion ? "Fecha y vigencia (opcional)" : "Fecha y horario"}
           description="Horarios en zona horaria de Mendoza (UTC-3)."
         >
-          <Field label="Fecha *">
-            <input
-              name="event_date"
-              type="date"
-              value={values.event_date}
-              onChange={(e) => updateField("event_date", e.target.value)}
-              className={inputClassName}
-              required
-              disabled={pending}
-            />
-          </Field>
+          <div className="grid gap-5 md:grid-cols-2">
+            <Field label={isPromotion ? "Fecha (opcional)" : "Fecha inicial *"}>
+              <input
+                name="event_date"
+                type="date"
+                value={values.event_date}
+                onChange={(e) => updateField("event_date", e.target.value)}
+                className={inputClassName}
+                required={!isPromotion}
+                disabled={pending}
+              />
+            </Field>
+
+            {!isPromotion ? (
+              <Field label="Fecha final (opcional)">
+                <input
+                  name="event_end_date"
+                  type="date"
+                  value={values.event_end_date}
+                  onChange={(e) => updateField("event_end_date", e.target.value)}
+                  className={inputClassName}
+                  min={values.event_date || undefined}
+                  disabled={pending}
+                />
+                <p className="mt-2 text-xs text-zinc-500">
+                  Dejá vacío para eventos de un solo día.
+                </p>
+              </Field>
+            ) : null}
+          </div>
 
           <EventFormScheduleFields
             values={values}
@@ -269,6 +326,7 @@ export function EventForm({
           </div>
         </FormSection>
 
+        {!isPromotion ? (
         <FormSection
           title="Venta"
           description="Activá uno o más canales. Los precios se configuran en tipos de entrada."
@@ -382,9 +440,10 @@ export function EventForm({
             </p>
           ) : null}
         </FormSection>
+        ) : null}
 
         <FormSection
-          title="Imagen del evento"
+          title={isPromotion ? "Banners de la promoción" : "Imagen del evento"}
           description="El banner principal se reutiliza en todo el sitio público."
         >
           <EventImageAdminPreview
@@ -397,8 +456,13 @@ export function EventForm({
 
         <FormSection
           title="Configuración adicional"
-          description="Capacidad, destacado en home y QR de ventas."
+          description={
+            isPromotion
+              ? "Destacado en home, botón y vigencia."
+              : "Capacidad, destacado en home y QR de ventas."
+          }
         >
+          {!isPromotion ? (
           <Field label="Capacidad">
             <input
               name="capacity"
@@ -410,6 +474,7 @@ export function EventForm({
               disabled={pending}
             />
           </Field>
+          ) : null}
 
           <div className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.02] p-4">
             <label className="flex items-center gap-3">
@@ -427,7 +492,7 @@ export function EventForm({
             </label>
 
             <div className="grid gap-5 md:grid-cols-3">
-              <Field label="Ticket destacado">
+              <Field label={isPromotion ? "Texto del botón" : "Ticket destacado"}>
                 <input
                   name="featured_ticket_label"
                   value={values.featured_ticket_label}
@@ -435,7 +500,7 @@ export function EventForm({
                     updateField("featured_ticket_label", e.target.value)
                   }
                   className={inputClassName}
-                  placeholder="Ej. Preventa abierta"
+                  placeholder={isPromotion ? "Ver más" : "Ej. Preventa abierta"}
                   disabled={pending}
                 />
               </Field>
@@ -463,8 +528,25 @@ export function EventForm({
                 />
               </Field>
             </div>
+
+            {isPromotion ? (
+              <Field label="URL de destino">
+                <input
+                  name="external_ticket_url"
+                  type="url"
+                  value={values.external_ticket_url}
+                  onChange={(e) =>
+                    updateField("external_ticket_url", e.target.value)
+                  }
+                  className={inputClassName}
+                  placeholder="https://..."
+                  disabled={pending}
+                />
+              </Field>
+            ) : null}
           </div>
 
+          {!isPromotion ? (
           <div className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.02] p-4">
             <div>
               <h3 className="text-sm font-semibold text-white">
@@ -528,6 +610,7 @@ export function EventForm({
               </div>
             </div>
           </div>
+          ) : null}
         </FormSection>
 
         {state.error ? (

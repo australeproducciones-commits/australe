@@ -39,10 +39,10 @@ export default async function AdminEventosPage() {
   }
 
   const eventIds = events.map((event) => event.id);
-  const [statsMap, financialMap, pendingSales] = await Promise.all([
+  const pendingSales = await getPendingSalesSummary();
+  const [statsMap, financialMap] = await Promise.all([
     getAdminStatsByEventIds(eventIds),
-    getFinancialSummariesByEventIds(eventIds),
-    getPendingSalesSummary(),
+    getFinancialSummariesByEventIds(eventIds, pendingSales),
   ]);
 
   return (

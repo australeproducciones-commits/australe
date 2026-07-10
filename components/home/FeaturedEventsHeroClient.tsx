@@ -118,39 +118,9 @@ export function FeaturedEventsHeroClient({
             priority={index === 0}
             bannerLink={bannerLink}
             bannerControls={bannerControls}
+            bannerOnly
           />
         </div>
-
-        {showCarouselControls ? (
-          <div className="mt-6 flex items-center justify-center">
-            <div className="flex items-center gap-2" role="tablist">
-              {events.map((item, dotIndex) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={dotIndex === index}
-                  aria-label={`Ir a ${item.name}`}
-                  onClick={(clickEvent) => {
-                    clickEvent.stopPropagation();
-                    goTo(dotIndex);
-                  }}
-                  className={cn(
-                    "h-2.5 rounded-full transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--public-primary)]",
-                    dotIndex === index
-                      ? "w-8 bg-[var(--public-primary)]"
-                      : "w-2.5 hover:bg-[var(--public-secondary)]",
-                  )}
-                  style={
-                    dotIndex === index
-                      ? undefined
-                      : { backgroundColor: "var(--public-border)" }
-                  }
-                />
-              ))}
-            </div>
-          </div>
-        ) : null}
       </div>
     </section>
   );

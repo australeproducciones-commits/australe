@@ -30,6 +30,7 @@ type EventHeroProps = {
   titleAs?: "h1" | "h2";
   bannerLink?: string | null;
   bannerControls?: ReactNode;
+  bannerOnly?: boolean;
 };
 
 type HeroAction = {
@@ -52,6 +53,7 @@ export function EventHero({
   titleAs: TitleTag = "h1",
   bannerLink = null,
   bannerControls,
+  bannerOnly = false,
 }: EventHeroProps) {
   const badges = buildEventHeroBadges({
     event,
@@ -72,7 +74,7 @@ export function EventHero({
       alt={`Banner del evento ${event.name}`}
       variant="banner"
       priority={priority}
-      roundedClass="rounded-none rounded-t-3xl"
+      roundedClass={bannerOnly ? "rounded-3xl" : "rounded-none rounded-t-3xl"}
       className="w-full border-x-0 border-t-0"
       sizes="(max-width: 768px) 100vw, (max-width: 1280px) 92vw, 1152px"
     />
@@ -98,6 +100,7 @@ export function EventHero({
         {bannerControls}
       </div>
 
+      {bannerOnly ? null : (
       <div className="px-5 py-6 text-center sm:px-8 sm:py-8">
         <EventInfoBadges badges={badges} className="mb-5 justify-center" />
 
@@ -181,6 +184,7 @@ export function EventHero({
           ) : null}
         </div>
       </div>
+      )}
     </section>
   );
 }

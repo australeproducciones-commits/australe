@@ -62,6 +62,7 @@ export function HomeCartelera({ items }: HomeCarteleraProps) {
                 minPrice={item.minPrice}
                 minCommunityPrice={item.minCommunityPrice}
                 featured={item.featured}
+                storeMerch={item.storeMerch}
               />
             ))}
           </div>

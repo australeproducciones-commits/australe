@@ -22,8 +22,10 @@ import { CommunityEventGate } from "@/components/events/CommunityEventGate";
 import { createClient } from "@/lib/supabase/server";
 import { getPublicEventKiosk } from "@/lib/kiosk/queries";
 import { getWhatsAppSaleUrl } from "@/lib/events/saleChannels";
+import { EventStoreMerchSection } from "@/components/store/EventStoreMerchSection";
 import { EventStreamingSection } from "@/components/streaming/EventStreamingSection";
 import { getPublicStreamForEventPage } from "@/lib/streaming/queries";
+import { getEventStoreMerchSummary } from "@/lib/store/queries";
 import { getActiveTicketTypesForPublishedEvent } from "@/lib/tickets/queries";
 
 type EventoPageProps = {
@@ -58,11 +60,13 @@ export default async function EventoPage({ params }: EventoPageProps) {
     return <CommunityEventGate />;
   }
 
-  const [activeTicketTypes, publicKiosk, isCommunityMember, eventStream] = await Promise.all([
+  const [activeTicketTypes, publicKiosk, isCommunityMember, eventStream, storeMerch] =
+    await Promise.all([
     getActiveTicketTypesForPublishedEvent(event.id, event.status),
     getPublicEventKiosk(event.id),
     isActiveCommunityMember(profile?.id),
     getPublicStreamForEventPage(event.id),
+    getEventStoreMerchSummary(event.id),
   ]);
   const isLoggedIn = profile !== null;
   const hasTicketTypes = activeTicketTypes.length > 0;
@@ -133,6 +137,14 @@ export default async function EventoPage({ params }: EventoPageProps) {
             Las consumisiones están agotadas por el momento.
           </p>
         </PublicCard>
+      ) : null}
+
+      {storeMerch.hasMerch && storeMerch.showBlock ? (
+        <EventStoreMerchSection
+          eventSlug={event.slug}
+          eventName={event.name}
+          products={storeMerch.featuredProducts}
+        />
       ) : null}
     </PageContainer>
   );

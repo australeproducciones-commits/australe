@@ -1,4 +1,6 @@
 import type { EventInfoBadgeTone } from "@/components/events/EventInfoBadge";
+import type { EventStoreMerchContext } from "@/lib/events/storeMerchandising";
+import { getEventStoreMerchBadge } from "@/lib/events/storeMerchandising";
 import {
   getEventMerchandisingBadges,
   type EventMerchandisingBadge,
@@ -50,6 +52,7 @@ type BuildHeroBadgesInput = {
   minPrice?: number | null;
   minCommunityPrice?: number | null;
   merchandising?: EventMerchandisingContext;
+  storeMerch?: EventStoreMerchContext | null;
   kioskPresaleEnabled?: boolean;
 };
 
@@ -70,6 +73,7 @@ export function buildEventHeroBadges({
   minPrice = null,
   minCommunityPrice = null,
   merchandising,
+  storeMerch,
   kioskPresaleEnabled = false,
 }: BuildHeroBadgesInput): EventInfoBadgeItem[] {
   const badges: EventInfoBadgeItem[] = [];
@@ -153,6 +157,15 @@ export function buildEventHeroBadges({
     });
   }
 
+  const storeMerchBadge = getEventStoreMerchBadge(storeMerch);
+  if (storeMerchBadge) {
+    badges.push({
+      key: "store-merch",
+      label: storeMerchBadge.label,
+      tone: "warning",
+    });
+  }
+
   if (channels.externalSaleEnabled && externalUrl) {
     badges.push({
       key: "external-sale",
@@ -193,12 +206,14 @@ type BuildCardBadgesInput = {
   event: Event;
   minPrice?: number | null;
   featured?: boolean;
+  storeMerch?: EventStoreMerchContext | null;
 };
 
 export function buildEventCardBadges({
   event,
   minPrice = null,
   featured = false,
+  storeMerch,
 }: BuildCardBadgesInput): EventInfoBadgeItem[] {
   const badges: EventInfoBadgeItem[] = [];
 
@@ -260,6 +275,15 @@ export function buildEventCardBadges({
       key: "reservation",
       label: "Reserva",
       tone: "default",
+    });
+  }
+
+  const storeMerchBadge = getEventStoreMerchBadge(storeMerch);
+  if (storeMerchBadge) {
+    badges.push({
+      key: "store-merch",
+      label: storeMerchBadge.label,
+      tone: "warning",
     });
   }
 

@@ -3,6 +3,7 @@ import { PublicFooter } from "@/components/layout/PublicFooter";
 import { PublicHeader } from "@/components/layout/PublicHeader";
 import { PartnersSection } from "@/components/layout/PartnersSection";
 import { PublicAnalyticsTracker } from "@/components/analytics/PublicAnalyticsTracker";
+import { StoreShell } from "@/components/store/StoreShell";
 import {
   EMPTY_SITE_SETTINGS,
   getActivePartners,
@@ -23,7 +24,9 @@ export async function PublicThemeShell({ children }: PublicThemeShellProps) {
     <div className="public-theme flex min-h-screen flex-col">
       <PublicAnalyticsTracker />
       <PublicHeader />
-      <div className="flex-1">{children}</div>
+      <StoreShell>
+        <div className="flex-1">{children}</div>
+      </StoreShell>
       <PartnersSection partners={partners} />
       <PublicFooter settings={settings} />
       <PostLoginAdModal />

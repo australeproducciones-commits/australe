@@ -7,6 +7,7 @@ import { buildEventCardBadges } from "@/lib/events/eventInfoBadges";
 import type { Event } from "@/lib/events/types";
 import { formatTicketPrice } from "@/lib/tickets/utils";
 import { cn } from "@/lib/utils/cn";
+import type { EventStoreMerchContext } from "@/lib/events/storeMerchandising";
 import { EVENT_STATUS } from "@/lib/constants/event-status";
 
 type EventCardProps = {
@@ -14,6 +15,7 @@ type EventCardProps = {
   minPrice?: number | null;
   minCommunityPrice?: number | null;
   featured?: boolean;
+  storeMerch?: EventStoreMerchContext | null;
 };
 
 function getSaleStatusBadge(status: Event["status"]) {
@@ -32,8 +34,9 @@ export function EventCard({
   minPrice = null,
   minCommunityPrice = null,
   featured = false,
+  storeMerch = null,
 }: EventCardProps) {
-  const badges = buildEventCardBadges({ event, minPrice, featured });
+  const badges = buildEventCardBadges({ event, minPrice, featured, storeMerch });
   const saleStatus = getSaleStatusBadge(event.status);
 
   return (

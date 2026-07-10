@@ -1,3 +1,4 @@
+import type { EventStoreMerchContext } from "@/lib/events/storeMerchandising";
 import type { Event } from "@/lib/events/types";
 import {
   getActiveTicketTypesForPublishedEvents,
@@ -5,11 +6,14 @@ import {
 import { getMinPublicPrice } from "@/lib/tickets/utils";
 import { getMinCommunityPrice } from "@/lib/events/eventMerchandising";
 
+import { getStoreMerchFlagsForEvents } from "@/lib/store/queries";
+
 export type CarteleraEvent = {
   event: Event;
   minPrice: number | null;
   minCommunityPrice: number | null;
   featured: boolean;
+  storeMerch: EventStoreMerchContext | null;
 };
 
 export async function buildCarteleraEvents(
@@ -38,14 +42,29 @@ export async function buildCarteleraEvents(
     sorted.map((event) => event.id),
   );
 
+  const storeMerchFlags = await getStoreMerchFlagsForEvents(
+    sorted.map((event) => event.id),
+  );
+
   return sorted.map((event) => {
     const ticketTypes = ticketTypesByEvent.get(event.id) ?? [];
+    const merchFlag = storeMerchFlags.get(event.id);
 
     return {
       event,
       minPrice: getMinPublicPrice(ticketTypes),
       minCommunityPrice: getMinCommunityPrice(ticketTypes),
       featured: event.id === featuredId,
+      storeMerch: merchFlag?.hasMerch
+        ? {
+            eventId: event.id,
+            eventSlug: event.slug,
+            eventStatus: event.status,
+            hasMerch: true,
+            badgeText: merchFlag.badgeText,
+            showBlock: true,
+          }
+        : null,
     };
   });
 }

@@ -7,6 +7,7 @@ import { EventInfoBadges } from "@/components/events/EventInfoBadges";
 import { ROUTES } from "@/lib/constants/routes";
 import { isPromotionContent } from "@/lib/events/contentRules";
 import { buildEventHeroBadges } from "@/lib/events/eventInfoBadges";
+import type { EventStoreMerchContext } from "@/lib/events/storeMerchandising";
 import { type EventMerchandisingContext } from "@/lib/events/eventMerchandising";
 import type { Event } from "@/lib/events/types";
 import {
@@ -27,6 +28,7 @@ type EventHeroProps = {
   priority?: boolean;
   className?: string;
   merchandising?: EventMerchandisingContext;
+  storeMerch?: EventStoreMerchContext | null;
   titleAs?: "h1" | "h2";
   bannerLink?: string | null;
   bannerControls?: ReactNode;
@@ -50,6 +52,7 @@ export function EventHero({
   priority = false,
   className,
   merchandising,
+  storeMerch = null,
   titleAs: TitleTag = "h1",
   bannerLink = null,
   bannerControls,
@@ -59,8 +62,9 @@ export function EventHero({
     event,
     minPrice,
     minCommunityPrice,
-    merchandising,
-    kioskPresaleEnabled,
+  merchandising,
+  storeMerch,
+  kioskPresaleEnabled,
   });
 
   const isPromotion = isPromotionContent(event);

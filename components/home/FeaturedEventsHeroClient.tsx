@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState, type MouseEvent } from "react";
 import { EventHero } from "@/components/events/EventHero";
 import { ROUTES } from "@/lib/constants/routes";
+import type { EventStoreMerchContext } from "@/lib/events/storeMerchandising";
 import type { Event } from "@/lib/events/types";
 import { cn } from "@/lib/utils/cn";
 
@@ -11,6 +12,7 @@ const AUTO_INTERVAL_MS = 6000;
 
 type FeaturedEventsHeroClientProps = {
   events: Event[];
+  storeMerchByEventId?: Record<string, EventStoreMerchContext>;
 };
 
 function resolveEventBannerLink(event: Event): string | null {
@@ -57,6 +59,7 @@ function CarouselNavButton({ direction, label, onClick }: CarouselNavButtonProps
 
 export function FeaturedEventsHeroClient({
   events,
+  storeMerchByEventId = {},
 }: FeaturedEventsHeroClientProps) {
   const [index, setIndex] = useState(0);
   const count = events.length;
@@ -118,6 +121,7 @@ export function FeaturedEventsHeroClient({
             priority={index === 0}
             bannerLink={bannerLink}
             bannerControls={bannerControls}
+            storeMerch={storeMerchByEventId[event.id] ?? null}
             bannerOnly
           />
         </div>

@@ -73,6 +73,7 @@ export default async function EventosPage() {
               minPrice={item.minPrice}
               minCommunityPrice={item.minCommunityPrice}
               featured={item.featured}
+              storeMerch={item.storeMerch}
             />
           ))}
         </div>

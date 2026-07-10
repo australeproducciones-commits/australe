@@ -1,0 +1,127 @@
+name: Supabase Production Migrations
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "supabase/migrations/**"
+      - "scripts/validate-store-remote.mjs"
+      - "scripts/validate-store-storage.mjs"
+      - "scripts/verify-clics-products.mjs"
+      - "scripts/lib/ci-env.mjs"
+      - ".github/workflows/supabase-production-migrations.yml"
+  pull_request:
+    paths:
+      - "supabase/migrations/**"
+      - "scripts/validate-store-remote.mjs"
+      - "scripts/validate-store-storage.mjs"
+      - "scripts/verify-clics-products.mjs"
+      - "scripts/lib/ci-env.mjs"
+      - ".github/workflows/supabase-production-migrations.yml"
+
+concurrency:
+  group: supabase-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validar proyecto
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+
+      - name: Validar módulo tienda (estructura)
+        run: node scripts/validate-store-module.mjs
+
+      - name: Auditar migraciones SQL (sin secretos)
+        run: |
+          echo "Migraciones locales:"
+          ls -1 supabase/migrations/*.sql
+
+  migrate-production:
+    name: Aplicar migraciones en producción
+    needs: validate
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment: production
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+      NEXT_PUBLIC_SUPABASE_URL: https://${{ secrets.SUPABASE_PROJECT_ID }}.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Verificar proyecto Australe
+        run: |
+          test -n "$SUPABASE_PROJECT_ID"
+          test "$SUPABASE_PROJECT_ID" = "vfmzabiyqmsnlpesfman"
+          test -n "$SUPABASE_ACCESS_TOKEN"
+          test -n "$SUPABASE_DB_PASSWORD"
+
+      - name: Vincular proyecto Supabase
+        run: supabase link --project-ref "$SUPABASE_PROJECT_ID" --password "$SUPABASE_DB_PASSWORD" --yes
+
+      - name: Listar migraciones
+        run: supabase migration list --linked
+
+      - name: Dry-run db push
+        run: supabase db push --linked --dry-run
+
+      - name: Aplicar migraciones pendientes
+        run: supabase db push --linked --yes
+
+      - name: Validar tienda remota
+        run: node scripts/validate-store-remote.mjs
+
+      - name: Validar Storage tienda
+        run: node scripts/validate-store-storage.mjs
+
+      - name: Verificar productos CLICS MODERNOS
+        run: node scripts/verify-clics-products.mjs

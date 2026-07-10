@@ -1,17 +1,14 @@
 #!/usr/bin/env node
-import { readFileSync } from "node:fs";
-import { join, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+import { loadCiEnv } from "./lib/ci-env.mjs";
 
-const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const env = readFileSync(join(root, ".env.local"), "utf8");
-const get = (n) => {
-  const l = env.split(/\r?\n/).find((x) => x.startsWith(`${n}=`));
-  return l ? l.slice(n.length + 1).trim().replace(/^["']|["']$/g, "") : "";
-};
+const env = loadCiEnv();
+const url = env.NEXT_PUBLIC_SUPABASE_URL;
+const key = env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-const url = get("NEXT_PUBLIC_SUPABASE_URL");
-const key = get("NEXT_PUBLIC_SUPABASE_ANON_KEY");
+if (!url || !key) {
+  console.error("Faltan NEXT_PUBLIC_SUPABASE_URL o NEXT_PUBLIC_SUPABASE_ANON_KEY.");
+  process.exit(1);
+}
 
 const products = await fetch(
   `${url}/rest/v1/store_products?select=name,slug,public_price,stock_total,main_image_url,is_active&slug=like.clics-modernos*&order=slug`,

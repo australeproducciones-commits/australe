@@ -3,24 +3,50 @@
  * Valida bucket store-products y controles de acceso Storage.
  * No imprime secretos.
  */
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
+import { loadCiEnv } from "./lib/ci-env.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const env = readFileSync(join(root, ".env.local"), "utf8");
-const get = (name) => {
-  const line = env.split(/\r?\n/).find((row) => row.startsWith(`${name}=`));
-  return line ? line.slice(name.length + 1).trim().replace(/^["']|["']$/g, "") : "";
-};
 
-const url = get("NEXT_PUBLIC_SUPABASE_URL");
-const anonKey = get("NEXT_PUBLIC_SUPABASE_ANON_KEY");
-const serviceKey = get("SUPABASE_SERVICE_ROLE_KEY");
+function loadEnv() {
+  const fileEnv = loadCiEnv();
+  const envPath = join(root, ".env.local");
+  if (!existsSync(envPath)) {
+    return fileEnv;
+  }
+  const out = { ...fileEnv };
+  for (const line of readFileSync(envPath, "utf8").split(/\r?\n/)) {
+    if (!line || line.startsWith("#")) continue;
+    const i = line.indexOf("=");
+    if (i === -1) continue;
+    const key = line.slice(0, i).trim();
+    let val = line.slice(i + 1).trim();
+    if (
+      (val.startsWith('"') && val.endsWith('"')) ||
+      (val.startsWith("'") && val.endsWith("'"))
+    ) {
+      val = val.slice(1, -1);
+    }
+    out[key] = val;
+  }
+  if (!out.NEXT_PUBLIC_SUPABASE_URL && out.SUPABASE_PROJECT_ID) {
+    out.NEXT_PUBLIC_SUPABASE_URL = `https://${out.SUPABASE_PROJECT_ID}.supabase.co`;
+  }
+  return out;
+}
+
+const env = loadEnv();
+const url = env.NEXT_PUBLIC_SUPABASE_URL;
+const anonKey = env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const serviceKey = env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!url || !anonKey || !serviceKey) {
-  console.error("Faltan variables en .env.local (URL / anon / service role).");
+  console.error(
+    "Faltan NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY o SUPABASE_SERVICE_ROLE_KEY.",
+  );
   process.exit(1);
 }
 

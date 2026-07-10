@@ -156,6 +156,7 @@ export type CommunitySettingsRow = {
   community_enabled: boolean;
   ticket_points_enabled: boolean;
   consumption_points_enabled: boolean;
+  store_points_enabled: boolean;
   amount_per_point: number;
   welcome_points: number;
   public_title: string;
@@ -386,6 +387,169 @@ export type KioskOrderItemRow = {
   community_price_applied: number | null;
   quantity: number;
   subtotal: number;
+  created_at: string;
+};
+
+export type StoreProductRow = {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  short_description: string | null;
+  sku: string | null;
+  category: string;
+  status: string;
+  public_price: number;
+  community_price: number | null;
+  cost_price: number | null;
+  main_image_url: string | null;
+  gallery_urls: string[];
+  is_active: boolean;
+  is_featured: boolean;
+  community_only: boolean;
+  track_stock: boolean;
+  stock_total: number;
+  stock_reserved: number;
+  stock_sold: number;
+  max_per_order: number | null;
+  available_from: string | null;
+  available_until: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type StoreProductVariantRow = {
+  id: string;
+  product_id: string;
+  sku: string | null;
+  name: string;
+  size: string | null;
+  color: string | null;
+  model: string | null;
+  price_override: number | null;
+  community_price_override: number | null;
+  stock_total: number;
+  stock_reserved: number;
+  stock_sold: number;
+  is_active: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type StoreCollectionRow = {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  image_url: string | null;
+  is_active: boolean;
+  is_featured: boolean;
+  starts_at: string | null;
+  ends_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type StoreCollectionProductRow = {
+  id: string;
+  collection_id: string;
+  product_id: string;
+  sort_order: number;
+  created_at: string;
+};
+
+export type EventStoreSettingsRow = {
+  event_id: string;
+  merchandising_enabled: boolean;
+  show_badge: boolean;
+  badge_text: string;
+  show_products_block: boolean;
+  pickup_enabled: boolean;
+  pickup_instructions: string | null;
+  max_featured_products: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type EventStoreProductRow = {
+  id: string;
+  event_id: string;
+  product_id: string;
+  is_active: boolean;
+  is_featured: boolean;
+  sort_order: number;
+  event_price_override: number | null;
+  event_community_price_override: number | null;
+  pickup_available: boolean;
+  pickup_instructions: string | null;
+  starts_at: string | null;
+  ends_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type StoreOrderRow = {
+  id: string;
+  order_number: string;
+  user_id: string | null;
+  event_id: string | null;
+  customer_name: string;
+  customer_email: string | null;
+  customer_phone: string | null;
+  status: string;
+  payment_status: string;
+  payment_provider: string | null;
+  payment_reference: string | null;
+  subtotal: number;
+  discount_total: number;
+  points_discount: number;
+  total: number;
+  pickup_method: string;
+  pickup_event_id: string | null;
+  pickup_instructions: string | null;
+  pickup_code: string | null;
+  pickup_token_hash: string | null;
+  reserved_until: string | null;
+  paid_at: string | null;
+  prepared_at: string | null;
+  ready_at: string | null;
+  delivered_at: string | null;
+  delivered_by: string | null;
+  cancelled_at: string | null;
+  loyalty_points_awarded: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type StoreOrderItemRow = {
+  id: string;
+  order_id: string;
+  product_id: string;
+  variant_id: string | null;
+  product_name_snapshot: string;
+  variant_name_snapshot: string | null;
+  sku_snapshot: string | null;
+  unit_price: number;
+  quantity: number;
+  subtotal: number;
+  community_price_applied: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type StoreStockMovementRow = {
+  id: string;
+  product_id: string;
+  variant_id: string | null;
+  order_id: string | null;
+  event_id: string | null;
+  movement_type: string;
+  quantity: number;
+  previous_stock: number;
+  new_stock: number;
+  reason: string | null;
+  created_by: string | null;
   created_at: string;
 };
 
@@ -791,6 +955,99 @@ export type Database = {
         Update: Partial<KioskOrderItemRow>;
         Relationships: [];
       };
+      store_products: {
+        Row: StoreProductRow;
+        Insert: Omit<StoreProductRow, "id" | "created_at" | "updated_at" | "stock_reserved" | "stock_sold" | "gallery_urls"> & {
+          id?: string;
+          stock_reserved?: number;
+          stock_sold?: number;
+          gallery_urls?: string[];
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<StoreProductRow>;
+        Relationships: [];
+      };
+      store_product_variants: {
+        Row: StoreProductVariantRow;
+        Insert: Omit<StoreProductVariantRow, "id" | "created_at" | "updated_at" | "stock_reserved" | "stock_sold"> & {
+          id?: string;
+          stock_reserved?: number;
+          stock_sold?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<StoreProductVariantRow>;
+        Relationships: [];
+      };
+      store_collections: {
+        Row: StoreCollectionRow;
+        Insert: Omit<StoreCollectionRow, "id" | "created_at" | "updated_at"> & {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<StoreCollectionRow>;
+        Relationships: [];
+      };
+      store_collection_products: {
+        Row: StoreCollectionProductRow;
+        Insert: Omit<StoreCollectionProductRow, "id" | "created_at"> & {
+          id?: string;
+          created_at?: string;
+        };
+        Update: Partial<StoreCollectionProductRow>;
+        Relationships: [];
+      };
+      event_store_settings: {
+        Row: EventStoreSettingsRow;
+        Insert: Omit<EventStoreSettingsRow, "created_at" | "updated_at"> & {
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<EventStoreSettingsRow>;
+        Relationships: [];
+      };
+      event_store_products: {
+        Row: EventStoreProductRow;
+        Insert: Omit<EventStoreProductRow, "id" | "created_at" | "updated_at"> & {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<EventStoreProductRow>;
+        Relationships: [];
+      };
+      store_orders: {
+        Row: StoreOrderRow;
+        Insert: Omit<StoreOrderRow, "id" | "created_at" | "updated_at" | "loyalty_points_awarded"> & {
+          id?: string;
+          loyalty_points_awarded?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<StoreOrderRow>;
+        Relationships: [];
+      };
+      store_order_items: {
+        Row: StoreOrderItemRow;
+        Insert: Omit<StoreOrderItemRow, "id" | "created_at" | "updated_at"> & {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<StoreOrderItemRow>;
+        Relationships: [];
+      };
+      store_stock_movements: {
+        Row: StoreStockMovementRow;
+        Insert: Omit<StoreStockMovementRow, "id" | "created_at"> & {
+          id?: string;
+          created_at?: string;
+        };
+        Update: Partial<StoreStockMovementRow>;
+        Relationships: [];
+      };
       event_staff: {
         Row: EventStaffRow;
         Insert: Omit<EventStaffRow, "id" | "created_at" | "updated_at" | "assigned_at"> & {
@@ -1135,6 +1392,81 @@ export type Database = {
       record_community_invitation_open_authenticated: {
         Args: { p_token: string };
         Returns: undefined;
+      };
+      event_has_available_store_merch: {
+        Args: { p_event_id: string };
+        Returns: boolean;
+      };
+      store_adjust_stock: {
+        Args: {
+          p_product_id: string;
+          p_variant_id: string | null;
+          p_quantity_delta: number;
+          p_reason: string;
+        };
+        Returns: void;
+      };
+      create_store_order: {
+        Args: {
+          p_customer_name: string;
+          p_customer_email: string | null;
+          p_customer_phone: string | null;
+          p_pickup_event_id: string | null;
+          p_event_id: string | null;
+          p_items: Json;
+          p_apply_community_price: boolean;
+        };
+        Returns: {
+          order_id: string;
+          order_number: string;
+          total_amount: number;
+          pickup_code: string;
+        }[];
+      };
+      mark_store_order_paid: {
+        Args: {
+          p_order_id: string;
+          p_payment_provider?: string | null;
+          p_payment_reference?: string | null;
+        };
+        Returns: void;
+      };
+      mark_store_order_ready: {
+        Args: { p_order_id: string };
+        Returns: void;
+      };
+      mark_store_order_preparing: {
+        Args: { p_order_id: string };
+        Returns: void;
+      };
+      mark_store_order_delivered: {
+        Args: {
+          p_order_id: string;
+          p_pickup_token?: string | null;
+        };
+        Returns: void;
+      };
+      lookup_store_order_for_pickup: {
+        Args: {
+          p_code?: string | null;
+          p_order_number?: string | null;
+        };
+        Returns: StoreOrderRow[];
+      };
+      cancel_store_order: {
+        Args: {
+          p_order_id: string;
+          p_reason?: string | null;
+        };
+        Returns: void;
+      };
+      award_loyalty_points_for_store_order: {
+        Args: { p_order_id: string };
+        Returns: string | null;
+      };
+      reverse_loyalty_points_for_store_order: {
+        Args: { p_order_id: string };
+        Returns: string | null;
       };
     };
     Enums: Record<string, never>;

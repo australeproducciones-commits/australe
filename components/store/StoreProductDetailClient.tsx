@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { useStoreCart } from "@/components/store/StoreCartProvider";
+import { StoreProductImageFallback } from "@/components/store/StoreProductImageFallback";
 import { PageContainer, PublicButton, PublicCard } from "@/components/ui/public";
 import { ROUTES } from "@/lib/constants/routes";
 import type { PublicStoreProduct } from "@/lib/store/types";
@@ -27,6 +28,14 @@ export function StoreProductDetailClient({
   );
   const [quantity, setQuantity] = useState(1);
   const [message, setMessage] = useState<string | null>(null);
+  const [activeImage, setActiveImage] = useState(
+    product.main_image_url ?? product.gallery_urls[0] ?? null,
+  );
+
+  const galleryImages = [
+    ...(product.main_image_url ? [product.main_image_url] : []),
+    ...product.gallery_urls.filter((url) => url !== product.main_image_url),
+  ];
 
   const selectedVariant =
     product.variants.find((v) => v.id === variantId) ?? null;
@@ -71,16 +80,45 @@ export function StoreProductDetailClient({
       </PublicButton>
 
       <div className="grid gap-8 lg:grid-cols-2">
-        <div className="relative aspect-square overflow-hidden rounded-3xl bg-[var(--public-card-tint)]">
-          {product.main_image_url ? (
-            <Image
-              src={product.main_image_url}
-              alt={product.name}
-              fill
-              className="object-cover"
-              sizes="(max-width: 1024px) 100vw, 50vw"
-              priority
-            />
+        <div>
+          <div className="relative aspect-square overflow-hidden rounded-3xl bg-[var(--public-card-tint)]">
+            {activeImage ? (
+              <Image
+                src={activeImage}
+                alt={product.name}
+                fill
+                className="object-cover"
+                sizes="(max-width: 1024px) 100vw, 50vw"
+                priority
+              />
+            ) : (
+              <StoreProductImageFallback name={product.name} />
+            )}
+          </div>
+
+          {galleryImages.length > 1 ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {galleryImages.map((url) => (
+                <button
+                  key={url}
+                  type="button"
+                  onClick={() => setActiveImage(url)}
+                  className={`relative h-16 w-16 overflow-hidden rounded-xl border ${
+                    activeImage === url
+                      ? "border-[var(--public-primary)]"
+                      : "border-[var(--public-border)]"
+                  }`}
+                >
+                  <Image
+                    src={url}
+                    alt=""
+                    fill
+                    className="object-cover"
+                    sizes="64px"
+                  />
+                </button>
+              ))}
+            </div>
           ) : null}
         </div>
 

@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { StoreMerchBadge } from "@/components/store/StoreMerchBadge";
+import { StoreProductImageFallback } from "@/components/store/StoreProductImageFallback";
 import { ROUTES } from "@/lib/constants/routes";
 import type { PublicStoreProduct } from "@/lib/store/types";
 import { formatStorePrice } from "@/lib/store/utils";
@@ -44,9 +45,7 @@ export function StoreProductCard({
               sizes="(max-width: 640px) 50vw, 280px"
             />
           ) : (
-            <div className="flex h-full items-center justify-center text-sm public-text-muted">
-              Sin imagen
-            </div>
+            <StoreProductImageFallback name={product.name} compact />
           )}
           {product.community_only ? (
             <span className="absolute left-2 top-2 rounded-full bg-[rgba(155,126,222,0.9)] px-2 py-0.5 text-[10px] font-semibold uppercase text-white">

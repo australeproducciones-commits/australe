@@ -19,6 +19,7 @@ import { revalidatePath } from "next/cache";
 function revalidateStorePaths(eventId?: string) {
   revalidatePath(ROUTES.tienda);
   revalidatePath(ROUTES.adminTienda);
+  revalidatePath(ROUTES.adminTiendaProductos);
   revalidatePath(ROUTES.adminTiendaPedidos);
   revalidatePath(ROUTES.adminTiendaStock);
 
@@ -94,6 +95,57 @@ export async function upsertStoreProductAction(
 
   revalidateStorePaths();
   return { success: true, id: data.id };
+}
+
+export async function toggleStoreProductActiveAction(
+  productId: string,
+  isActive: boolean,
+): Promise<StoreActionResult> {
+  const auth = await requireAdmin();
+  if ("error" in auth) {
+    return { success: false, error: auth.error };
+  }
+
+  const { error } = await auth.supabase
+    .from("store_products")
+    .update({
+      is_active: isActive,
+      status: isActive ? "active" : "inactive",
+    })
+    .eq("id", productId);
+
+  if (error) {
+    console.error("toggleStoreProductActiveAction:", error.message);
+    return { success: false, error: "No se pudo actualizar el estado." };
+  }
+
+  revalidateStorePaths();
+  return { success: true, id: productId };
+}
+
+export async function archiveStoreProductAction(
+  productId: string,
+): Promise<StoreActionResult> {
+  const auth = await requireAdmin();
+  if ("error" in auth) {
+    return { success: false, error: auth.error };
+  }
+
+  const { error } = await auth.supabase
+    .from("store_products")
+    .update({
+      is_active: false,
+      status: "archived",
+    })
+    .eq("id", productId);
+
+  if (error) {
+    console.error("archiveStoreProductAction:", error.message);
+    return { success: false, error: "No se pudo archivar el producto." };
+  }
+
+  revalidateStorePaths();
+  return { success: true, id: productId };
 }
 
 export async function upsertStoreVariantAction(

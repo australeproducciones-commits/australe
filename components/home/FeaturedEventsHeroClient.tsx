@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type MouseEvent } from "react";
 import { EventHero } from "@/components/events/EventHero";
 import { ROUTES } from "@/lib/constants/routes";
 import type { Event } from "@/lib/events/types";
@@ -12,6 +12,48 @@ const AUTO_INTERVAL_MS = 6000;
 type FeaturedEventsHeroClientProps = {
   events: Event[];
 };
+
+function resolveEventBannerLink(event: Event): string | null {
+  const slug = event.slug?.trim();
+  return slug ? ROUTES.evento(slug) : null;
+}
+
+type CarouselNavButtonProps = {
+  direction: "prev" | "next";
+  label: string;
+  onClick: () => void;
+};
+
+function CarouselNavButton({ direction, label, onClick }: CarouselNavButtonProps) {
+  const handleClick = (event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    event.preventDefault();
+    onClick();
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      className={cn(
+        "absolute top-1/2 z-10 flex -translate-y-1/2 items-center justify-center rounded-full border text-lg font-semibold backdrop-blur-sm transition",
+        "h-8 w-8 sm:h-9 sm:w-9",
+        "hover:border-[var(--public-primary)] hover:bg-[var(--public-card)]",
+        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--public-primary)]",
+        "disabled:pointer-events-none disabled:opacity-40",
+        direction === "prev" ? "left-2 sm:left-3" : "right-2 sm:right-3",
+      )}
+      style={{
+        borderColor: "var(--public-border)",
+        color: "var(--public-primary)",
+        backgroundColor: "color-mix(in srgb, var(--public-card-tint) 88%, transparent)",
+      }}
+      aria-label={label}
+    >
+      {direction === "prev" ? "‹" : "›"}
+    </button>
+  );
+}
 
 export function FeaturedEventsHeroClient({
   events,
@@ -49,6 +91,15 @@ export function FeaturedEventsHeroClient({
   }
 
   const event = events[index] ?? events[0];
+  const bannerLink = resolveEventBannerLink(event);
+  const showCarouselControls = count > 1;
+
+  const bannerControls = showCarouselControls ? (
+    <>
+      <CarouselNavButton direction="prev" label="Evento anterior" onClick={goPrev} />
+      <CarouselNavButton direction="next" label="Siguiente evento" onClick={goNext} />
+    </>
+  ) : null;
 
   return (
     <section
@@ -62,25 +113,16 @@ export function FeaturedEventsHeroClient({
     >
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10 lg:py-12">
         <div className="motion-safe:transition-opacity motion-safe:duration-300">
-          <EventHero event={event} priority={index === 0} />
+          <EventHero
+            event={event}
+            priority={index === 0}
+            bannerLink={bannerLink}
+            bannerControls={bannerControls}
+          />
         </div>
 
-        {count > 1 ? (
-          <div className="mt-6 flex items-center justify-center gap-4">
-            <button
-              type="button"
-              onClick={goPrev}
-              className="flex h-9 w-9 items-center justify-center rounded-full border transition hover:bg-[var(--public-card)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--public-primary)]"
-              style={{
-                borderColor: "var(--public-border)",
-                color: "var(--public-primary)",
-                backgroundColor: "var(--public-card-tint)",
-              }}
-              aria-label="Evento anterior"
-            >
-              ‹
-            </button>
-
+        {showCarouselControls ? (
+          <div className="mt-6 flex items-center justify-center">
             <div className="flex items-center gap-2" role="tablist">
               {events.map((item, dotIndex) => (
                 <button
@@ -89,7 +131,10 @@ export function FeaturedEventsHeroClient({
                   role="tab"
                   aria-selected={dotIndex === index}
                   aria-label={`Ir a ${item.name}`}
-                  onClick={() => goTo(dotIndex)}
+                  onClick={(clickEvent) => {
+                    clickEvent.stopPropagation();
+                    goTo(dotIndex);
+                  }}
                   className={cn(
                     "h-2.5 rounded-full transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--public-primary)]",
                     dotIndex === index
@@ -104,20 +149,6 @@ export function FeaturedEventsHeroClient({
                 />
               ))}
             </div>
-
-            <button
-              type="button"
-              onClick={goNext}
-              className="flex h-9 w-9 items-center justify-center rounded-full border transition hover:bg-[var(--public-card)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--public-primary)]"
-              style={{
-                borderColor: "var(--public-border)",
-                color: "var(--public-primary)",
-                backgroundColor: "var(--public-card-tint)",
-              }}
-              aria-label="Siguiente evento"
-            >
-              ›
-            </button>
           </div>
         ) : null}
       </div>

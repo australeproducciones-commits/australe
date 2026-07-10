@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { EventImage } from "@/components/events/EventImage";
 import { EventInfoBadges } from "@/components/events/EventInfoBadges";
@@ -27,6 +28,8 @@ type EventHeroProps = {
   className?: string;
   merchandising?: EventMerchandisingContext;
   titleAs?: "h1" | "h2";
+  bannerLink?: string | null;
+  bannerControls?: ReactNode;
 };
 
 type HeroAction = {
@@ -47,6 +50,8 @@ export function EventHero({
   className,
   merchandising,
   titleAs: TitleTag = "h1",
+  bannerLink = null,
+  bannerControls,
 }: EventHeroProps) {
   const badges = buildEventHeroBadges({
     event,
@@ -61,20 +66,37 @@ export function EventHero({
     ? buildPromotionHeroActions(event)
     : buildHeroSaleActions(event, hasTicketTypes);
 
+  const bannerImage = (
+    <EventImage
+      event={event}
+      alt={`Banner del evento ${event.name}`}
+      variant="banner"
+      priority={priority}
+      roundedClass="rounded-none rounded-t-3xl"
+      className="w-full border-x-0 border-t-0"
+      sizes="(max-width: 768px) 100vw, (max-width: 1280px) 92vw, 1152px"
+    />
+  );
+
   return (
     <section
       className={cn("public-card overflow-hidden rounded-3xl", className)}
       aria-label={isPromotion ? `Promoción ${event.name}` : `Evento ${event.name}`}
     >
-      <EventImage
-        event={event}
-        alt={`Banner del evento ${event.name}`}
-        variant="banner"
-        priority={priority}
-        roundedClass="rounded-none rounded-t-3xl"
-        className="w-full border-x-0 border-t-0"
-        sizes="(max-width: 768px) 100vw, (max-width: 1280px) 92vw, 1152px"
-      />
+      <div className="relative">
+        {bannerLink ? (
+          <Link
+            href={bannerLink}
+            className="block cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--public-primary)]"
+            aria-label={`Ver evento: ${event.name}`}
+          >
+            {bannerImage}
+          </Link>
+        ) : (
+          bannerImage
+        )}
+        {bannerControls}
+      </div>
 
       <div className="px-5 py-6 text-center sm:px-8 sm:py-8">
         <EventInfoBadges badges={badges} className="mb-5 justify-center" />

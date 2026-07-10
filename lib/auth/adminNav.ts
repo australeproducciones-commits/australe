@@ -11,6 +11,7 @@ const ADMIN_ONLY_LINKS: AdminNavLink[] = [
   { href: ROUTES.adminEventos, label: "Eventos" },
   { href: ROUTES.adminComunidad, label: "Comunidad" },
   { href: ROUTES.adminProductos, label: "Productos" },
+  { href: ROUTES.adminTienda, label: "Tienda" },
   { href: ROUTES.adminPartners, label: "Partners" },
   { href: ROUTES.adminConfiguracion, label: "Configuración" },
   { href: ROUTES.adminUsuarios, label: "Usuarios" },

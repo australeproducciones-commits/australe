@@ -68,11 +68,10 @@ export function StoreHeroImage({
     );
   }
 
-  const optimizable = !isCampaign && isNextImageOptimizable(src);
+  const canUseNextImage = isNextImageOptimizable(src);
   const imageClass = cn(
     "object-contain object-center",
-    isCampaign && "store-hero-campaign-img absolute inset-0 h-full w-full",
-    !isCampaign && "h-full w-full",
+    isCampaign && "store-hero-campaign-img",
     imageClassName,
   );
 
@@ -85,14 +84,15 @@ export function StoreHeroImage({
         className,
       )}
     >
-      {optimizable ? (
+      {canUseNextImage ? (
         <Image
           src={src}
           alt={alt}
           fill
-          className={cn("object-contain object-center", imageClassName)}
+          className={imageClass}
           sizes={sizes}
           priority={priority}
+          unoptimized={isCampaign}
           onError={() => setFailed(true)}
         />
       ) : (
@@ -100,7 +100,7 @@ export function StoreHeroImage({
         <img
           src={src}
           alt={alt}
-          className={imageClass}
+          className={cn("h-full w-full", imageClass)}
           loading={priority ? "eager" : "lazy"}
           decoding="async"
           onError={() => setFailed(true)}

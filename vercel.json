@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/expire-store-reservations",
+      "schedule": "*/5 * * * *"
+    }
+  ]
+}

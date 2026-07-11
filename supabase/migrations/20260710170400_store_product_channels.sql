@@ -489,4 +489,8 @@ $$;
 REVOKE ALL ON FUNCTION public.create_store_order(text, text, text, uuid, uuid, jsonb, boolean) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.create_store_order(text, text, text, uuid, uuid, jsonb, boolean) TO authenticated, anon;
 
+ALTER FUNCTION public.create_store_order(
+  text, text, text, uuid, uuid, jsonb, boolean
+) SET search_path = public, extensions;
+
 NOTIFY pgrst, 'reload schema';

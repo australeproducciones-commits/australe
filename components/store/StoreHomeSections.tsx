@@ -38,60 +38,6 @@ export function StoreEmotionalBlock() {
   );
 }
 
-export function StoreCommunityBlock() {
-  return (
-    <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-16">
-      <div className="store-surface overflow-hidden rounded-2xl">
-        <div className="grid lg:grid-cols-2">
-          <div className="p-8 sm:p-10 lg:p-12">
-            <p className="store-badge store-badge--community">Comunidad Australe</p>
-            <h2 className="mt-4 text-2xl font-bold tracking-tight sm:text-3xl">
-              Ser parte tiene beneficios
-            </h2>
-            <ul className="mt-6 space-y-3 text-sm text-[var(--public-text-secondary)] sm:text-base">
-              <li className="flex gap-3">
-                <span className="text-[var(--public-community)]" aria-hidden>
-                  •
-                </span>
-                Acumulá puntos con tus compras en tienda
-              </li>
-              <li className="flex gap-3">
-                <span className="text-[var(--public-community)]" aria-hidden>
-                  •
-                </span>
-                Accedé a precios especiales para miembros
-              </li>
-              <li className="flex gap-3">
-                <span className="text-[var(--public-community)]" aria-hidden>
-                  •
-                </span>
-                Productos exclusivos para la comunidad
-              </li>
-              <li className="flex gap-3">
-                <span className="text-[var(--public-community)]" aria-hidden>
-                  •
-                </span>
-                Viví Australe más allá del evento
-              </li>
-            </ul>
-            <PublicButton href={ROUTES.comunidad} variant="outline" className="mt-8">
-              Conocer la Comunidad
-            </PublicButton>
-          </div>
-          <div
-            className="hidden min-h-[240px] lg:block"
-            style={{
-              background:
-                "linear-gradient(135deg, rgba(167,139,219,0.12) 0%, rgba(10,9,13,0) 60%), var(--public-card-tint)",
-            }}
-            aria-hidden
-          />
-        </div>
-      </div>
-    </section>
-  );
-}
-
 export function StoreFinalCta() {
   return (
     <section className="mx-auto max-w-6xl px-4 pb-16 pt-4 sm:px-6 sm:pb-20">

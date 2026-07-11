@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { StoreCatalogFilters } from "@/components/store/StoreCatalogFilters";
 import {
-  StoreCommunityBlock,
   StoreEmotionalBlock,
   StoreFinalCta,
 } from "@/components/store/StoreHomeSections";
@@ -115,7 +114,6 @@ export default async function TiendaPage({ searchParams }: TiendaPageProps) {
           ) : null}
 
           <StoreEmotionalBlock />
-          <StoreCommunityBlock />
         </>
       ) : null}
 

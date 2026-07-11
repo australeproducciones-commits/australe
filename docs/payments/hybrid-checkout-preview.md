@@ -41,23 +41,32 @@ https://<deployment>.vercel.app/api/webhooks/mercadopago
 
 ## Expiración automática de reservas
 
-Dos mecanismos complementarios (staging):
+**Frecuencia objetivo:** cada 5 minutos.
 
-1. **Vercel Cron** — `vercel.json` ejecuta cada 5 min:
-   - `GET /api/cron/expire-store-reservations`
-   - Requiere variable `CRON_SECRET` (Vercel envía `Authorization: Bearer …`)
-   - El endpoint usa `service_role` para llamar `expire_store_reservations()`
+### Supabase pg_cron (recomendado en staging)
 
-2. **Supabase pg_cron** (si la extensión está habilitada en el proyecto):
-   - Job `expire_store_reservations_every_5m` vía migración `20260711030000_store_reservation_expiration_job.sql`
+Migración `20260711030000_store_reservation_expiration_job.sql`:
 
-Verificar en staging:
+- Job `expire_store_reservations_every_5m` con `*/5 * * * *` si la extensión `pg_cron` está habilitada.
+- `expire_store_reservations` revocado para `anon` y `authenticated`.
+
+Verificar:
 
 ```sql
 SELECT jobname, schedule FROM cron.job WHERE jobname = 'expire_store_reservations_every_5m';
 ```
 
-`expire_store_reservations` no está expuesto a `anon` ni `authenticated`.
+### Vercel Cron (complementario)
+
+- Endpoint: `GET /api/cron/expire-store-reservations`
+- Variable: `CRON_SECRET`
+- En **Hobby**, `vercel.json` usa un cron **diario** (límite de la plataforma). Para cada 5 min en Vercel, requiere **plan Pro** y schedule `*/5 * * * *` en el dashboard o `vercel.json`.
+
+El endpoint también puede invocarse manualmente en staging:
+
+```bash
+curl -H "Authorization: Bearer $CRON_SECRET" https://<preview>/api/cron/expire-store-reservations
+```
 
 ## Deployment Protection
 

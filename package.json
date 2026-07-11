@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "node scripts/validate-mercadopago-unit.mjs && node scripts/validate-mercadopago-payments.mjs && node scripts/validate-store-module.mjs && node scripts/validate-store-product-image-urls.mjs"
+    "test": "node scripts/validate-mercadopago-unit.mjs && node scripts/validate-mercadopago-payments.mjs && node scripts/validate-store-module.mjs && node scripts/validate-store-product-image-urls.mjs && node scripts/validate-store-duplicate-product.mjs"
   },
   "engines": {
     "node": ">=20.0.0"

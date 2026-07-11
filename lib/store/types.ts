@@ -325,6 +325,12 @@ export type AdminStoreProductsPageData = {
   settingsByEventId: Record<string, EventStoreSettings>;
 };
 
+export type StoreProductDuplicateContext = {
+  sourceProductId: string;
+  sourceProductName: string;
+  draft: AdminStoreProductListItem;
+};
+
 export type CheckoutInput = {
   customerName: string;
   customerEmail?: string;

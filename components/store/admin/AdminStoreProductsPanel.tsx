@@ -1,41 +1,80 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AdminStoreProductHubForm } from "@/components/store/admin/AdminStoreProductHubForm";
 import { AdminStoreProductTable } from "@/components/store/admin/AdminStoreProductTable";
-import type { AdminStoreProductsPageData } from "@/lib/store/types";
+import { ROUTES } from "@/lib/constants/routes";
+import type {
+  AdminStoreProductsPageData,
+  StoreProductDuplicateContext,
+} from "@/lib/store/types";
 
 type AdminStoreProductsPanelProps = {
   pageData: AdminStoreProductsPageData;
+  duplicateContext?: StoreProductDuplicateContext | null;
 };
 
-export function AdminStoreProductsPanel({ pageData }: AdminStoreProductsPanelProps) {
+export function AdminStoreProductsPanel({
+  pageData,
+  duplicateContext = null,
+}: AdminStoreProductsPanelProps) {
+  const router = useRouter();
   const [editingId, setEditingId] = useState<string | null>(null);
   const formRef = useRef<HTMLDivElement>(null);
 
   const editingProduct = useMemo(
-    () => pageData.products.find((p) => p.id === editingId) ?? null,
+    () => pageData.products.find((product) => product.id === editingId) ?? null,
     [pageData.products, editingId],
   );
 
+  useEffect(() => {
+    if (duplicateContext) {
+      formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [duplicateContext]);
+
   function handleEdit(productId: string) {
+    if (duplicateContext) {
+      router.replace(ROUTES.adminTiendaProductos);
+    }
     setEditingId(productId);
     formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function handleDuplicate(productId: string) {
+    router.push(ROUTES.adminTiendaProductosDuplicate(productId));
   }
 
   function handleCancelEdit() {
     setEditingId(null);
   }
 
+  function handleCancelDuplicate() {
+    router.replace(ROUTES.adminTiendaProductos);
+  }
+
+  function handleProductCreated(productId: string) {
+    setEditingId(productId);
+    if (duplicateContext) {
+      router.replace(ROUTES.adminTiendaProductos);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div ref={formRef}>
         <AdminStoreProductHubForm
-          key={editingProduct?.id ?? "new"}
-          editingProduct={editingProduct}
+          key={
+            duplicateContext
+              ? `duplicate-${duplicateContext.sourceProductId}`
+              : editingProduct?.id ?? "new"
+          }
+          editingProduct={duplicateContext ? null : editingProduct}
+          duplicateContext={duplicateContext}
           pageData={pageData}
-          onCancelEdit={handleCancelEdit}
-          onProductCreated={(id) => setEditingId(id)}
+          onCancelEdit={duplicateContext ? handleCancelDuplicate : handleCancelEdit}
+          onProductCreated={handleProductCreated}
         />
       </div>
 
@@ -51,6 +90,7 @@ export function AdminStoreProductsPanel({ pageData }: AdminStoreProductsPanelPro
         <AdminStoreProductTable
           products={pageData.products}
           onEdit={handleEdit}
+          onDuplicate={handleDuplicate}
         />
       </section>
     </div>

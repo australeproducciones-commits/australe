@@ -89,7 +89,7 @@ function StoreHeroMainSlide({
             aria-hidden
           />
 
-          <div className="lg:hidden">
+          <div className="w-full lg:hidden">
               <StoreHeroImage
                 src={mobileImageUrl}
                 alt={mobileAlt}
@@ -100,7 +100,7 @@ function StoreHeroMainSlide({
               />
             </div>
 
-            <div className="hidden lg:block">
+            <div className="hidden w-full lg:block">
               <StoreHeroImage
                 src={desktopImageUrl}
                 alt={desktopAlt}

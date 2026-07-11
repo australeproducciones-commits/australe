@@ -1383,7 +1383,7 @@ body {
 .store-theme .store-hero-campaign-frame {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
 }
 
 .store-theme .store-hero-campaign-visual {

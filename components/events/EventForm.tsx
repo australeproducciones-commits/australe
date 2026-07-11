@@ -533,13 +533,13 @@ export function EventForm({
               <Field label="URL de destino">
                 <input
                   name="external_ticket_url"
-                  type="url"
+                  type="text"
                   value={values.external_ticket_url}
                   onChange={(e) =>
                     updateField("external_ticket_url", e.target.value)
                   }
                   className={inputClassName}
-                  placeholder="https://..."
+                  placeholder="/tienda o https://australeproducciones.com/tienda"
                   disabled={pending}
                 />
               </Field>

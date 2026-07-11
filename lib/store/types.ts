@@ -21,6 +21,7 @@ export const STORE_ORDER_STATUS = {
   CANCELLED: "cancelled",
   EXPIRED: "expired",
   REFUNDED: "refunded",
+  PAYMENT_REVIEW: "payment_review",
 } as const;
 
 export type StoreOrderStatus =
@@ -32,6 +33,7 @@ export const STORE_PAYMENT_STATUS = {
   FAILED: "failed",
   REFUNDED: "refunded",
   CANCELLED: "cancelled",
+  REVIEW: "review",
 } as const;
 
 export type StorePaymentStatus =
@@ -158,6 +160,24 @@ export type StoreOrder = {
   loyalty_points_awarded: number;
   created_at: string;
   updated_at: string;
+};
+
+export type PaymentTransactionSummary = {
+  id: string;
+  provider: string;
+  status: string;
+  status_detail: string | null;
+  amount: number;
+  currency: string;
+  provider_preference_id: string | null;
+  provider_payment_id: string | null;
+  approved_at: string | null;
+  updated_at: string;
+};
+
+export type StoreOrderWithPayments = StoreOrder & {
+  payment_transactions: PaymentTransactionSummary[];
+  webhook_attempts: number;
 };
 
 export type StoreOrderItem = {

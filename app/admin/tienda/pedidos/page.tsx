@@ -3,14 +3,14 @@ import { AdminHeader } from "@/components/layout/AdminHeader";
 import { AdminStoreOrdersPanel } from "@/components/store/admin/AdminStoreOrdersPanel";
 import { AdminStoreNav } from "@/components/store/admin/AdminStoreNav";
 import { ROUTES } from "@/lib/constants/routes";
-import { getStoreOrdersForAdmin } from "@/lib/store/queries";
+import { getStoreOrdersWithPaymentsForAdmin } from "@/lib/store/queries";
 
 export const metadata: Metadata = {
   title: "Admin · Tienda · Pedidos",
 };
 
 export default async function AdminTiendaPedidosPage() {
-  const orders = await getStoreOrdersForAdmin();
+  const orders = await getStoreOrdersWithPaymentsForAdmin();
 
   return (
     <>

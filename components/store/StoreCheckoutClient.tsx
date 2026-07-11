@@ -5,24 +5,30 @@ import { useStoreCart } from "@/components/store/StoreCartProvider";
 import { PageContainer, PublicButton, PublicCard } from "@/components/ui/public";
 import { ROUTES } from "@/lib/constants/routes";
 import { createStoreOrderAction } from "@/lib/store/actions";
+import { formatStorePrice } from "@/lib/store/utils";
 
 export function StoreCheckoutClient({
   isLoggedIn,
   isCommunityMember,
   defaultName,
   defaultEmail,
+  mercadoPagoEnabled,
 }: {
   isLoggedIn: boolean;
   isCommunityMember: boolean;
   defaultName?: string | null;
   defaultEmail?: string | null;
+  mercadoPagoEnabled: boolean;
 }) {
   const { items, clearCart, eventSlug } = useStoreCart();
   const [pending, startTransition] = useTransition();
+  const [paying, setPaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<{
+    orderId: string;
     orderNumber: string;
     pickupCode: string;
+    total: number;
   } | null>(null);
 
   const [form, setForm] = useState({
@@ -54,10 +60,45 @@ export function StoreCheckoutClient({
 
       clearCart();
       setSuccess({
+        orderId: result.orderId ?? "",
         orderNumber: result.orderNumber ?? "",
         pickupCode: result.pickupCode ?? "",
+        total: result.total ?? 0,
       });
     });
+  }
+
+  async function handlePayWithMercadoPago() {
+    if (!success || paying) {
+      return;
+    }
+
+    setPaying(true);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/store/payments/mercadopago/preference", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId: success.orderId,
+          pickupCode: success.pickupCode,
+        }),
+      });
+
+      const data = (await response.json()) as { initPoint?: string; error?: string };
+
+      if (!response.ok || !data.initPoint) {
+        setError(data.error ?? "No se pudo iniciar el pago con Mercado Pago.");
+        setPaying(false);
+        return;
+      }
+
+      window.location.href = data.initPoint;
+    } catch {
+      setError("Error de conexión al iniciar el pago.");
+      setPaying(false);
+    }
   }
 
   if (success) {
@@ -71,11 +112,38 @@ export function StoreCheckoutClient({
           <p className="mt-2 text-sm public-text-muted">
             Código de retiro: <strong>{success.pickupCode}</strong>
           </p>
-          <p className="mt-4 text-sm public-text-muted">
-            Tenés 30 minutos para completar el pago. Un administrador confirmará
-            tu pago y te avisaremos cuando esté listo para retirar.
+          <p className="mt-2 text-sm public-text-muted">
+            Total: <strong>{formatStorePrice(success.total)}</strong>
           </p>
-          <PublicButton href={ROUTES.tienda} variant="primary" className="mt-6">
+          <p className="mt-4 text-sm public-text-muted">
+            Tenés 30 minutos para completar el pago.
+          </p>
+
+          {mercadoPagoEnabled ? (
+            <div className="mt-6 space-y-3">
+              <PublicButton
+                type="button"
+                variant="primary"
+                className="w-full"
+                disabled={paying}
+                onClick={handlePayWithMercadoPago}
+              >
+                {paying ? "Redirigiendo a Mercado Pago..." : "Pagar con Mercado Pago"}
+              </PublicButton>
+              <p className="text-xs public-text-muted">
+                Medios offline excluidos: la reserva vence en 30 minutos.
+              </p>
+            </div>
+          ) : (
+            <p className="mt-4 text-sm public-text-muted">
+              Un administrador confirmará tu pago manualmente o por transferencia
+              según instrucciones de Australe.
+            </p>
+          )}
+
+          {error ? <p className="mt-4 text-sm text-red-600">{error}</p> : null}
+
+          <PublicButton href={ROUTES.tienda} variant="outline" className="mt-6">
             Volver a la tienda
           </PublicButton>
         </PublicCard>
@@ -181,10 +249,16 @@ export function StoreCheckoutClient({
           >
             {pending ? "Reservando..." : "Confirmar reserva"}
           </PublicButton>
-          <p className="mt-3 text-xs public-text-muted">
-            El pago se confirma manualmente o por transferencia según
-            instrucciones de Australe.
-          </p>
+          {mercadoPagoEnabled ? (
+            <p className="mt-3 text-xs public-text-muted">
+              Después de reservar podrás pagar con Mercado Pago de forma segura.
+            </p>
+          ) : (
+            <p className="mt-3 text-xs public-text-muted">
+              El pago se confirma manualmente o por transferencia según
+              instrucciones de Australe.
+            </p>
+          )}
         </PublicCard>
       </form>
     </PageContainer>

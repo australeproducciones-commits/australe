@@ -554,6 +554,41 @@ export type StoreStockMovementRow = {
   created_at: string;
 };
 
+export type PaymentTransactionRow = {
+  id: string;
+  provider: string;
+  module: string;
+  order_id: string;
+  provider_preference_id: string | null;
+  provider_payment_id: string | null;
+  external_reference: string;
+  status: string;
+  status_detail: string | null;
+  amount: number;
+  currency: string;
+  payer_email: string | null;
+  approved_at: string | null;
+  refunded_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PaymentWebhookEventRow = {
+  id: string;
+  provider: string;
+  provider_event_id: string | null;
+  request_id: string | null;
+  topic: string | null;
+  resource_id: string | null;
+  payload_hash: string;
+  processing_status: string;
+  attempts: number;
+  processed_at: string | null;
+  error_code: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type AnalyticsEventRow = {
   id: string;
   event_name: string;
@@ -1049,6 +1084,26 @@ export type Database = {
         Update: Partial<StoreStockMovementRow>;
         Relationships: [];
       };
+      payment_transactions: {
+        Row: PaymentTransactionRow;
+        Insert: Omit<PaymentTransactionRow, "id" | "created_at" | "updated_at"> & {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<PaymentTransactionRow>;
+        Relationships: [];
+      };
+      payment_webhook_events: {
+        Row: PaymentWebhookEventRow;
+        Insert: Omit<PaymentWebhookEventRow, "id" | "created_at" | "updated_at"> & {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<PaymentWebhookEventRow>;
+        Relationships: [];
+      };
       event_staff: {
         Row: EventStaffRow;
         Insert: Omit<EventStaffRow, "id" | "created_at" | "updated_at" | "assigned_at"> & {
@@ -1468,6 +1523,43 @@ export type Database = {
       reverse_loyalty_points_for_store_order: {
         Args: { p_order_id: string };
         Returns: string | null;
+      };
+      register_payment_webhook_event: {
+        Args: {
+          p_provider: string;
+          p_request_id: string | null;
+          p_topic: string | null;
+          p_resource_id: string | null;
+          p_payload_hash: string;
+        };
+        Returns: {
+          event_id: string;
+          is_duplicate: boolean;
+          processing_status: string;
+        }[];
+      };
+      complete_payment_webhook_event: {
+        Args: {
+          p_event_id: string;
+          p_status: string;
+          p_error_code?: string | null;
+        };
+        Returns: void;
+      };
+      reconcile_store_order_payment: {
+        Args: {
+          p_order_id: string;
+          p_provider: string;
+          p_provider_payment_id: string | null;
+          p_provider_preference_id: string | null;
+          p_external_reference: string;
+          p_amount: number;
+          p_currency: string;
+          p_provider_status: string;
+          p_status_detail?: string | null;
+          p_payer_email?: string | null;
+        };
+        Returns: Json;
       };
     };
     Enums: Record<string, never>;

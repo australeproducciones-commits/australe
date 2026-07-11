@@ -19,6 +19,7 @@ import type {
   StoreDashboardStats,
   StoreOrder,
   StoreOrderItem,
+  StoreOrderWithPayments,
   StoreProduct,
   StoreProductVariant,
   StoreStockMovement,
@@ -525,6 +526,67 @@ export async function getStoreOrdersForAdmin(filters?: {
   }
 
   return (data ?? []) as StoreOrder[];
+}
+
+export async function getStoreOrdersWithPaymentsForAdmin(filters?: {
+  status?: string;
+  paymentStatus?: string;
+  eventId?: string;
+  q?: string;
+}): Promise<StoreOrderWithPayments[]> {
+  const orders = await getStoreOrdersForAdmin(filters);
+  if (orders.length === 0) {
+    return [];
+  }
+
+  const admin = createAdminClient();
+  const orderIds = orders.map((o) => o.id);
+
+  const [txResult, webhookResult] = await Promise.all([
+    admin
+      .from("payment_transactions")
+      .select(
+        "id, order_id, provider, status, status_detail, amount, currency, provider_preference_id, provider_payment_id, approved_at, updated_at",
+      )
+      .in("order_id", orderIds)
+      .order("updated_at", { ascending: false }),
+    admin
+      .from("payment_webhook_events")
+      .select("resource_id, attempts")
+      .eq("provider", "mercadopago"),
+  ]);
+
+  const txByOrder = new Map<string, StoreOrderWithPayments["payment_transactions"]>();
+  for (const tx of txResult.data ?? []) {
+    const orderId = tx.order_id as string;
+    const list = txByOrder.get(orderId) ?? [];
+    list.push({
+      id: tx.id as string,
+      provider: tx.provider as string,
+      status: tx.status as string,
+      status_detail: (tx.status_detail as string | null) ?? null,
+      amount: Number(tx.amount),
+      currency: tx.currency as string,
+      provider_preference_id: (tx.provider_preference_id as string | null) ?? null,
+      provider_payment_id: (tx.provider_payment_id as string | null) ?? null,
+      approved_at: (tx.approved_at as string | null) ?? null,
+      updated_at: tx.updated_at as string,
+    });
+    txByOrder.set(orderId, list);
+  }
+
+  const webhookCounts = new Map<string, number>();
+  for (const event of webhookResult.data ?? []) {
+    const resourceId = event.resource_id as string | null;
+    if (!resourceId) continue;
+    webhookCounts.set(resourceId, (webhookCounts.get(resourceId) ?? 0) + (event.attempts as number));
+  }
+
+  return orders.map((order) => ({
+    ...order,
+    payment_transactions: txByOrder.get(order.id) ?? [],
+    webhook_attempts: webhookCounts.get(order.payment_reference ?? "") ?? 0,
+  }));
 }
 
 export async function getStoreOrderWithItems(

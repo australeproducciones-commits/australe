@@ -22,6 +22,8 @@ const requiredFiles = [
   ["supabase/migrations/20260710170100_store_stock_orders_rpc.sql", "migración RPCs"],
   ["supabase/migrations/20260710170400_store_product_channels.sql", "migración canales"],
   ["lib/store/channels.ts", "helpers canales"],
+  ["lib/store/adminHub.ts", "helpers admin hub"],
+  ["components/store/admin/AdminStoreProductHubForm.tsx", "hub producto"],
   ["lib/store/types.ts", "types"],
   ["lib/store/queries.ts", "queries"],
   ["lib/store/actions.ts", "actions"],

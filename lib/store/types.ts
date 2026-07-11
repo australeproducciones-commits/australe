@@ -1,3 +1,6 @@
+import type { Event } from "@/lib/events/types";
+import type { StoreProductChannelState } from "@/lib/store/adminHub";
+
 export const STORE_PRODUCT_STATUS = {
   DRAFT: "draft",
   ACTIVE: "active",
@@ -271,6 +274,35 @@ export type EventStoreSettingsInput = {
   pickup_enabled?: boolean;
   pickup_instructions?: string | null;
   max_featured_products?: number;
+};
+
+export type EventStoreProductInput = {
+  is_active?: boolean;
+  is_featured?: boolean;
+  sort_order?: number;
+  event_price_override?: number | null;
+  event_community_price_override?: number | null;
+  pickup_available?: boolean;
+  pickup_instructions?: string | null;
+  starts_at?: string | null;
+  ends_at?: string | null;
+};
+
+export type AdminStoreProductListItem = StoreProduct & {
+  variants: StoreProductVariant[];
+  associations: (EventStoreProduct & {
+    event: Pick<
+      Event,
+      "id" | "name" | "slug" | "status" | "event_date" | "event_end_date" | "start_time" | "end_time"
+    >;
+  })[];
+  channel: StoreProductChannelState;
+};
+
+export type AdminStoreProductsPageData = {
+  products: AdminStoreProductListItem[];
+  events: Event[];
+  settingsByEventId: Record<string, EventStoreSettings>;
 };
 
 export type CheckoutInput = {

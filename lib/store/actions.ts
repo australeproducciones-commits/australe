@@ -8,6 +8,7 @@ import type {
   CheckoutInput,
   CreateStoreOrderResult,
   EventStoreSettingsInput,
+  EventStoreProductInput,
   StoreActionResult,
   StoreProductInput,
   StoreVariantInput,
@@ -173,7 +174,6 @@ export async function upsertStoreVariantAction(
     model: input.model?.trim() || null,
     price_override: input.price_override ?? null,
     community_price_override: input.community_price_override ?? null,
-    stock_total: input.stock_total ?? 0,
     is_active: input.is_active ?? true,
     sort_order: input.sort_order ?? 0,
   };
@@ -185,6 +185,9 @@ export async function upsertStoreVariantAction(
       .eq("id", variantId);
 
     if (error) {
+      if (error.code === "23505") {
+        return { success: false, error: "Ya existe una variante con ese SKU." };
+      }
       return { success: false, error: "No se pudo actualizar la variante." };
     }
 
@@ -192,14 +195,31 @@ export async function upsertStoreVariantAction(
     return { success: true, id: variantId };
   }
 
+  const initialStock = Math.max(0, input.stock_total ?? 0);
+
   const { data, error } = await auth.supabase
     .from("store_product_variants")
-    .insert(payload)
+    .insert({ ...payload, stock_total: 0 })
     .select("id")
     .single();
 
   if (error) {
+    if (error.code === "23505") {
+      return { success: false, error: "Ya existe una variante con ese SKU." };
+    }
     return { success: false, error: "No se pudo crear la variante." };
+  }
+
+  if (initialStock > 0) {
+    const adjust = await auth.supabase.rpc("store_adjust_stock", {
+      p_product_id: productId,
+      p_variant_id: data.id,
+      p_quantity_delta: initialStock,
+      p_reason: `Ingreso inicial variante ${name}`,
+    });
+    if (adjust.error) {
+      return { success: false, error: "Variante creada pero falló el stock inicial." };
+    }
   }
 
   revalidateStorePaths();
@@ -241,12 +261,7 @@ export async function upsertEventStoreSettingsAction(
 export async function linkStoreProductToEventAction(
   eventId: string,
   productId: string,
-  options?: {
-    is_featured?: boolean;
-    sort_order?: number;
-    event_price_override?: number | null;
-    pickup_available?: boolean;
-  },
+  input?: EventStoreProductInput,
 ): Promise<StoreActionResult> {
   const auth = await requireAdmin();
   if ("error" in auth) {
@@ -259,15 +274,15 @@ export async function linkStoreProductToEventAction(
       {
         event_id: eventId,
         product_id: productId,
-        is_active: true,
-        is_featured: options?.is_featured ?? false,
-        sort_order: options?.sort_order ?? 0,
-        event_price_override: options?.event_price_override ?? null,
-        event_community_price_override: null,
-        pickup_available: options?.pickup_available ?? true,
-        pickup_instructions: null,
-        starts_at: null,
-        ends_at: null,
+        is_active: input?.is_active ?? true,
+        is_featured: input?.is_featured ?? false,
+        sort_order: input?.sort_order ?? 0,
+        event_price_override: input?.event_price_override ?? null,
+        event_community_price_override: input?.event_community_price_override ?? null,
+        pickup_available: input?.pickup_available ?? true,
+        pickup_instructions: input?.pickup_instructions?.trim() || null,
+        starts_at: input?.starts_at ?? null,
+        ends_at: input?.ends_at ?? null,
       },
       { onConflict: "event_id,product_id" },
     )
@@ -280,6 +295,63 @@ export async function linkStoreProductToEventAction(
 
   revalidateStorePaths(eventId);
   return { success: true, id: data.id };
+}
+
+export async function updateEventStoreProductAction(
+  associationId: string,
+  input: EventStoreProductInput,
+): Promise<StoreActionResult> {
+  const auth = await requireAdmin();
+  if ("error" in auth) {
+    return { success: false, error: auth.error };
+  }
+
+  const { data: existing, error: fetchError } = await auth.supabase
+    .from("event_store_products")
+    .select("event_id")
+    .eq("id", associationId)
+    .maybeSingle();
+
+  if (fetchError || !existing) {
+    return { success: false, error: "Asociación no encontrada." };
+  }
+
+  const payload: EventStoreProductInput = {};
+  if (input.is_active !== undefined) payload.is_active = input.is_active;
+  if (input.is_featured !== undefined) payload.is_featured = input.is_featured;
+  if (input.sort_order !== undefined) payload.sort_order = input.sort_order;
+  if (input.event_price_override !== undefined) {
+    payload.event_price_override = input.event_price_override;
+  }
+  if (input.event_community_price_override !== undefined) {
+    payload.event_community_price_override = input.event_community_price_override;
+  }
+  if (input.pickup_available !== undefined) {
+    payload.pickup_available = input.pickup_available;
+  }
+  if (input.pickup_instructions !== undefined) {
+    payload.pickup_instructions = input.pickup_instructions?.trim() || null;
+  }
+  if (input.starts_at !== undefined) payload.starts_at = input.starts_at;
+  if (input.ends_at !== undefined) payload.ends_at = input.ends_at;
+
+  const { error } = await auth.supabase
+    .from("event_store_products")
+    .update(payload as never)
+    .eq("id", associationId);
+
+  if (error) {
+    return { success: false, error: "No se pudo actualizar la asociación." };
+  }
+
+  revalidateStorePaths(existing.event_id as string);
+  return { success: true, id: associationId };
+}
+
+export async function deactivateEventStoreProductAction(
+  associationId: string,
+): Promise<StoreActionResult> {
+  return updateEventStoreProductAction(associationId, { is_active: false });
 }
 
 export async function adjustStoreStockAction(

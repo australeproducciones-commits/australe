@@ -1,49 +1,57 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { AdminStoreProductForm } from "@/components/store/admin/AdminStoreProductForm";
+import { useMemo, useRef, useState } from "react";
+import { AdminStoreProductHubForm } from "@/components/store/admin/AdminStoreProductHubForm";
 import { AdminStoreProductTable } from "@/components/store/admin/AdminStoreProductTable";
-import type { StoreProduct } from "@/lib/store/types";
+import type { AdminStoreProductsPageData } from "@/lib/store/types";
 
 type AdminStoreProductsPanelProps = {
-  products: StoreProduct[];
+  pageData: AdminStoreProductsPageData;
 };
 
-export function AdminStoreProductsPanel({ products }: AdminStoreProductsPanelProps) {
-  const [editingProduct, setEditingProduct] = useState<StoreProduct | null>(null);
+export function AdminStoreProductsPanel({ pageData }: AdminStoreProductsPanelProps) {
+  const [editingId, setEditingId] = useState<string | null>(null);
   const formRef = useRef<HTMLDivElement>(null);
 
-  function handleEdit(product: StoreProduct) {
-    setEditingProduct(product);
+  const editingProduct = useMemo(
+    () => pageData.products.find((p) => p.id === editingId) ?? null,
+    [pageData.products, editingId],
+  );
+
+  function handleEdit(productId: string) {
+    setEditingId(productId);
     formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   function handleCancelEdit() {
-    setEditingProduct(null);
+    setEditingId(null);
   }
 
   return (
     <div className="space-y-6">
       <div ref={formRef}>
-        <AdminStoreProductForm
+        <AdminStoreProductHubForm
           key={editingProduct?.id ?? "new"}
           editingProduct={editingProduct}
+          pageData={pageData}
           onCancelEdit={handleCancelEdit}
+          onProductCreated={(id) => setEditingId(id)}
         />
       </div>
 
       <section className="space-y-3">
-        <div className="flex flex-wrap items-end justify-between gap-2">
-          <div>
-            <h2 className="text-base font-semibold text-white">
-              Catálogo ({products.length})
-            </h2>
-            <p className="text-xs text-zinc-500">
-              Miniaturas, stock disponible y acciones rápidas.
-            </p>
-          </div>
+        <div>
+          <h2 className="text-base font-semibold text-white">
+            Catálogo ({pageData.products.length})
+          </h2>
+          <p className="text-xs text-zinc-500">
+            Canales, variantes, stock y eventos en una vista.
+          </p>
         </div>
-        <AdminStoreProductTable products={products} onEdit={handleEdit} />
+        <AdminStoreProductTable
+          products={pageData.products}
+          onEdit={handleEdit}
+        />
       </section>
     </div>
   );

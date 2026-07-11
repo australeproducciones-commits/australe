@@ -2,12 +2,16 @@ import { getProfile } from "@/lib/auth/getProfile";
 import { isActiveCommunityMember } from "@/lib/community/membership";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getAllEventsForAdmin } from "@/lib/events/queries";
 import {
   isEventCommerceEligible,
   isEventStoreAssociationActive,
   isStoreProductVisibleInGeneralCatalog,
 } from "@/lib/store/channels";
+import { computeStoreProductChannelState } from "@/lib/store/adminHub";
 import type {
+  AdminStoreProductsPageData,
+  AdminStoreProductListItem,
   EventStoreProduct,
   EventStoreSettings,
   PublicStoreProduct,
@@ -688,4 +692,124 @@ export async function getStoreCollectionsForAdmin(): Promise<StoreCollection[]> 
   }
 
   return (data ?? []) as StoreCollection[];
+}
+
+export async function getStoreAdminProductsPageData(): Promise<AdminStoreProductsPageData> {
+  const supabase = await createClient();
+
+  const [products, events, variantsResult, associationsResult, settingsResult] =
+    await Promise.all([
+      getStoreProductsForAdmin({ hideInactive: false }),
+      getAllEventsForAdmin(),
+      supabase
+        .from("store_product_variants")
+        .select("*")
+        .order("sort_order"),
+      supabase.from("event_store_products").select("*").order("sort_order"),
+      supabase.from("event_store_settings").select("*"),
+    ]);
+
+  if (variantsResult.error) {
+    throw variantsResult.error;
+  }
+  if (associationsResult.error) {
+    throw associationsResult.error;
+  }
+  if (settingsResult.error) {
+    throw settingsResult.error;
+  }
+
+  const eventsById = new Map(events.map((event) => [event.id, event]));
+  const variantsByProduct = new Map<string, StoreProductVariant[]>();
+  for (const variant of (variantsResult.data ?? []) as StoreProductVariant[]) {
+    const list = variantsByProduct.get(variant.product_id) ?? [];
+    list.push(variant);
+    variantsByProduct.set(variant.product_id, list);
+  }
+
+  const associationsByProduct = new Map<
+    string,
+    AdminStoreProductListItem["associations"]
+  >();
+  for (const row of associationsResult.data ?? []) {
+    const association = row as EventStoreProduct;
+    const event = eventsById.get(association.event_id);
+    if (!event) {
+      continue;
+    }
+    const list = associationsByProduct.get(association.product_id) ?? [];
+    list.push({
+      ...association,
+      event: {
+        id: event.id,
+        name: event.name,
+        slug: event.slug,
+        status: event.status,
+        event_date: event.event_date,
+        event_end_date: event.event_end_date,
+        start_time: event.start_time,
+        end_time: event.end_time,
+      },
+    });
+    associationsByProduct.set(association.product_id, list);
+  }
+
+  const settingsByEventId: Record<string, EventStoreSettings> = {};
+  for (const row of settingsResult.data ?? []) {
+    settingsByEventId[(row as EventStoreSettings).event_id] =
+      row as EventStoreSettings;
+  }
+
+  const list: AdminStoreProductListItem[] = products.map((product) => {
+    const variants = variantsByProduct.get(product.id) ?? [];
+    const associations = associationsByProduct.get(product.id) ?? [];
+    return {
+      ...product,
+      variants,
+      associations,
+      channel: computeStoreProductChannelState({
+        product,
+        variants,
+        associations,
+        settingsByEventId: new Map(Object.entries(settingsByEventId)),
+      }),
+    };
+  });
+
+  return { products: list, events, settingsByEventId };
+}
+
+export async function getEventStoreMerchAdminData(eventId: string): Promise<{
+  settings: EventStoreSettings | null;
+  items: (EventStoreProduct & {
+    product: AdminStoreProductListItem;
+    variants: StoreProductVariant[];
+    channel: ReturnType<typeof computeStoreProductChannelState>;
+  })[];
+  allProducts: AdminStoreProductListItem[];
+}> {
+  const pageData = await getStoreAdminProductsPageData();
+  const settings = pageData.settingsByEventId[eventId] ?? null;
+
+  const items = pageData.products
+    .map((row) => {
+      const association = row.associations.find((a) => a.event_id === eventId);
+      if (!association) {
+        return null;
+      }
+      return {
+        ...association,
+        product: row,
+        variants: row.variants,
+        channel: row.channel,
+      };
+    })
+    .filter((row): row is NonNullable<typeof row> => row != null)
+    .sort((a, b) => a.sort_order - b.sort_order);
+
+  return {
+    settings,
+    items,
+    allProducts: pageData.products,
+  };
 }

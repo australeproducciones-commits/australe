@@ -12,6 +12,8 @@ import { updateEventFormAction } from "@/lib/events/actions";
 import { isReservedEventAdminSegment, isUuid } from "@/lib/events/adminRoutes";
 import { getEventByIdForAdmin } from "@/lib/events/queries";
 import { eventToFormInput } from "@/lib/events/utils";
+import { AdminEventStoreMerchPanel } from "@/components/store/admin/AdminEventStoreMerchPanel";
+import { getEventStoreMerchAdminData } from "@/lib/store/queries";
 import { getActiveTicketTypesByEventId } from "@/lib/tickets/queries";
 
 type AdminEditEventoPageProps = {
@@ -51,6 +53,11 @@ export default async function AdminEditEventoPage({
   }
 
   const activeTicketTypes = await getActiveTicketTypesByEventId(event.id);
+  const merchData = await getEventStoreMerchAdminData(event.id);
+  const linkedIds = new Set(merchData.items.map((i) => i.product_id));
+  const linkableProducts = merchData.allProducts.filter(
+    (p) => !linkedIds.has(p.id) && p.status !== "archived",
+  );
 
   const updateAction = updateEventFormAction.bind(null, event.id);
 
@@ -120,6 +127,14 @@ export default async function AdminEditEventoPage({
         </div>
 
         <EventSalesQrAdminCard event={event} />
+
+        <AdminEventStoreMerchPanel
+          eventId={event.id}
+          eventName={event.name}
+          settings={merchData.settings}
+          items={merchData.items}
+          linkableProducts={linkableProducts}
+        />
 
         <Card padding="sm" className="mb-6 border-purple-400/20 bg-purple-400/5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

@@ -10,6 +10,7 @@ type StoreHeroImageProps = {
   alt: string;
   priority?: boolean;
   sizes: string;
+  variant?: "default" | "campaign";
   aspectClassName?: string;
   imageClassName?: string;
   className?: string;
@@ -44,30 +45,51 @@ export function StoreHeroImage({
   alt,
   priority = false,
   sizes,
+  variant = "default",
   aspectClassName = "aspect-square",
   imageClassName,
   className,
 }: StoreHeroImageProps) {
   const [failed, setFailed] = useState(false);
+  const isCampaign = variant === "campaign";
 
   if (!src || failed) {
     return (
-      <div className={cn("relative overflow-hidden", aspectClassName, className)}>
+      <div
+        className={cn(
+          "relative overflow-hidden",
+          isCampaign && "store-hero-campaign-visual",
+          aspectClassName,
+          className,
+        )}
+      >
         <StoreHeroImageFallback />
       </div>
     );
   }
 
   const optimizable = isNextImageOptimizable(src);
+  const imageClass = cn(
+    "object-contain object-center",
+    isCampaign && "store-hero-campaign-img",
+    imageClassName,
+  );
 
   return (
-    <div className={cn("relative overflow-hidden", aspectClassName, className)}>
+    <div
+      className={cn(
+        "relative",
+        isCampaign ? "store-hero-campaign-visual overflow-visible" : "overflow-hidden",
+        aspectClassName,
+        className,
+      )}
+    >
       {optimizable ? (
         <Image
           src={src}
           alt={alt}
           fill
-          className={cn("object-contain object-center", imageClassName)}
+          className={imageClass}
           sizes={sizes}
           priority={priority}
           onError={() => setFailed(true)}
@@ -77,7 +99,7 @@ export function StoreHeroImage({
         <img
           src={src}
           alt={alt}
-          className={cn("h-full w-full object-contain object-center", imageClassName)}
+          className={cn("h-full w-full", imageClass)}
           loading={priority ? "eager" : "lazy"}
           decoding="async"
           onError={() => setFailed(true)}

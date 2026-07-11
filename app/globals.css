@@ -1381,7 +1381,50 @@ body {
 }
 
 .store-theme .store-hero-campaign-frame {
-  filter: drop-shadow(0 28px 48px rgba(0, 0, 0, 0.45));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.store-theme .store-hero-campaign-visual {
+  position: relative;
+  width: 100%;
+  isolation: isolate;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.store-theme .store-hero-campaign-visual::before {
+  content: "";
+  position: absolute;
+  inset: 8% 4%;
+  z-index: 0;
+  border-radius: 999px;
+  background: radial-gradient(
+    ellipse 72% 68% at 50% 42%,
+    rgba(139, 92, 246, 0.22),
+    rgba(10, 9, 13, 0.2) 52%,
+    transparent 72%
+  );
+  pointer-events: none;
+}
+
+.store-theme .store-hero-campaign-img {
+  z-index: 1;
+  filter: drop-shadow(0 28px 42px rgba(0, 0, 0, 0.55));
+}
+
+.store-theme .store-hero-editorial-tag {
+  margin-top: 1rem;
+  text-align: center;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: rgba(196, 168, 240, 0.72);
+  pointer-events: none;
+  user-select: none;
 }
 
 .store-theme .store-hero-campaign-image {

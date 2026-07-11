@@ -1,7 +1,6 @@
 import { StoreHeroImage } from "@/components/store/StoreHeroImage";
 import { PublicButton } from "@/components/ui/public";
 import type { StoreHeroSettings } from "@/lib/store/settings/types";
-import { cn } from "@/lib/utils/cn";
 
 type StoreHomeHeroProps = {
   settings: StoreHeroSettings;
@@ -106,38 +105,31 @@ export function StoreHomeHero({ settings, eventName }: StoreHomeHeroProps) {
             />
 
             <div className="lg:hidden">
-              <div className="store-hero-campaign-image relative overflow-hidden rounded-2xl">
-                <StoreHeroImage
-                  src={mobileImageUrl}
-                  alt={mobileAlt}
-                  priority
-                  sizes="(max-width: 1023px) 100vw, 0px"
-                  aspectClassName="aspect-[4/5]"
-                />
-              </div>
+              <StoreHeroImage
+                src={mobileImageUrl}
+                alt={mobileAlt}
+                priority
+                variant="campaign"
+                sizes="(max-width: 1023px) 100vw, 0px"
+                aspectClassName="aspect-[4/5] max-h-[min(72vh,560px)]"
+              />
             </div>
 
             <div className="hidden lg:block">
-              <div className="store-hero-campaign-image relative overflow-hidden rounded-2xl">
-                <StoreHeroImage
-                  src={desktopImageUrl}
-                  alt={desktopAlt}
-                  priority
-                  sizes="(min-width: 1024px) 50vw, 0px"
-                  aspectClassName="aspect-square"
-                />
-              </div>
+              <StoreHeroImage
+                src={desktopImageUrl}
+                alt={desktopAlt}
+                priority
+                variant="campaign"
+                sizes="(min-width: 1024px) 50vw, 0px"
+                aspectClassName="aspect-square max-h-[min(72vh,640px)]"
+              />
             </div>
 
             {showFloatingBadge ? (
-              <div
-                className={cn(
-                  "store-hero-float-badge pointer-events-none absolute z-10",
-                  "right-4 top-4 sm:right-6 sm:top-6 lg:right-8 lg:top-8",
-                )}
-              >
-                <span className="store-badge">{settings.hero_badge_text}</span>
-              </div>
+              <p className="store-hero-editorial-tag" aria-hidden>
+                {settings.hero_badge_text}
+              </p>
             ) : null}
           </div>
         </div>

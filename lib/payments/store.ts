@@ -134,6 +134,22 @@ export async function createStoreMercadoPagoPreference(
     return { success: false, error: "No tenés permiso para pagar este pedido.", code: "forbidden" };
   }
 
+  if (storeOrder.payment_channel === "manual") {
+    return {
+      success: false,
+      error: "Este pedido está configurado para pago en caja.",
+      code: "manual_channel",
+    };
+  }
+
+  if (storeOrder.payment_status === "confirmed") {
+    return {
+      success: false,
+      error: "Este pedido ya fue pagado.",
+      code: "already_paid",
+    };
+  }
+
   if (!isOrderPayable(storeOrder)) {
     return {
       success: false,

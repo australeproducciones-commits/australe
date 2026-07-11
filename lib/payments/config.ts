@@ -27,6 +27,29 @@ export function isMercadoPagoEnabled(): boolean {
   return parseBoolean(process.env.MERCADOPAGO_ENABLED, false);
 }
 
+export function isStoreManualPaymentEnabled(): boolean {
+  return parseBoolean(process.env.STORE_MANUAL_PAYMENT_ENABLED, true);
+}
+
+export type StoreCheckoutPaymentAvailability = {
+  mercadoPago: boolean;
+  manual: boolean;
+  hybrid: boolean;
+  disabled: boolean;
+};
+
+export function getStoreCheckoutPaymentAvailability(): StoreCheckoutPaymentAvailability {
+  const mercadoPago = isMercadoPagoEnabled();
+  const manual = isStoreManualPaymentEnabled();
+
+  return {
+    mercadoPago,
+    manual,
+    hybrid: mercadoPago && manual,
+    disabled: !mercadoPago && !manual,
+  };
+}
+
 export function getMercadoPagoConfig() {
   const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN?.trim() ?? "";
   const publicKey = process.env.NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY?.trim() ?? "";

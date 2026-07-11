@@ -492,6 +492,7 @@ export async function getStoreDashboardStats(): Promise<StoreDashboardStats> {
 export async function getStoreOrdersForAdmin(filters?: {
   status?: string;
   paymentStatus?: string;
+  paymentChannel?: string;
   eventId?: string;
   q?: string;
 }): Promise<StoreOrder[]> {
@@ -508,6 +509,10 @@ export async function getStoreOrdersForAdmin(filters?: {
 
   if (filters?.paymentStatus) {
     query = query.eq("payment_status", filters.paymentStatus);
+  }
+
+  if (filters?.paymentChannel) {
+    query = query.eq("payment_channel", filters.paymentChannel);
   }
 
   if (filters?.eventId) {
@@ -531,6 +536,7 @@ export async function getStoreOrdersForAdmin(filters?: {
 export async function getStoreOrdersWithPaymentsForAdmin(filters?: {
   status?: string;
   paymentStatus?: string;
+  paymentChannel?: string;
   eventId?: string;
   q?: string;
 }): Promise<StoreOrderWithPayments[]> {

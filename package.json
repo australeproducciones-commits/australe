@@ -9,7 +9,9 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "node scripts/validate-mercadopago-unit.mjs && node scripts/validate-mercadopago-payments.mjs && node scripts/validate-store-module.mjs"
+    "test": "node scripts/validate-mercadopago-unit.mjs && node scripts/validate-mercadopago-payments.mjs && node scripts/validate-store-module.mjs && node scripts/validate-store-hybrid-payments.mjs && node scripts/validate-store-hybrid-integration.mjs",
+    "validate:store:hybrid-payments": "node scripts/validate-store-hybrid-payments.mjs",
+    "validate:store:hybrid-integration": "node scripts/validate-store-hybrid-integration.mjs"
   },
   "engines": {
     "node": ">=20.0.0"

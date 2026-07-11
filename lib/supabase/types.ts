@@ -501,7 +501,13 @@ export type StoreOrderRow = {
   status: string;
   payment_status: string;
   payment_provider: string | null;
+  payment_channel: string | null;
+  payment_method: string | null;
   payment_reference: string | null;
+  payment_amount_received: number | null;
+  payment_confirmed_by: string | null;
+  payment_notes: string | null;
+  payment_review_reason: string | null;
   subtotal: number;
   discount_total: number;
   points_discount: number;
@@ -1471,13 +1477,29 @@ export type Database = {
           p_event_id: string | null;
           p_items: Json;
           p_apply_community_price: boolean;
+          p_payment_channel?: string | null;
         };
         Returns: {
           order_id: string;
           order_number: string;
           total_amount: number;
           pickup_code: string;
+          reserved_until: string;
         }[];
+      };
+      confirm_store_manual_payment: {
+        Args: {
+          p_order_id: string;
+          p_payment_method: string;
+          p_amount_received: number;
+          p_payment_reference?: string | null;
+          p_notes?: string | null;
+        };
+        Returns: Json;
+      };
+      expire_store_reservations: {
+        Args: Record<string, never>;
+        Returns: number;
       };
       mark_store_order_paid: {
         Args: {

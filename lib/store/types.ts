@@ -142,7 +142,13 @@ export type StoreOrder = {
   status: StoreOrderStatus;
   payment_status: StorePaymentStatus;
   payment_provider: string | null;
+  payment_channel: string | null;
+  payment_method: string | null;
   payment_reference: string | null;
+  payment_amount_received: number | null;
+  payment_confirmed_by: string | null;
+  payment_notes: string | null;
+  payment_review_reason: string | null;
   subtotal: number;
   discount_total: number;
   points_discount: number;
@@ -248,6 +254,16 @@ export type CreateStoreOrderResult = {
   orderNumber?: string;
   total?: number;
   pickupCode?: string;
+  reservedUntil?: string;
+  paymentChannel?: string | null;
+};
+
+export type ConfirmManualPaymentInput = {
+  orderId: string;
+  paymentMethod: string;
+  amountReceived: number;
+  paymentReference?: string;
+  notes?: string;
 };
 
 export type StoreProductInput = {
@@ -332,5 +348,6 @@ export type CheckoutInput = {
   pickupEventId?: string | null;
   eventId?: string | null;
   applyCommunityPrice?: boolean;
+  paymentChannel: string;
   items: StoreCartItem[];
 };

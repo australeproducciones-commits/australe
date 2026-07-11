@@ -1,11 +1,11 @@
 "use server";
 
-import { requireAdmin, requireCashierForEvent } from "@/lib/auth/require";
-import { awardLoyaltyPointsForStoreOrder } from "@/lib/community/loyalty/store";
+import { requireAdmin, requireCashierForEvent, requireStaffKioskAction } from "@/lib/auth/require";
 import { ROUTES } from "@/lib/constants/routes";
 import { slugifyName } from "@/lib/events/utils";
 import type {
   CheckoutInput,
+  ConfirmManualPaymentInput,
   CreateStoreOrderResult,
   EventStoreSettingsInput,
   EventStoreProductInput,
@@ -14,6 +14,7 @@ import type {
   StoreVariantInput,
 } from "@/lib/store/types";
 import { mapCreateStoreOrderRpcError } from "@/lib/store/utils";
+import { isStoreManualPaymentMethod, isStorePaymentChannel } from "@/lib/store/payment-channels";
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
@@ -386,6 +387,10 @@ export async function createStoreOrderAction(
 ): Promise<CreateStoreOrderResult> {
   const supabase = await createClient();
 
+  if (!isStorePaymentChannel(input.paymentChannel)) {
+    return { success: false, error: "Seleccioná un medio de pago válido." };
+  }
+
   const items = input.items.map((item) => ({
     product_id: item.productId,
     variant_id: item.variantId,
@@ -400,6 +405,7 @@ export async function createStoreOrderAction(
     p_event_id: input.eventId ?? null,
     p_items: items,
     p_apply_community_price: input.applyCommunityPrice ?? false,
+    p_payment_channel: input.paymentChannel,
   });
 
   if (error) {
@@ -424,6 +430,55 @@ export async function createStoreOrderAction(
     orderNumber: row.order_number as string,
     total: Number(row.total_amount),
     pickupCode: row.pickup_code as string,
+    reservedUntil: (row.reserved_until as string | null) ?? undefined,
+    paymentChannel: input.paymentChannel,
+  };
+}
+
+export async function confirmStoreManualPaymentAction(
+  input: ConfirmManualPaymentInput,
+): Promise<StoreActionResult & { outcome?: string; idempotent?: boolean }> {
+  if (!isStoreManualPaymentMethod(input.paymentMethod)) {
+    return { success: false, error: "Seleccioná un método de pago válido." };
+  }
+
+  if (!Number.isFinite(input.amountReceived) || input.amountReceived <= 0) {
+    return { success: false, error: "El importe recibido no es válido." };
+  }
+
+  const auth = await requireStaffKioskAction();
+  if ("error" in auth) {
+    return { success: false, error: auth.error };
+  }
+
+  const { data, error } = await auth.supabase.rpc("confirm_store_manual_payment", {
+    p_order_id: input.orderId,
+    p_payment_method: input.paymentMethod,
+    p_amount_received: input.amountReceived,
+    p_payment_reference: input.paymentReference?.trim() || null,
+    p_notes: input.notes?.trim() || null,
+  });
+
+  if (error) {
+    const message = error.message.includes("Mercado Pago")
+      ? "Esta orden ya fue pagada mediante Mercado Pago."
+      : error.message.includes("reserva expirada")
+        ? "La reserva expiró. No se puede confirmar el pago."
+        : error.message.includes("Mercado Pago")
+          ? "Esta orden está configurada para Mercado Pago."
+          : "No se pudo confirmar el pago.";
+    return { success: false, error: message };
+  }
+
+  const outcome = (data as { outcome?: string; idempotent?: boolean } | null)?.outcome;
+  const idempotent = (data as { idempotent?: boolean } | null)?.idempotent === true;
+
+  revalidateStorePaths();
+  return {
+    success: true,
+    id: input.orderId,
+    outcome,
+    idempotent,
   };
 }
 
@@ -431,24 +486,35 @@ export async function markStoreOrderPaidAction(
   orderId: string,
   paymentReference?: string,
 ): Promise<StoreActionResult> {
-  const auth = await requireAdmin();
+  const auth = await requireStaffKioskAction();
   if ("error" in auth) {
     return { success: false, error: auth.error };
   }
 
-  const { error } = await auth.supabase.rpc("mark_store_order_paid", {
-    p_order_id: orderId,
-    p_payment_provider: "manual",
-    p_payment_reference: paymentReference ?? null,
-  });
+  const { data: order, error: orderError } = await auth.supabase
+    .from("store_orders")
+    .select("total, payment_provider, payment_status, payment_channel")
+    .eq("id", orderId)
+    .maybeSingle();
 
-  if (error) {
-    return { success: false, error: "No se pudo confirmar el pago." };
+  if (orderError || !order) {
+    return { success: false, error: "Pedido no encontrado." };
   }
 
-  await awardLoyaltyPointsForStoreOrder(orderId);
-  revalidateStorePaths();
-  return { success: true, id: orderId };
+  if (order.payment_status === "confirmed" && order.payment_provider === "mercadopago") {
+    return { success: false, error: "Esta orden ya fue pagada mediante Mercado Pago." };
+  }
+
+  if (order.payment_channel === "mercadopago" && order.payment_status === "pending") {
+    return { success: false, error: "Esta orden está configurada para Mercado Pago." };
+  }
+
+  return confirmStoreManualPaymentAction({
+    orderId,
+    paymentMethod: "cash",
+    amountReceived: Number(order.total),
+    paymentReference,
+  });
 }
 
 export async function markStoreOrderReadyAction(

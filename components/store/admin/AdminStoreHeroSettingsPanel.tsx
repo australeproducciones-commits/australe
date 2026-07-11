@@ -191,11 +191,12 @@ export function AdminStoreHeroSettingsPanel({
           </div>
           <div>
             <p className="mb-2 text-xs font-medium text-zinc-400">Vista previa escritorio</p>
-            <div className="mx-auto max-w-sm overflow-hidden rounded-2xl border border-white/10">
+            <div className="mx-auto max-w-sm overflow-hidden rounded-2xl border border-white/10 store-theme">
               <StoreHeroImage
                 src={desktopPreviewUrl}
                 alt={settings.hero_desktop_image_alt ?? "Vista previa escritorio"}
                 sizes="400px"
+                variant="campaign"
                 aspectClassName="aspect-square"
               />
             </div>
@@ -239,11 +240,12 @@ export function AdminStoreHeroSettingsPanel({
           </div>
           <div>
             <p className="mb-2 text-xs font-medium text-zinc-400">Vista previa móvil</p>
-            <div className="mx-auto max-w-[220px] overflow-hidden rounded-2xl border border-white/10">
+            <div className="mx-auto max-w-[220px] overflow-hidden rounded-2xl border border-white/10 store-theme">
               <StoreHeroImage
                 src={mobilePreviewUrl}
                 alt={settings.hero_mobile_image_alt ?? "Vista previa móvil"}
                 sizes="220px"
+                variant="campaign"
                 aspectClassName="aspect-[4/5]"
               />
             </div>

@@ -1412,6 +1412,7 @@ body {
 
 .store-theme .store-hero-campaign-img {
   z-index: 1;
+  background: transparent;
   filter: drop-shadow(0 28px 42px rgba(0, 0, 0, 0.55));
 }
 

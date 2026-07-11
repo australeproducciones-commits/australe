@@ -68,10 +68,11 @@ export function StoreHeroImage({
     );
   }
 
-  const optimizable = isNextImageOptimizable(src);
+  const optimizable = !isCampaign && isNextImageOptimizable(src);
   const imageClass = cn(
     "object-contain object-center",
-    isCampaign && "store-hero-campaign-img",
+    isCampaign && "store-hero-campaign-img absolute inset-0 h-full w-full",
+    !isCampaign && "h-full w-full",
     imageClassName,
   );
 
@@ -89,7 +90,7 @@ export function StoreHeroImage({
           src={src}
           alt={alt}
           fill
-          className={imageClass}
+          className={cn("object-contain object-center", imageClassName)}
           sizes={sizes}
           priority={priority}
           onError={() => setFailed(true)}
@@ -99,7 +100,7 @@ export function StoreHeroImage({
         <img
           src={src}
           alt={alt}
-          className={cn("h-full w-full", imageClass)}
+          className={imageClass}
           loading={priority ? "eager" : "lazy"}
           decoding="async"
           onError={() => setFailed(true)}

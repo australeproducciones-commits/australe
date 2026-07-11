@@ -50,11 +50,6 @@ export function AdminStoreProductForm({
     const communityPrice = communityRaw ? Number(communityRaw) : null;
 
     const stockTotal = Number(formData.get("stock_total") ?? 0);
-    const galleryRaw = String(formData.get("gallery_urls") ?? "");
-    const gallery = galleryRaw
-      .split("\n")
-      .map((item) => item.trim())
-      .filter(Boolean);
 
     startTransition(async () => {
       const result = await upsertStoreProductAction(editingProduct?.id ?? null, {
@@ -66,7 +61,7 @@ export function AdminStoreProductForm({
         public_price: publicPrice,
         community_price: communityPrice,
         main_image_url: mainImageUrl,
-        gallery_urls: gallery,
+        gallery_urls: galleryUrls,
         is_active: formData.get("is_active") === "on",
         is_featured: formData.get("is_featured") === "on",
         community_only: formData.get("community_only") === "on",
@@ -102,7 +97,7 @@ export function AdminStoreProductForm({
             {editingProduct ? "Editar producto" : "Nuevo producto"}
           </h2>
           <p className="mt-0.5 text-xs text-zinc-500">
-            Completá los datos y subí las imágenes antes de guardar.
+            Completá los datos y cargá las URLs de imagen antes de guardar.
           </p>
         </div>
         {editingProduct ? (

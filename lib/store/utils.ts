@@ -129,3 +129,59 @@ export const STORE_CATEGORIES = [
   { value: "packs", label: "Packs" },
   { value: "ediciones", label: "Ediciones especiales" },
 ] as const;
+
+export function isValidStoreImageUrl(url: string): boolean {
+  const trimmed = url.trim();
+  if (!trimmed) {
+    return false;
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+    return parsed.protocol === "https:" || parsed.protocol === "http:";
+  } catch {
+    return false;
+  }
+}
+
+export function normalizeStoreImageUrl(
+  value: string | null | undefined,
+): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
+export function normalizeStoreGalleryUrls(
+  urls: string[] | null | undefined,
+): string[] {
+  if (!urls?.length) {
+    return [];
+  }
+
+  const normalized: string[] = [];
+  for (const url of urls) {
+    const trimmed = url.trim();
+    if (trimmed && !normalized.includes(trimmed)) {
+      normalized.push(trimmed);
+    }
+  }
+  return normalized;
+}
+
+export function validateStoreProductImages(input: {
+  main_image_url?: string | null;
+  gallery_urls?: string[] | null;
+}): string | null {
+  const main = normalizeStoreImageUrl(input.main_image_url);
+  if (main && !isValidStoreImageUrl(main)) {
+    return "La URL de la imagen principal debe ser válida (http:// o https://).";
+  }
+
+  for (const url of normalizeStoreGalleryUrls(input.gallery_urls)) {
+    if (!isValidStoreImageUrl(url)) {
+      return "Cada URL de la galería debe ser válida (http:// o https://).";
+    }
+  }
+
+  return null;
+}

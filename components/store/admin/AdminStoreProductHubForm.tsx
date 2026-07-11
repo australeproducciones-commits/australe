@@ -125,6 +125,48 @@ export function AdminStoreProductHubForm({
     });
   }
 
+  function handleSaveImages() {
+    if (!editingProduct) {
+      setError("Creá el producto desde la pestaña General antes de guardar imágenes.");
+      return;
+    }
+
+    setError(null);
+    setSuccess(null);
+
+    startTransition(async () => {
+      const result = await upsertStoreProductAction(editingProduct.id, {
+        name: editingProduct.name,
+        slug: editingProduct.slug,
+        sku: editingProduct.sku,
+        category: editingProduct.category,
+        description: editingProduct.description,
+        short_description: editingProduct.short_description,
+        public_price: editingProduct.public_price,
+        community_price: editingProduct.community_price,
+        main_image_url: mainImageUrl,
+        gallery_urls: galleryUrls,
+        is_active: editingProduct.is_active,
+        is_featured: editingProduct.is_featured,
+        show_in_store: editingProduct.show_in_store,
+        community_only: editingProduct.community_only,
+        track_stock: editingProduct.track_stock,
+        stock_total: editingProduct.stock_total,
+        status: editingProduct.status,
+        available_from: editingProduct.available_from,
+        available_until: editingProduct.available_until,
+      });
+
+      if (!result.success) {
+        setError(result.error ?? "No se pudieron guardar las imágenes.");
+        return;
+      }
+
+      setSuccess("Imágenes guardadas correctamente.");
+      router.refresh();
+    });
+  }
+
   return (
     <section className="rounded-xl border border-zinc-800 bg-zinc-900/40">
       <div className="border-b border-zinc-800 px-4 py-4 sm:px-5">
@@ -251,13 +293,37 @@ export function AdminStoreProductHubForm({
         ) : null}
 
         {tab === "images" ? (
-          <AdminStoreProductImageFields
-            productId={productId}
-            mainImageUrl={mainImageUrl}
-            galleryUrls={galleryUrls}
-            onMainImageChange={setMainImageUrl}
-            onGalleryChange={setGalleryUrls}
-          />
+          <div className="space-y-4">
+            <AdminStoreProductImageFields
+              key={`${productId ?? "new"}-images`}
+              productId={productId}
+              mainImageUrl={mainImageUrl}
+              galleryUrls={galleryUrls}
+              onMainImageChange={setMainImageUrl}
+              onGalleryChange={setGalleryUrls}
+            />
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                disabled={pending || !productId}
+                onClick={handleSaveImages}
+                className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-500 disabled:opacity-50"
+              >
+                {pending ? "Guardando..." : "Guardar imágenes"}
+              </button>
+              {!productId ? (
+                <p className="text-xs text-zinc-500">
+                  Creá el producto en General para habilitar el guardado de imágenes.
+                </p>
+              ) : null}
+              {error && tab === "images" ? (
+                <p className="text-sm text-red-400">{error}</p>
+              ) : null}
+              {success && tab === "images" ? (
+                <p className="text-sm text-emerald-400">{success}</p>
+              ) : null}
+            </div>
+          </div>
         ) : null}
 
         {tab === "general" ? (

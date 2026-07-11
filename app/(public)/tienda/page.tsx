@@ -6,7 +6,7 @@ import {
   StoreEmotionalBlock,
   StoreFinalCta,
 } from "@/components/store/StoreHomeSections";
-import { pickStoreHeroImage, StoreHomeHero } from "@/components/store/StoreHomeHero";
+import { StoreHomeHero } from "@/components/store/StoreHomeHero";
 import { StoreProductGrid } from "@/components/store/StoreProductCard";
 import { StoreCategoryShowcase } from "@/components/store/StoreCategoryShowcase";
 import { StoreTrustBar } from "@/components/store/StoreTrustBar";
@@ -14,6 +14,7 @@ import { PublicButton } from "@/components/ui/public";
 import { ROUTES } from "@/lib/constants/routes";
 import { getPublishedEventBySlug } from "@/lib/events/queries";
 import { getPublicStoreCollections, getPublicStoreProducts } from "@/lib/store/queries";
+import { getStoreHeroSettings } from "@/lib/store/settings/queries";
 
 export const metadata: Metadata = {
   title: "Tienda oficial · Merchandising Australe",
@@ -41,7 +42,7 @@ export default async function TiendaPage({ searchParams }: TiendaPageProps) {
   const event = eventSlug ? await getPublishedEventBySlug(eventSlug) : null;
   const hasFilters = Boolean(params.categoria || params.q);
 
-  const [products, collections, allProducts] = await Promise.all([
+  const [products, collections, allProducts, heroSettings] = await Promise.all([
     getPublicStoreProducts({
       category: params.categoria ?? null,
       q: params.q ?? null,
@@ -51,15 +52,15 @@ export default async function TiendaPage({ searchParams }: TiendaPageProps) {
     hasFilters
       ? Promise.resolve([])
       : getPublicStoreProducts({ eventId: event?.id ?? null }),
+    getStoreHeroSettings(),
   ]);
 
   const catalogProducts = products;
   const featured = (hasFilters ? products : allProducts).filter((p) => p.is_featured);
-  const heroImage = pickStoreHeroImage(hasFilters ? products : allProducts);
 
   return (
     <>
-      <StoreHomeHero heroImageUrl={heroImage} eventName={event?.name} />
+      <StoreHomeHero settings={heroSettings} eventName={event?.name} />
       <StoreTrustBar />
 
       {!hasFilters ? (

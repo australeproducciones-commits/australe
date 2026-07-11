@@ -70,6 +70,7 @@ export const ROUTES = {
   adminUsuarioNuevo: "/admin/usuarios/nuevo",
   adminUsuario: (id: string) => `/admin/usuarios/${id}`,
   adminConfiguracion: "/admin/configuracion",
+  adminConfiguracionTiendaHero: "/admin/configuracion/tienda/hero",
   adminPartners: "/admin/partners",
   adminPublicidad: "/admin/comunidad/publicidad",
 } as const;

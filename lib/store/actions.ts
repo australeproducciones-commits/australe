@@ -13,16 +13,25 @@ import type {
   StoreProductInput,
   StoreVariantInput,
 } from "@/lib/store/types";
-import { mapCreateStoreOrderRpcError } from "@/lib/store/utils";
+import {
+  mapCreateStoreOrderRpcError,
+  normalizeStoreGalleryUrls,
+  normalizeStoreImageUrl,
+  validateStoreProductImages,
+} from "@/lib/store/utils";
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
-function revalidateStorePaths(eventId?: string) {
+function revalidateStorePaths(eventId?: string, productSlug?: string) {
   revalidatePath(ROUTES.tienda);
   revalidatePath(ROUTES.adminTienda);
   revalidatePath(ROUTES.adminTiendaProductos);
   revalidatePath(ROUTES.adminTiendaPedidos);
   revalidatePath(ROUTES.adminTiendaStock);
+
+  if (productSlug) {
+    revalidatePath(ROUTES.tiendaProducto(productSlug));
+  }
 
   if (eventId) {
     revalidatePath(ROUTES.adminEvento(eventId));
@@ -45,6 +54,16 @@ export async function upsertStoreProductAction(
   }
 
   const slug = slugifyName(input.slug?.trim() || name) || `producto-${Date.now()}`;
+  const mainImageUrl = normalizeStoreImageUrl(input.main_image_url);
+  const galleryUrls = normalizeStoreGalleryUrls(input.gallery_urls);
+  const imageError = validateStoreProductImages({
+    main_image_url: mainImageUrl,
+    gallery_urls: galleryUrls,
+  });
+  if (imageError) {
+    return { success: false, error: imageError };
+  }
+
   const payload = {
     name,
     slug,
@@ -56,8 +75,8 @@ export async function upsertStoreProductAction(
     public_price: input.public_price,
     community_price: input.community_price ?? null,
     cost_price: null,
-    main_image_url: input.main_image_url ?? null,
-    gallery_urls: input.gallery_urls ?? [],
+    main_image_url: mainImageUrl,
+    gallery_urls: galleryUrls,
     is_active: input.is_active ?? false,
     is_featured: input.is_featured ?? false,
     show_in_store: input.show_in_store ?? true,
@@ -80,7 +99,7 @@ export async function upsertStoreProductAction(
       return { success: false, error: "No se pudo actualizar el producto." };
     }
 
-    revalidateStorePaths();
+    revalidateStorePaths(undefined, slug);
     return { success: true, id: productId };
   }
 
@@ -95,7 +114,7 @@ export async function upsertStoreProductAction(
     return { success: false, error: "No se pudo crear el producto." };
   }
 
-  revalidateStorePaths();
+  revalidateStorePaths(undefined, slug);
   return { success: true, id: data.id };
 }
 

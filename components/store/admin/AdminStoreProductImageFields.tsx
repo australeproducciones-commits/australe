@@ -1,12 +1,18 @@
 "use client";
 
 import Image from "next/image";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import {
+  adminStoreFieldClass,
   AdminStoreField,
 } from "@/components/store/admin/adminStoreUi";
-import { uploadStoreProductImageAction } from "@/lib/store/images/actions";
+import {
+  isValidStoreImageUrl,
+  normalizeStoreGalleryUrls,
+  normalizeStoreImageUrl,
+} from "@/lib/store/utils";
 import { isNextImageOptimizable } from "@/lib/utils/imageHosts";
+import { cn } from "@/lib/utils/cn";
 
 type AdminStoreProductImageFieldsProps = {
   productId: string | null;
@@ -49,135 +55,120 @@ function ImagePreview({
 }
 
 export function AdminStoreProductImageFields({
-  productId,
   mainImageUrl,
   galleryUrls,
   onMainImageChange,
   onGalleryChange,
 }: AdminStoreProductImageFieldsProps) {
-  const [uploading, setUploading] = useState(false);
+  const [galleryDraft, setGalleryDraft] = useState(galleryUrls.join("\n"));
   const [error, setError] = useState<string | null>(null);
-  const mainInputRef = useRef<HTMLInputElement>(null);
-  const galleryInputRef = useRef<HTMLInputElement>(null);
 
-  async function uploadFile(file: File): Promise<string | null> {
-    const formData = new FormData();
-    formData.set("file", file);
-    const result = await uploadStoreProductImageAction(productId, formData);
-    if (!result.success || !result.url) {
-      setError(result.error ?? "No se pudo subir la imagen.");
-      return null;
+  const previewMainUrl = normalizeStoreImageUrl(mainImageUrl);
+  const previewGalleryUrls = normalizeStoreGalleryUrls(galleryUrls);
+
+  function handleMainBlur(raw: string) {
+    const normalized = normalizeStoreImageUrl(raw);
+    if (normalized && !isValidStoreImageUrl(normalized)) {
+      setError("La URL de la imagen principal debe ser válida (http:// o https://).");
+      return;
     }
-    return result.url;
+    setError(null);
+    onMainImageChange(normalized);
   }
 
-  async function handleMainUpload(files: FileList | null) {
-    const file = files?.[0];
-    if (!file) return;
-
-    setUploading(true);
-    setError(null);
-    const url = await uploadFile(file);
-    if (url) {
-      onMainImageChange(url);
-    }
-    setUploading(false);
-    if (mainInputRef.current) {
-      mainInputRef.current.value = "";
-    }
-  }
-
-  async function handleGalleryUpload(files: FileList | null) {
-    if (!files?.length) return;
-
-    setUploading(true);
-    setError(null);
-    const uploaded: string[] = [];
-
-    for (const file of Array.from(files)) {
-      const url = await uploadFile(file);
-      if (url) {
-        uploaded.push(url);
+  function handleGalleryBlur(raw: string) {
+    const lines = raw.split("\n").map((line) => line.trim()).filter(Boolean);
+    for (const url of lines) {
+      if (!isValidStoreImageUrl(url)) {
+        setError("Cada URL de la galería debe ser válida (http:// o https://).");
+        return;
       }
     }
-
-    if (uploaded.length > 0) {
-      onGalleryChange([...galleryUrls, ...uploaded]);
-    }
-    setUploading(false);
-    if (galleryInputRef.current) {
-      galleryInputRef.current.value = "";
-    }
+    setError(null);
+    onGalleryChange(normalizeStoreGalleryUrls(lines));
   }
 
   return (
     <div className="space-y-4 rounded-xl border border-zinc-800 bg-zinc-950/40 p-4">
-      <div className="flex items-center justify-between gap-3">
+      <div>
         <p className="text-sm font-semibold text-white">Imágenes</p>
-        {uploading ? (
-          <span className="text-xs text-violet-300">Subiendo...</span>
-        ) : null}
+        <p className="mt-1 text-xs text-zinc-500">
+          Pegá URLs públicas de imagen, como en el módulo de Eventos.
+        </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <AdminStoreField label="Imagen principal">
-          <div className="flex flex-wrap items-end gap-3">
-            {mainImageUrl ? (
+      <div className="grid gap-4 lg:grid-cols-2">
+        <AdminStoreField label="Imagen principal" htmlFor="main_image_url">
+          <input
+            id="main_image_url"
+            name="main_image_url"
+            type="url"
+            value={mainImageUrl ?? ""}
+            onChange={(event) =>
+              onMainImageChange(event.target.value ? event.target.value : null)
+            }
+            onBlur={(event) => handleMainBlur(event.target.value)}
+            className={adminStoreFieldClass}
+            placeholder="https://..."
+          />
+          <p className="mt-1 text-[11px] text-zinc-500">
+            JPG, PNG o WebP accesible por URL pública.
+          </p>
+        </AdminStoreField>
+
+        <AdminStoreField label="Galería (opcional)" htmlFor="gallery_urls">
+          <textarea
+            id="gallery_urls"
+            name="gallery_urls"
+            rows={4}
+            value={galleryDraft}
+            onChange={(event) => {
+              const value = event.target.value;
+              setGalleryDraft(value);
+              onGalleryChange(
+                normalizeStoreGalleryUrls(
+                  value.split("\n").map((line) => line.trim()).filter(Boolean),
+                ),
+              );
+            }}
+            onBlur={(event) => handleGalleryBlur(event.target.value)}
+            className={cn(adminStoreFieldClass, "resize-y font-mono text-xs")}
+            placeholder={"https://...\nhttps://..."}
+          />
+          <p className="mt-1 text-[11px] text-zinc-500">Una URL por línea.</p>
+        </AdminStoreField>
+      </div>
+
+      {previewMainUrl || previewGalleryUrls.length > 0 ? (
+        <div className="space-y-3">
+          <p className="text-xs font-medium text-zinc-400">Vista previa</p>
+          <div className="flex flex-wrap gap-2">
+            {previewMainUrl && isValidStoreImageUrl(previewMainUrl) ? (
               <ImagePreview
-                url={mainImageUrl}
+                url={previewMainUrl}
                 alt="Imagen principal"
                 onRemove={() => onMainImageChange(null)}
               />
-            ) : (
-              <div className="flex h-24 w-24 items-center justify-center rounded-lg border border-dashed border-zinc-700 text-[10px] text-zinc-500">
-                Sin imagen
-              </div>
-            )}
-            <div>
-              <input
-                ref={mainInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                disabled={uploading}
-                onChange={(e) => void handleMainUpload(e.target.files)}
-                className="max-w-[14rem] text-xs text-zinc-400 file:mr-2 file:rounded-md file:border-0 file:bg-violet-600 file:px-2 file:py-1 file:text-xs file:font-medium file:text-white"
-              />
-              <p className="mt-1 text-[11px] text-zinc-500">JPG, PNG o WebP · máx. 5 MB</p>
-            </div>
-          </div>
-        </AdminStoreField>
-
-        <AdminStoreField label="Galería (opcional)">
-          <div className="space-y-3">
-            {galleryUrls.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {galleryUrls.map((url) => (
-                  <ImagePreview
-                    key={url}
-                    url={url}
-                    alt="Galería"
-                    onRemove={() =>
-                      onGalleryChange(galleryUrls.filter((item) => item !== url))
-                    }
-                  />
-                ))}
-              </div>
             ) : null}
-            <input
-              ref={galleryInputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              multiple
-              disabled={uploading}
-              onChange={(e) => void handleGalleryUpload(e.target.files)}
-              className="max-w-full text-xs text-zinc-400 file:mr-2 file:rounded-md file:border-0 file:bg-zinc-700 file:px-2 file:py-1 file:text-xs file:font-medium file:text-white"
-            />
+            {previewGalleryUrls.map((url) => (
+              <ImagePreview
+                key={url}
+                url={url}
+                alt="Galería"
+                onRemove={() => {
+                  const next = previewGalleryUrls.filter((item) => item !== url);
+                  setGalleryDraft(next.join("\n"));
+                  onGalleryChange(next);
+                }}
+              />
+            ))}
           </div>
-        </AdminStoreField>
-      </div>
-
-      <input type="hidden" name="main_image_url" value={mainImageUrl ?? ""} />
-      <input type="hidden" name="gallery_urls" value={galleryUrls.join("\n")} />
+        </div>
+      ) : (
+        <p className="text-sm text-zinc-500">
+          Cargá la URL de la imagen principal para ver la vista previa.
+        </p>
+      )}
 
       {error ? <p className="text-xs text-red-400">{error}</p> : null}
     </div>

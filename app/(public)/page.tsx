@@ -1,4 +1,3 @@
-import { CommunitySection } from "@/components/home/CommunitySection";
 import { HomeHeroSection } from "@/components/home/HomeHeroSection";
 import { HomeCartelera } from "@/components/home/HomeCartelera";
 import { PublicQueryError } from "@/components/ui/PublicQueryError";
@@ -43,7 +42,6 @@ export default async function Home() {
           <HomeCartelera items={carteleraItems} />
         </>
       )}
-      <CommunitySection />
     </main>
   );
 }

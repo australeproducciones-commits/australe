@@ -66,6 +66,22 @@ async function cleanup(url, serviceKey) {
   );
 
   for (const product of products ?? []) {
+    const { data: orderItems } = await rest(
+      url,
+      serviceKey,
+      `store_order_items?select=order_id&product_id=eq.${product.id}`,
+    );
+    const orderIds = [...new Set((orderItems ?? []).map((row) => row.order_id))];
+
+    for (const orderId of orderIds) {
+      await rest(url, serviceKey, `store_order_items?order_id=eq.${orderId}`, {
+        method: "DELETE",
+      });
+      await rest(url, serviceKey, `store_orders?id=eq.${orderId}`, {
+        method: "DELETE",
+      });
+    }
+
     await rest(url, serviceKey, `event_store_products?product_id=eq.${product.id}`, {
       method: "DELETE",
     });
@@ -319,10 +335,15 @@ async function main() {
 
   // 8. Stock compartido — reserva desde evento reduce stock general
   {
-    const shared = await createProduct(url, serviceKey, `${TEST_PREFIX}shared-stock`, {
-      show_in_store: true,
-      stock_total: 3,
-    });
+    const shared = await createProduct(
+      url,
+      serviceKey,
+      `${TEST_PREFIX}shared-stock-${Date.now()}`,
+      {
+        show_in_store: true,
+        stock_total: 3,
+      },
+    );
 
     if (publishedEvent) {
       await rest(url, serviceKey, "event_store_products", {

@@ -40,7 +40,7 @@ export function PublicHeader() {
         backgroundColor: "var(--public-header-bg)",
       }}
     >
-      <div className="relative z-10 mx-auto max-w-6xl px-4 py-3 sm:px-6">
+      <div className="relative z-20 mx-auto max-w-6xl px-4 py-3 sm:px-6">
         <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
           <Link
             href={ROUTES.home}

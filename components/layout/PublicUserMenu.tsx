@@ -218,7 +218,7 @@ export function PublicUserMenu({
       id={`${menuId}-menu`}
       role="menu"
       aria-labelledby={`${menuId}-trigger`}
-      className="absolute right-0 top-full z-20 mt-1 min-w-[12rem] rounded-2xl border py-1 shadow-lg"
+      className="absolute right-0 top-full z-50 mt-1 min-w-[12rem] rounded-2xl border py-1 shadow-lg"
       style={{
         borderColor: "var(--public-border)",
         backgroundColor: "var(--public-card)",
@@ -274,7 +274,10 @@ export function PublicUserMenu({
   const showLabel = !compact;
 
   return (
-    <div ref={menuRef} className="relative z-10">
+    <div
+      ref={menuRef}
+      className={cn("relative", menuOpen ? "z-30" : "z-10")}
+    >
       <button
         ref={triggerRef}
         type="button"

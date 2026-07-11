@@ -875,3 +875,121 @@ export async function getEventStoreMerchAdminData(eventId: string): Promise<{
     allProducts: pageData.products,
   };
 }
+
+export type StoreCartLineDetail = {
+  productId: string;
+  variantId: string | null;
+  productName: string;
+  variantName: string | null;
+  imageUrl: string | null;
+  unitPrice: number;
+  slug: string;
+  available: boolean;
+};
+
+export async function getPublicStoreCartLineDetails(
+  items: { productId: string; variantId: string | null }[],
+): Promise<StoreCartLineDetail[]> {
+  if (items.length === 0) {
+    return [];
+  }
+
+  const supabase = await createClient();
+  const productIds = [...new Set(items.map((item) => item.productId))];
+
+  const [{ data: products }, { data: variants }] = await Promise.all([
+    supabase
+      .from("store_products")
+      .select(
+        "id, name, slug, main_image_url, public_price, is_active, status, show_in_store, available_from, available_until, track_stock, stock_total, stock_reserved",
+      )
+      .in("id", productIds)
+      .eq("is_active", true)
+      .eq("status", "active")
+      .eq("show_in_store", true),
+    supabase
+      .from("store_product_variants")
+      .select(
+        "id, product_id, name, price_override, is_active, stock_total, stock_reserved",
+      )
+      .in("product_id", productIds)
+      .eq("is_active", true),
+  ]);
+
+  const productMap = new Map(
+    (products ?? []).map((row) => [row.id as string, row]),
+  );
+  const variantMap = new Map(
+    (variants ?? []).map((row) => [row.id as string, row]),
+  );
+
+  const lines: StoreCartLineDetail[] = [];
+
+  for (const item of items) {
+    const product = productMap.get(item.productId);
+    const variant = item.variantId ? variantMap.get(item.variantId) : null;
+
+    if (!product) {
+      lines.push({
+        productId: item.productId,
+        variantId: item.variantId,
+        productName: "Producto no disponible",
+        variantName: null,
+        imageUrl: null,
+        unitPrice: 0,
+        slug: "",
+        available: false,
+      });
+      continue;
+    }
+
+    if (
+      item.variantId &&
+      (!variant || (variant.product_id as string) !== item.productId)
+    ) {
+      lines.push({
+        productId: item.productId,
+        variantId: item.variantId,
+        productName: (product.name as string) ?? "Producto",
+        variantName: null,
+        imageUrl: (product.main_image_url as string | null) ?? null,
+        unitPrice: 0,
+        slug: (product.slug as string) ?? "",
+        available: false,
+      });
+      continue;
+    }
+
+    const publiclyAvailable = isStoreProductPubliclyAvailable(
+      product as StoreProduct,
+    );
+    const stockAvailable = getStoreStockAvailable(
+      product as StoreProduct,
+      variant as StoreProductVariant | null,
+    );
+    const inStock =
+      stockAvailable === null || stockAvailable > 0;
+
+    lines.push({
+      productId: item.productId,
+      variantId: item.variantId,
+      productName: (product.name as string) ?? "Producto",
+      variantName: (variant?.name as string | undefined) ?? null,
+      imageUrl: (product.main_image_url as string | null) ?? null,
+      unitPrice: Number(variant?.price_override ?? product.public_price ?? 0),
+      slug: (product.slug as string) ?? "",
+      available: publiclyAvailable && inStock,
+    });
+  }
+
+  return lines;
+}
+
+export async function getRelatedPublicStoreProducts(
+  productId: string,
+  category: string,
+  limit = 4,
+): Promise<PublicStoreProduct[]> {
+  const products = await getPublicStoreProducts({ category });
+  return products.filter((product) => product.id !== productId).slice(0, limit);
+}

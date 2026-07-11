@@ -1,14 +1,30 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { StoreCatalogFilters } from "@/components/store/StoreCatalogFilters";
+import {
+  StoreCommunityBlock,
+  StoreEmotionalBlock,
+  StoreFinalCta,
+} from "@/components/store/StoreHomeSections";
+import { pickStoreHeroImage, StoreHomeHero } from "@/components/store/StoreHomeHero";
 import { StoreProductGrid } from "@/components/store/StoreProductCard";
-import { PageContainer, PublicButton } from "@/components/ui/public";
+import { StoreCategoryShowcase } from "@/components/store/StoreCategoryShowcase";
+import { StoreTrustBar } from "@/components/store/StoreTrustBar";
+import { PublicButton } from "@/components/ui/public";
 import { ROUTES } from "@/lib/constants/routes";
 import { getPublishedEventBySlug } from "@/lib/events/queries";
 import { getPublicStoreCollections, getPublicStoreProducts } from "@/lib/store/queries";
-import { STORE_CATEGORIES } from "@/lib/store/utils";
 
 export const metadata: Metadata = {
-  title: "Tienda",
-  description: "Merchandising oficial de Australe Producciones",
+  title: "Tienda oficial · Merchandising Australe",
+  description:
+    "Merchandising oficial de Australe Producciones. Productos exclusivos, ediciones limitadas y beneficios para la Comunidad Australe.",
+  openGraph: {
+    title: "Tienda oficial · Australe Producciones",
+    description:
+      "Llevá Australe con vos. Merchandising oficial para quienes forman parte de cada experiencia.",
+    type: "website",
+  },
 };
 
 type TiendaPageProps = {
@@ -23,101 +39,121 @@ export default async function TiendaPage({ searchParams }: TiendaPageProps) {
   const params = await searchParams;
   const eventSlug = params.evento?.trim() || null;
   const event = eventSlug ? await getPublishedEventBySlug(eventSlug) : null;
+  const hasFilters = Boolean(params.categoria || params.q);
 
-  const [products, collections] = await Promise.all([
+  const [products, collections, allProducts] = await Promise.all([
     getPublicStoreProducts({
       category: params.categoria ?? null,
       q: params.q ?? null,
       eventId: event?.id ?? null,
     }),
     getPublicStoreCollections(),
+    hasFilters
+      ? Promise.resolve([])
+      : getPublicStoreProducts({ eventId: event?.id ?? null }),
   ]);
 
-  const featured = products.filter((p) => p.is_featured);
+  const catalogProducts = products;
+  const featured = (hasFilters ? products : allProducts).filter((p) => p.is_featured);
+  const heroImage = pickStoreHeroImage(hasFilters ? products : allProducts);
 
   return (
-    <PageContainer>
-      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="public-label text-xs font-semibold uppercase tracking-[0.35em]">
-            Tienda oficial
-          </p>
-          <h1 className="public-heading mt-2 text-3xl font-black sm:text-4xl">
-            {event ? `Merch · ${event.name}` : "Merchandising Australe"}
-          </h1>
-          <p className="mt-2 max-w-2xl text-sm public-text-muted">
-            Productos oficiales, ediciones limitadas y merch de eventos. Reservá
-            y retirá en la fecha.
-          </p>
+    <>
+      <StoreHomeHero heroImageUrl={heroImage} eventName={event?.name} />
+      <StoreTrustBar />
+
+      {!hasFilters ? (
+        <>
+          {featured.length > 0 ? (
+            <section
+              id="destacados"
+              className="mx-auto max-w-6xl scroll-mt-28 px-4 py-14 sm:px-6 sm:py-16"
+            >
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[var(--public-text-soft)]">
+                    Selección curada
+                  </p>
+                  <h2 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">
+                    Elegidos de Australe
+                  </h2>
+                </div>
+              </div>
+              <div className="mt-8">
+                <StoreProductGrid
+                  products={featured.slice(0, 8)}
+                  eventSlug={eventSlug}
+                />
+              </div>
+            </section>
+          ) : null}
+
+          <StoreCategoryShowcase
+            activeCategory={params.categoria}
+            eventSlug={eventSlug}
+          />
+
+          {collections.length > 0 ? (
+            <section className="mx-auto max-w-6xl px-4 pb-4 sm:px-6">
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[var(--public-text-soft)]">
+                Colecciones
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {collections.map((collection) => (
+                  <PublicButton
+                    key={collection.id}
+                    href={ROUTES.tiendaColeccion(collection.slug)}
+                    variant="outline"
+                    size="sm"
+                  >
+                    {collection.name}
+                  </PublicButton>
+                ))}
+              </div>
+            </section>
+          ) : null}
+
+          <StoreEmotionalBlock />
+          <StoreCommunityBlock />
+        </>
+      ) : null}
+
+      <section
+        id="catalogo"
+        className="mx-auto max-w-6xl scroll-mt-28 px-4 py-14 sm:px-6 sm:py-16"
+      >
+        <div className="flex flex-col gap-6">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[var(--public-text-soft)]">
+              Catálogo completo
+            </p>
+            <h2 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">
+              {hasFilters ? "Resultados" : "Todos los productos"}
+            </h2>
+          </div>
+          <StoreCatalogFilters
+            defaultQuery={params.q ?? ""}
+            defaultCategory={params.categoria ?? ""}
+            eventSlug={eventSlug}
+          />
         </div>
-        <PublicButton href={ROUTES.tiendaCarrito} variant="primary" size="sm">
-          Ver carrito
-        </PublicButton>
-      </div>
-
-      <form className="mb-8 flex flex-wrap gap-3">
-        <input
-          type="search"
-          name="q"
-          defaultValue={params.q ?? ""}
-          placeholder="Buscar productos..."
-          className="min-w-[200px] flex-1 rounded-xl border px-4 py-2 text-sm"
-          style={{ borderColor: "var(--public-border)" }}
-        />
-        <select
-          name="categoria"
-          defaultValue={params.categoria ?? ""}
-          className="rounded-xl border px-3 py-2 text-sm"
-          style={{ borderColor: "var(--public-border)" }}
-        >
-          <option value="">Todas las categorías</option>
-          {STORE_CATEGORIES.map((cat) => (
-            <option key={cat.value} value={cat.value}>
-              {cat.label}
-            </option>
-          ))}
-        </select>
-        {eventSlug ? (
-          <input type="hidden" name="evento" value={eventSlug} />
-        ) : null}
-        <PublicButton type="submit" variant="outline" size="sm">
-          Filtrar
-        </PublicButton>
-      </form>
-
-      {collections.length > 0 ? (
-        <section className="mb-10">
-          <h2 className="public-heading text-lg font-bold">Colecciones</h2>
-          <div className="mt-4 flex flex-wrap gap-3">
-            {collections.map((collection) => (
-              <PublicButton
-                key={collection.id}
-                href={ROUTES.tiendaColeccion(collection.slug)}
-                variant="outline"
-                size="sm"
-              >
-                {collection.name}
-              </PublicButton>
-            ))}
-          </div>
-        </section>
-      ) : null}
-
-      {featured.length > 0 && !params.categoria && !params.q ? (
-        <section className="mb-10">
-          <h2 className="public-heading text-lg font-bold">Destacados</h2>
-          <div className="mt-4">
-            <StoreProductGrid products={featured.slice(0, 8)} eventSlug={eventSlug} />
-          </div>
-        </section>
-      ) : null}
-
-      <section>
-        <h2 className="public-heading text-lg font-bold">Catálogo</h2>
-        <div className="mt-4">
-          <StoreProductGrid products={products} eventSlug={eventSlug} />
+        <div className="mt-8">
+          <StoreProductGrid products={catalogProducts} eventSlug={eventSlug} />
         </div>
       </section>
-    </PageContainer>
+
+      {!hasFilters ? <StoreFinalCta /> : null}
+
+      {eventSlug ? (
+        <div className="mx-auto max-w-6xl px-4 pb-8 text-center sm:px-6">
+          <Link
+            href={ROUTES.tienda}
+            className="text-sm text-[var(--public-text-secondary)] underline-offset-2 hover:underline"
+          >
+            Ver tienda general
+          </Link>
+        </div>
+      ) : null}
+    </>
   );
 }

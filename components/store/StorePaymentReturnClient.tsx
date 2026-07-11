@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { PageContainer, PublicButton, PublicCard } from "@/components/ui/public";
+import { PublicButton } from "@/components/ui/public";
 import { ROUTES } from "@/lib/constants/routes";
 
 type PaymentStatusResponse = {
@@ -23,11 +23,16 @@ export function StorePaymentReturnClient({
   orderNumber: string;
   variant: "success" | "pending" | "error";
 }) {
+  const skipFetch = orderNumber === "—";
   const [status, setStatus] = useState<PaymentStatusResponse | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!skipFetch);
   const [polls, setPolls] = useState(0);
 
   useEffect(() => {
+    if (skipFetch) {
+      return;
+    }
+
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
 
@@ -63,7 +68,7 @@ export function StorePaymentReturnClient({
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [orderNumber, variant, polls]);
+  }, [orderNumber, variant, polls, skipFetch]);
 
   const paymentConfirmed = status?.order.paymentStatus === "confirmed";
   const paymentReview = status?.order.paymentStatus === "review";
@@ -96,21 +101,30 @@ export function StorePaymentReturnClient({
   };
 
   return (
-    <PageContainer>
-      <PublicCard padding="lg" className="mx-auto max-w-lg text-center">
-        <h1 className="public-heading text-2xl font-bold">{titles[variant]}</h1>
-        <p className="mt-3 text-sm public-text-muted">
-          Pedido <strong>{orderNumber}</strong>
+    <div className="mx-auto max-w-lg px-4 py-12 sm:px-6 sm:py-16">
+      <div className="store-surface rounded-2xl p-8 text-center sm:p-10">
+        <p className="store-badge">
+          {variant === "success"
+            ? "Pago"
+            : variant === "pending"
+              ? "Pendiente"
+              : "Estado"}
         </p>
-        <p className="mt-4 text-sm public-text-muted">{descriptions[variant]}</p>
+        <h1 className="mt-4 text-2xl font-bold tracking-tight">{titles[variant]}</h1>
+        <p className="mt-3 text-sm text-[var(--public-text-secondary)]">
+          Pedido <strong className="text-[var(--public-text)]">{orderNumber}</strong>
+        </p>
+        <p className="mt-4 text-sm leading-relaxed text-[var(--public-text-secondary)]">
+          {descriptions[variant]}
+        </p>
         {loading ? (
-          <p className="mt-4 text-xs public-text-muted">Consultando estado...</p>
+          <p className="mt-4 text-xs text-[var(--public-text-soft)]">Consultando estado...</p>
         ) : status ? (
-          <p className="mt-4 text-xs public-text-muted">
-            Estado interno: {status.order.status} / {status.order.paymentStatus}
+          <p className="mt-4 text-xs text-[var(--public-text-soft)]">
+            Estado: {status.order.status} / {status.order.paymentStatus}
           </p>
         ) : null}
-        <div className="mt-6 flex flex-wrap justify-center gap-3">
+        <div className="mt-8 flex flex-wrap justify-center gap-3">
           <PublicButton href={ROUTES.miCuentaPedidos} variant="primary">
             Mis pedidos
           </PublicButton>
@@ -118,7 +132,7 @@ export function StorePaymentReturnClient({
             Volver a la tienda
           </PublicButton>
         </div>
-      </PublicCard>
-    </PageContainer>
+      </div>
+    </div>
   );
 }

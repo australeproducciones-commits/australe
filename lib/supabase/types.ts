@@ -660,6 +660,27 @@ export type SiteSettingsRow = {
   updated_by: string | null;
 };
 
+export type StoreSettingsRow = {
+  id: number;
+  hero_enabled: boolean;
+  hero_eyebrow: string | null;
+  hero_title: string | null;
+  hero_description: string | null;
+  hero_desktop_image_url: string | null;
+  hero_mobile_image_url: string | null;
+  hero_desktop_image_alt: string | null;
+  hero_mobile_image_alt: string | null;
+  hero_primary_button_label: string | null;
+  hero_primary_button_url: string | null;
+  hero_secondary_button_label: string | null;
+  hero_secondary_button_url: string | null;
+  hero_badge_enabled: boolean;
+  hero_badge_text: string | null;
+  hero_footer_text: string | null;
+  updated_at: string;
+  updated_by: string | null;
+};
+
 export type PartnerRow = {
   id: string;
   name: string;
@@ -1130,6 +1151,14 @@ export type Database = {
           updated_at?: string;
         };
         Update: Partial<SiteSettingsRow>;
+        Relationships: [];
+      };
+      store_settings: {
+        Row: StoreSettingsRow;
+        Insert: Omit<StoreSettingsRow, "updated_at"> & {
+          updated_at?: string;
+        };
+        Update: Partial<StoreSettingsRow>;
         Relationships: [];
       };
       partners: {

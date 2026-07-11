@@ -1372,6 +1372,33 @@ body {
     var(--public-bg);
 }
 
+.store-theme .store-hero-premium {
+  isolation: isolate;
+}
+
+.store-theme .store-hero-eyebrow {
+  letter-spacing: 0.22em;
+}
+
+.store-theme .store-hero-campaign-frame {
+  filter: drop-shadow(0 28px 48px rgba(0, 0, 0, 0.45));
+}
+
+.store-theme .store-hero-campaign-image {
+  border: 1px solid rgba(167, 139, 219, 0.18);
+  background:
+    radial-gradient(ellipse 80% 70% at 50% 35%, rgba(167, 139, 219, 0.12), transparent 65%),
+    var(--public-card);
+  box-shadow:
+    0 24px 64px rgba(0, 0, 0, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.store-theme .store-hero-float-badge .store-badge {
+  backdrop-filter: blur(8px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
 .store-theme .store-fade-in {
   animation: store-fade-in 0.7s ease-out both;
 }

@@ -81,7 +81,7 @@ function StoreHeroMainSlide({
         ) : null}
       </div>
 
-      <div className="store-fade-in-delay relative order-2 lg:order-none">
+      <div className="store-fade-in-delay relative order-2 w-full min-w-0 lg:order-none">
         <div className="store-hero-campaign-frame relative mx-auto w-full max-w-lg lg:max-w-none">
           <div
             className="pointer-events-none absolute -left-8 top-1/2 hidden h-40 w-40 -translate-y-1/2 rounded-full blur-3xl lg:block"
@@ -89,7 +89,7 @@ function StoreHeroMainSlide({
             aria-hidden
           />
 
-          <div className="lg:hidden">
+          <div className="w-full lg:hidden">
               <StoreHeroImage
                 src={mobileImageUrl}
                 alt={mobileAlt}
@@ -100,7 +100,7 @@ function StoreHeroMainSlide({
               />
             </div>
 
-            <div className="hidden lg:block">
+            <div className="hidden w-full lg:block">
               <StoreHeroImage
                 src={desktopImageUrl}
                 alt={desktopAlt}

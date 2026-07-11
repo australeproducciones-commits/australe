@@ -68,7 +68,7 @@ export function StoreHeroImage({
     );
   }
 
-  const optimizable = isNextImageOptimizable(src);
+  const canUseNextImage = isNextImageOptimizable(src);
   const imageClass = cn(
     "object-contain object-center",
     isCampaign && "store-hero-campaign-img",
@@ -84,7 +84,7 @@ export function StoreHeroImage({
         className,
       )}
     >
-      {optimizable ? (
+      {canUseNextImage ? (
         <Image
           src={src}
           alt={alt}
@@ -92,6 +92,7 @@ export function StoreHeroImage({
           className={imageClass}
           sizes={sizes}
           priority={priority}
+          unoptimized={isCampaign}
           onError={() => setFailed(true)}
         />
       ) : (

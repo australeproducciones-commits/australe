@@ -1,11 +1,7 @@
-import { CommunityHeroSlide } from "@/components/home/CommunityHeroSlide";
 import { FeaturedEventsHero } from "@/components/home/FeaturedEventsHero";
-import { HomeHeroCarousel } from "@/components/home/HomeHeroCarousel";
 import { StreamingHero } from "@/components/streaming/StreamingCard";
 import { getFeaturedHomeStream } from "@/lib/streaming/queries";
 import type { Event } from "@/lib/events/types";
-
-const STREAMING_CAROUSEL_INTERVAL_MS = 5500;
 
 type HomeHeroSectionProps = {
   featuredEvents: Event[];
@@ -24,14 +20,7 @@ export async function HomeHeroSection({ featuredEvents }: HomeHeroSectionProps) 
         }}
       >
         <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10 lg:py-12">
-          <HomeHeroCarousel
-            ariaLabel="Destacados Australe"
-            intervalMs={STREAMING_CAROUSEL_INTERVAL_MS}
-            slides={[
-              <StreamingHero key="streaming" stream={featuredStream} />,
-              <CommunityHeroSlide key="community" />,
-            ]}
-          />
+          <StreamingHero stream={featuredStream} />
         </div>
       </section>
     );

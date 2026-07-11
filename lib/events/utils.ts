@@ -15,6 +15,7 @@ import {
   type EventContentKind,
 } from "@/lib/constants/event-content-kind";
 import { isPromotionContent } from "@/lib/events/contentRules";
+import { isValidPromotionDestinationUrl } from "@/lib/events/promotionDestination";
 import type { EventFormInput, Event } from "@/lib/events/types";
 import {
   deriveTicketSaleMode,
@@ -339,8 +340,14 @@ export function validateEventForm(input: EventFormInput): string | null {
     return "La visibilidad seleccionada no es válida.";
   }
 
-  if (input.external_ticket_url && !isValidExternalTicketUrl(input.external_ticket_url)) {
-    return "La URL externa debe ser válida y usar https://.";
+  if (input.external_ticket_url) {
+    if (isPromotionContent(input)) {
+      if (!isValidPromotionDestinationUrl(input.external_ticket_url)) {
+        return "La URL de destino debe ser una ruta interna (/) o una URL http(s) válida.";
+      }
+    } else if (!isValidExternalTicketUrl(input.external_ticket_url)) {
+      return "La URL externa debe ser válida y usar https://.";
+    }
   }
 
   if (
@@ -358,9 +365,9 @@ export function validateEventForm(input: EventFormInput): string | null {
       }
       if (
         input.external_ticket_url &&
-        !isValidExternalTicketUrl(input.external_ticket_url)
+        !isValidPromotionDestinationUrl(input.external_ticket_url)
       ) {
-        return "La URL de destino de la promoción debe ser válida y usar https://.";
+        return "La URL de destino de la promoción debe ser una ruta interna (/) o una URL http(s) válida.";
       }
     } else {
       if (!hasAnySaleChannel(input)) {

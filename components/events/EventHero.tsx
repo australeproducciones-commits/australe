@@ -11,6 +11,10 @@ import type { EventStoreMerchContext } from "@/lib/events/storeMerchandising";
 import { type EventMerchandisingContext } from "@/lib/events/eventMerchandising";
 import type { Event } from "@/lib/events/types";
 import {
+  getPromotionDestination,
+  type ResolvedPromotionDestination,
+} from "@/lib/events/promotionDestination";
+import {
   getValidExternalTicketUrl,
   getWhatsAppSaleUrl,
   resolveSaleChannels,
@@ -68,6 +72,8 @@ export function EventHero({
   });
 
   const isPromotion = isPromotionContent(event);
+  const promotionDestination = isPromotion ? getPromotionDestination(event) : null;
+  const promotionButtonLabel = event.featured_ticket_label?.trim() || "Ver más";
   const saleActions = isPromotion
     ? buildPromotionHeroActions(event)
     : buildHeroSaleActions(event, hasTicketTypes);
@@ -75,7 +81,7 @@ export function EventHero({
   const bannerImage = (
     <EventImage
       event={event}
-      alt={`Banner del evento ${event.name}`}
+      alt={isPromotion ? `Banner de la promoción ${event.name}` : `Banner del evento ${event.name}`}
       variant="banner"
       priority={priority}
       roundedClass={bannerOnly ? "rounded-3xl" : "rounded-none rounded-t-3xl"}
@@ -84,20 +90,36 @@ export function EventHero({
     />
   );
 
+  const bannerDestination =
+    isPromotion && bannerOnly
+      ? promotionDestination
+      : bannerLink
+        ? { href: bannerLink, external: false, openInNewTab: false }
+        : null;
+
   return (
     <section
       className={cn("public-card overflow-hidden rounded-3xl", className)}
       aria-label={isPromotion ? `Promoción ${event.name}` : `Evento ${event.name}`}
     >
       <div className="relative">
-        {bannerLink ? (
-          <Link
-            href={bannerLink}
+        {bannerDestination ? (
+          <HeroBannerLink
+            destination={bannerDestination}
+            ariaLabel={
+              isPromotion
+                ? `Ir a promoción: ${event.name}`
+                : `Ver evento: ${event.name}`
+            }
             className="block cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--public-primary)]"
-            aria-label={`Ver evento: ${event.name}`}
           >
             {bannerImage}
-          </Link>
+            {isPromotion && bannerOnly && promotionButtonLabel ? (
+              <span className="public-btn-primary pointer-events-none absolute bottom-5 left-1/2 z-10 -translate-x-1/2 rounded-2xl px-6 py-3.5 text-sm font-semibold shadow-lg sm:bottom-6">
+                {promotionButtonLabel}
+              </span>
+            ) : null}
+          </HeroBannerLink>
         ) : (
           bannerImage
         )}
@@ -194,8 +216,8 @@ export function EventHero({
 }
 
 function buildPromotionHeroActions(event: Event): HeroAction[] {
-  const externalUrl = getValidExternalTicketUrl(event);
-  if (!externalUrl) {
+  const destination = getPromotionDestination(event);
+  if (!destination) {
     return [];
   }
 
@@ -203,11 +225,45 @@ function buildPromotionHeroActions(event: Event): HeroAction[] {
     {
       key: "promo",
       label: event.featured_ticket_label?.trim() || "Ver más",
-      href: externalUrl,
-      external: true,
+      href: destination.href,
+      external: destination.external,
       primary: true,
     },
   ];
+}
+
+type HeroBannerLinkProps = {
+  destination: ResolvedPromotionDestination;
+  ariaLabel: string;
+  className?: string;
+  children: ReactNode;
+};
+
+function HeroBannerLink({
+  destination,
+  ariaLabel,
+  className,
+  children,
+}: HeroBannerLinkProps) {
+  if (destination.external) {
+    return (
+      <a
+        href={destination.href}
+        className={className}
+        aria-label={ariaLabel}
+        target={destination.openInNewTab ? "_blank" : undefined}
+        rel={destination.openInNewTab ? "noopener noreferrer" : undefined}
+      >
+        {children}
+      </a>
+    );
+  }
+
+  return (
+    <Link href={destination.href} className={className} aria-label={ariaLabel}>
+      {children}
+    </Link>
+  );
 }
 
 function getActionClassName(primary?: boolean, outline = false) {

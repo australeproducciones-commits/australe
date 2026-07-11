@@ -1,5 +1,4 @@
 {
-  "$comment": "Vercel Hobby solo permite un cron diario. Para cada 5 min usar pg_cron (migración 20260711030000) o plan Pro con crons en dashboard.",
   "crons": [
     {
       "path": "/api/cron/expire-store-reservations",

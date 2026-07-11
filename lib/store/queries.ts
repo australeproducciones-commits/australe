@@ -1,5 +1,12 @@
+import { getProfile } from "@/lib/auth/getProfile";
+import { isActiveCommunityMember } from "@/lib/community/membership";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  isEventCommerceEligible,
+  isEventStoreAssociationActive,
+  isStoreProductVisibleInGeneralCatalog,
+} from "@/lib/store/channels";
 import type {
   EventStoreProduct,
   EventStoreSettings,
@@ -48,21 +55,55 @@ export async function getPublicStoreProducts(options?: {
   const supabase = await createClient();
 
   if (options?.eventId) {
-    const { data: eventProducts, error: epError } = await supabase
-      .from("event_store_products")
-      .select("*")
-      .eq("event_id", options.eventId)
-      .eq("is_active", true)
-      .order("sort_order");
+    const eventId = options.eventId;
 
-    if (epError) {
-      throw epError;
+    const profile = await getProfile(supabase);
+    const isCommunityMember = await isActiveCommunityMember(profile?.id);
+
+    const [eventResult, settingsResult, eventProductsResult] = await Promise.all([
+      supabase
+        .from("events")
+        .select("id, status, event_date, event_end_date, start_time, end_time")
+        .eq("id", eventId)
+        .maybeSingle(),
+      supabase
+        .from("event_store_settings")
+        .select("*")
+        .eq("event_id", eventId)
+        .maybeSingle(),
+      supabase
+        .from("event_store_products")
+        .select("*")
+        .eq("event_id", eventId)
+        .eq("is_active", true)
+        .order("sort_order"),
+    ]);
+
+    const event = eventResult.data;
+    const settings = settingsResult.data as EventStoreSettings | null;
+
+    if (
+      eventResult.error ||
+      eventProductsResult.error ||
+      !event ||
+      !isEventCommerceEligible(event) ||
+      !settings?.merchandising_enabled
+    ) {
+      if (eventProductsResult.error) {
+        throw eventProductsResult.error;
+      }
+      return [];
     }
 
     const products: PublicStoreProduct[] = [];
 
-    for (const row of eventProducts ?? []) {
+    for (const row of eventProductsResult.data ?? []) {
       const eventProduct = row as EventStoreProduct;
+
+      if (!isEventStoreAssociationActive(eventProduct)) {
+        continue;
+      }
+
       const { data: productData } = await supabase
         .from("store_products")
         .select("*")
@@ -71,6 +112,10 @@ export async function getPublicStoreProducts(options?: {
 
       const product = productData as StoreProduct | null;
       if (!product || !isStoreProductPubliclyAvailable(product)) {
+        continue;
+      }
+
+      if (product.community_only && !isCommunityMember) {
         continue;
       }
 
@@ -91,7 +136,7 @@ export async function getPublicStoreProducts(options?: {
         continue;
       }
 
-      if (options.featured && !row.is_featured && !mapped.is_featured) {
+      if (options.featured && !eventProduct.is_featured && !mapped.is_featured) {
         continue;
       }
 
@@ -115,11 +160,15 @@ export async function getPublicStoreProducts(options?: {
     return products;
   }
 
+  const profile = await getProfile(supabase);
+  const isCommunityMember = await isActiveCommunityMember(profile?.id);
+
   let query = supabase
     .from("store_products")
     .select("*")
     .eq("is_active", true)
     .eq("status", "active")
+    .eq("show_in_store", true)
     .order("is_featured", { ascending: false })
     .order("name");
 
@@ -145,7 +194,9 @@ export async function getPublicStoreProducts(options?: {
   const result: PublicStoreProduct[] = [];
 
   for (const product of (data ?? []) as StoreProduct[]) {
-    if (!isStoreProductPubliclyAvailable(product)) {
+    if (
+      !isStoreProductVisibleInGeneralCatalog(product, isCommunityMember)
+    ) {
       continue;
     }
 
@@ -173,6 +224,8 @@ export async function getPublicStoreProductBySlug(
   eventId?: string | null,
 ): Promise<PublicStoreProduct | null> {
   const supabase = await createClient();
+  const profile = await getProfile(supabase);
+  const isCommunityMember = await isActiveCommunityMember(profile?.id);
 
   const { data: product, error } = await supabase
     .from("store_products")
@@ -193,19 +246,51 @@ export async function getPublicStoreProductBySlug(
   let eventOverrides: EventStoreProduct | null = null;
 
   if (eventId) {
-    const { data: ep } = await supabase
-      .from("event_store_products")
-      .select("*")
-      .eq("event_id", eventId)
-      .eq("product_id", product.id)
-      .eq("is_active", true)
-      .maybeSingle();
+    const [eventResult, settingsResult, associationResult] = await Promise.all([
+      supabase
+        .from("events")
+        .select("id, status, event_date, event_end_date, start_time, end_time")
+        .eq("id", eventId)
+        .maybeSingle(),
+      supabase
+        .from("event_store_settings")
+        .select("*")
+        .eq("event_id", eventId)
+        .maybeSingle(),
+      supabase
+        .from("event_store_products")
+        .select("*")
+        .eq("event_id", eventId)
+        .eq("product_id", product.id)
+        .maybeSingle(),
+    ]);
 
-    if (!ep) {
+    const event = eventResult.data;
+    const settings = settingsResult.data as EventStoreSettings | null;
+    const association = associationResult.data as EventStoreProduct | null;
+
+    if (
+      !event ||
+      !settings?.merchandising_enabled ||
+      !isEventCommerceEligible(event) ||
+      !association ||
+      !isEventStoreAssociationActive(association)
+    ) {
       return null;
     }
 
-    eventOverrides = ep as EventStoreProduct;
+    eventOverrides = association;
+
+    if ((product as StoreProduct).community_only && !isCommunityMember) {
+      return null;
+    }
+  } else if (
+    !isStoreProductVisibleInGeneralCatalog(
+      product as StoreProduct,
+      isCommunityMember,
+    )
+  ) {
+    return null;
   }
 
   const { data: variants } = await supabase

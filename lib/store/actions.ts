@@ -59,6 +59,7 @@ export async function upsertStoreProductAction(
     gallery_urls: input.gallery_urls ?? [],
     is_active: input.is_active ?? false,
     is_featured: input.is_featured ?? false,
+    show_in_store: input.show_in_store ?? true,
     community_only: input.community_only ?? false,
     track_stock: input.track_stock ?? true,
     stock_total: input.stock_total ?? 0,

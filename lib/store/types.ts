@@ -50,6 +50,7 @@ export type StoreProduct = {
   gallery_urls: string[];
   is_active: boolean;
   is_featured: boolean;
+  show_in_store: boolean;
   community_only: boolean;
   track_stock: boolean;
   stock_total: number;
@@ -240,6 +241,7 @@ export type StoreProductInput = {
   gallery_urls?: string[];
   is_active?: boolean;
   is_featured?: boolean;
+  show_in_store?: boolean;
   community_only?: boolean;
   track_stock?: boolean;
   stock_total?: number;

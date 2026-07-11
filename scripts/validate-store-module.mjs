@@ -20,6 +20,8 @@ function check(path, label) {
 const requiredFiles = [
   ["supabase/migrations/20260710170000_store_merchandising_foundation.sql", "migración foundation"],
   ["supabase/migrations/20260710170100_store_stock_orders_rpc.sql", "migración RPCs"],
+  ["supabase/migrations/20260710170400_store_product_channels.sql", "migración canales"],
+  ["lib/store/channels.ts", "helpers canales"],
   ["lib/store/types.ts", "types"],
   ["lib/store/queries.ts", "queries"],
   ["lib/store/actions.ts", "actions"],
@@ -81,6 +83,23 @@ for (const rpc of foundationRpcs) {
   if (!migration.includes(rpc)) {
     errors.push(`RPC foundation no encontrada: ${rpc}`);
   }
+}
+
+const channelsMigration = existsSync(
+  join(root, "supabase/migrations/20260710170400_store_product_channels.sql"),
+)
+  ? readFileSync(
+      join(root, "supabase/migrations/20260710170400_store_product_channels.sql"),
+      "utf8",
+    )
+  : "";
+
+if (channelsMigration && !channelsMigration.includes("show_in_store")) {
+  errors.push("Migración canales sin columna show_in_store");
+}
+
+if (channelsMigration && !channelsMigration.includes("event_is_commerce_eligible")) {
+  errors.push("Migración canales sin event_is_commerce_eligible");
 }
 
 if (errors.length > 0) {

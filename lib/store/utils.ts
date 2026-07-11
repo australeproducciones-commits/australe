@@ -88,6 +88,18 @@ export function mapCreateStoreOrderRpcError(message: string): string {
   if (message.includes("contacto requerido")) {
     return "Ingresá un email o teléfono de contacto.";
   }
+  if (message.includes("no disponible en tienda general")) {
+    return "Este producto no está disponible en la tienda general.";
+  }
+  if (message.includes("no asociado al evento")) {
+    return "Este producto no está disponible para este evento.";
+  }
+  if (message.includes("evento no disponible para comercio")) {
+    return "El evento ya no está disponible para compras de merchandising.";
+  }
+  if (message.includes("merchandising no habilitado")) {
+    return "Las ventas de merchandising no están habilitadas para este evento.";
+  }
   if (message.includes("no disponible")) {
     return "Uno de los productos ya no está disponible.";
   }

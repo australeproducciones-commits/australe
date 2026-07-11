@@ -10,6 +10,7 @@ on:
       - "scripts/validate-store-remote.mjs"
       - "scripts/validate-store-storage.mjs"
       - "scripts/verify-clics-products.mjs"
+      - "scripts/validate-store-channels.mjs"
       - "scripts/lib/ci-env.mjs"
       - ".github/workflows/supabase-production-migrations.yml"
   pull_request:
@@ -18,6 +19,7 @@ on:
       - "scripts/validate-store-remote.mjs"
       - "scripts/validate-store-storage.mjs"
       - "scripts/verify-clics-products.mjs"
+      - "scripts/validate-store-channels.mjs"
       - "scripts/lib/ci-env.mjs"
       - ".github/workflows/supabase-production-migrations.yml"
 
@@ -125,3 +127,6 @@ jobs:
 
       - name: Verificar productos CLICS MODERNOS
         run: node scripts/verify-clics-products.mjs
+
+      - name: Validar canales de venta tienda
+        run: node scripts/validate-store-channels.mjs

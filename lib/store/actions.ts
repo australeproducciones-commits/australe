@@ -4,6 +4,10 @@ import { requireAdmin, requireCashierForEvent } from "@/lib/auth/require";
 import { awardLoyaltyPointsForStoreOrder } from "@/lib/community/loyalty/store";
 import { ROUTES } from "@/lib/constants/routes";
 import { slugifyName } from "@/lib/events/utils";
+import {
+  mapStoreProductInsertError,
+  resolveUniqueStoreProductSlug,
+} from "@/lib/store/duplicate";
 import type {
   CheckoutInput,
   CreateStoreOrderResult,
@@ -53,7 +57,11 @@ export async function upsertStoreProductAction(
     return { success: false, error: "El nombre es obligatorio." };
   }
 
-  const slug = slugifyName(input.slug?.trim() || name) || `producto-${Date.now()}`;
+  const slug = await resolveUniqueStoreProductSlug(
+    auth.supabase,
+    name,
+    input.slug?.trim() || name,
+  );
   const mainImageUrl = normalizeStoreImageUrl(input.main_image_url);
   const galleryUrls = normalizeStoreGalleryUrls(input.gallery_urls);
   const imageError = validateStoreProductImages({
@@ -111,11 +119,39 @@ export async function upsertStoreProductAction(
 
   if (error) {
     console.error("upsertStoreProductAction insert:", error.message);
-    return { success: false, error: "No se pudo crear el producto." };
+    return { success: false, error: mapStoreProductInsertError(error) };
   }
 
   revalidateStorePaths(undefined, slug);
   return { success: true, id: data.id };
+}
+
+export async function createStoreProductWithVariantsAction(
+  input: StoreProductInput,
+  variants: StoreVariantInput[],
+): Promise<StoreActionResult> {
+  const productResult = await upsertStoreProductAction(null, input);
+  if (!productResult.success || !productResult.id) {
+    return productResult;
+  }
+
+  const productId = productResult.id;
+
+  for (const variant of variants) {
+    const variantResult = await upsertStoreVariantAction(productId, null, variant);
+    if (!variantResult.success) {
+      return {
+        success: false,
+        error:
+          variantResult.error ??
+          "El producto se creó, pero falló la copia de una variante. Revisá el producto nuevo.",
+        id: productId,
+      };
+    }
+  }
+
+  revalidateStorePaths(undefined, slugifyName(input.slug?.trim() || input.name));
+  return { success: true, id: productId };
 }
 
 export async function toggleStoreProductActiveAction(

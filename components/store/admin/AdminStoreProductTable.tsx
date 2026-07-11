@@ -16,6 +16,7 @@ import { isNextImageOptimizable } from "@/lib/utils/imageHosts";
 type AdminStoreProductTableProps = {
   products: AdminStoreProductListItem[];
   onEdit: (productId: string) => void;
+  onDuplicate: (productId: string) => void;
 };
 
 function ProductThumbnail({ url, name }: { url: string | null; name: string }) {
@@ -48,6 +49,7 @@ function ProductThumbnail({ url, name }: { url: string | null; name: string }) {
 export function AdminStoreProductTable({
   products,
   onEdit,
+  onDuplicate,
 }: AdminStoreProductTableProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -234,6 +236,15 @@ export function AdminStoreProductTable({
                           </button>
                           <button
                             type="button"
+                            disabled={pending}
+                            onClick={() => onDuplicate(product.id)}
+                            title="Crear un nuevo producto usando estos datos"
+                            className="rounded-md border border-violet-700/60 px-2.5 py-1 text-xs text-violet-200"
+                          >
+                            Duplicar y editar
+                          </button>
+                          <button
+                            type="button"
                             disabled={pending || product.status === "archived"}
                             onClick={() => handleToggle(product)}
                             className="rounded-md border border-zinc-700 px-2.5 py-1 text-xs text-zinc-200"
@@ -273,13 +284,21 @@ export function AdminStoreProductTable({
                     </p>
                   </div>
                 </div>
-                <div className="mt-3 flex gap-2">
+                <div className="mt-3 flex flex-wrap gap-2">
                   <button
                     type="button"
                     onClick={() => onEdit(product.id)}
                     className="flex-1 rounded border border-zinc-700 py-2 text-xs text-zinc-200"
                   >
                     Editar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onDuplicate(product.id)}
+                    title="Crear un nuevo producto usando estos datos"
+                    className="flex-1 rounded border border-violet-700/60 py-2 text-xs text-violet-200"
+                  >
+                    Duplicar y editar
                   </button>
                   {product.status !== "archived" ? (
                     <button

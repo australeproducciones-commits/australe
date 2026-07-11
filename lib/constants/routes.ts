@@ -58,6 +58,8 @@ export const ROUTES = {
   adminTiendaStock: "/admin/tienda/stock",
   adminTiendaRetiros: "/admin/tienda/retiros",
   adminTiendaColecciones: "/admin/tienda/colecciones",
+  adminTiendaProductosDuplicate: (productId: string) =>
+    `/admin/tienda/productos?duplicate=${encodeURIComponent(productId)}`,
   adminVentas: "/admin/ventas",
   adminCaja: "/admin/caja",
   adminCajero: "/admin/cajero",

@@ -1,11 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import {
   AdminStoreChannelChips,
   AdminStoreWarnings,
 } from "@/components/store/admin/AdminStoreChannelChips";
+import { AdminStoreProductDuplicateVariantsPanel } from "@/components/store/admin/AdminStoreProductDuplicateVariantsPanel";
 import {
   adminStoreFieldClass,
   AdminStoreField,
@@ -13,11 +15,18 @@ import {
 import { AdminStoreProductEventsSection } from "@/components/store/admin/AdminStoreProductEventsSection";
 import { AdminStoreProductImageFields } from "@/components/store/admin/AdminStoreProductImageFields";
 import { AdminStoreProductVariantsSection } from "@/components/store/admin/AdminStoreProductVariantsSection";
+import { ROUTES } from "@/lib/constants/routes";
 import { buildStorePricePreview } from "@/lib/store/adminHub";
-import { upsertStoreProductAction } from "@/lib/store/actions";
+import {
+  createStoreProductWithVariantsAction,
+  upsertStoreProductAction,
+} from "@/lib/store/actions";
+import { variantDraftToInput } from "@/lib/store/duplicate";
 import type {
   AdminStoreProductListItem,
   AdminStoreProductsPageData,
+  StoreProductDuplicateContext,
+  StoreProductVariant,
 } from "@/lib/store/types";
 import { STORE_CATEGORIES, formatStorePrice } from "@/lib/store/utils";
 import { cn } from "@/lib/utils/cn";
@@ -26,6 +35,7 @@ type HubTab = "general" | "images" | "variants" | "channels" | "events";
 
 type AdminStoreProductHubFormProps = {
   editingProduct: AdminStoreProductListItem | null;
+  duplicateContext?: StoreProductDuplicateContext | null;
   pageData: AdminStoreProductsPageData;
   onCancelEdit: () => void;
   onProductCreated?: (productId: string) => void;
@@ -33,6 +43,7 @@ type AdminStoreProductHubFormProps = {
 
 export function AdminStoreProductHubForm({
   editingProduct,
+  duplicateContext = null,
   pageData,
   onCancelEdit,
   onProductCreated,
@@ -42,26 +53,72 @@ export function AdminStoreProductHubForm({
   const [tab, setTab] = useState<HubTab>("general");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  const isDuplicateMode = Boolean(duplicateContext);
+  const formProduct = editingProduct ?? duplicateContext?.draft ?? null;
+
   const [mainImageUrl, setMainImageUrl] = useState<string | null>(
-    editingProduct?.main_image_url ?? null,
+    formProduct?.main_image_url ?? null,
   );
-  const [galleryUrls, setGalleryUrls] = useState<string[]>(
-    editingProduct?.gallery_urls ?? [],
+  const [galleryUrls, setGalleryUrls] = useState<string[]>(formProduct?.gallery_urls ?? []);
+  const [duplicateVariants, setDuplicateVariants] = useState<StoreProductVariant[]>(
+    duplicateContext?.draft.variants ?? [],
   );
 
   const productId = editingProduct?.id ?? null;
   const channel = editingProduct?.channel;
+  const activeVariants = isDuplicateMode
+    ? duplicateVariants
+    : (editingProduct?.variants ?? []);
   const pricePreview = editingProduct
     ? buildStorePricePreview({ product: editingProduct })
-    : [];
+    : formProduct
+      ? buildStorePricePreview({ product: formProduct })
+      : [];
 
   const tabs: { id: HubTab; label: string; disabled?: boolean }[] = [
     { id: "general", label: "General" },
     { id: "images", label: "Imágenes" },
-    { id: "variants", label: "Variantes", disabled: !productId },
+    {
+      id: "variants",
+      label: "Variantes",
+      disabled: !productId && !isDuplicateMode,
+    },
     { id: "channels", label: "Canales", disabled: !productId },
     { id: "events", label: "Eventos", disabled: !productId },
   ];
+
+  function buildProductInput(formData: FormData) {
+    const publicPrice = Number(formData.get("public_price") ?? 0);
+    const communityRaw = String(formData.get("community_price") ?? "").trim();
+    const communityPrice = communityRaw ? Number(communityRaw) : null;
+    const hasVariants = activeVariants.length > 0;
+    const stockTotal = hasVariants
+      ? formProduct?.stock_total ?? 0
+      : Number(formData.get("stock_total") ?? 0);
+
+    return {
+      name: String(formData.get("name") ?? ""),
+      slug: String(formData.get("slug") ?? ""),
+      sku: String(formData.get("sku") ?? "") || null,
+      category: String(formData.get("category") ?? "general"),
+      description: String(formData.get("description") ?? "") || null,
+      short_description: String(formData.get("short_description") ?? "") || null,
+      public_price: publicPrice,
+      community_price: communityPrice,
+      main_image_url: mainImageUrl,
+      gallery_urls: galleryUrls,
+      is_active: formData.get("is_active") === "on",
+      is_featured: formData.get("is_featured") === "on",
+      show_in_store: formData.get("show_in_store") === "on",
+      community_only: formData.get("community_only") === "on",
+      track_stock: true,
+      stock_total: Number.isFinite(stockTotal) ? stockTotal : 0,
+      status: formData.get("is_active") === "on" ? "active" : "inactive",
+      available_from: String(formData.get("available_from") ?? "") || null,
+      available_until: String(formData.get("available_until") ?? "") || null,
+    } as const;
+  }
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -77,48 +134,44 @@ export function AdminStoreProductHubForm({
       return;
     }
 
-    const communityRaw = String(formData.get("community_price") ?? "").trim();
-    const communityPrice = communityRaw ? Number(communityRaw) : null;
-    const hasVariants = (editingProduct?.variants.length ?? 0) > 0;
-    const stockTotal = hasVariants
-      ? editingProduct?.stock_total ?? 0
-      : Number(formData.get("stock_total") ?? 0);
+    if (isDuplicateMode) {
+      const invalidVariant = duplicateVariants.find((variant) => !variant.name.trim());
+      if (invalidVariant) {
+        setError("Todas las variantes duplicadas necesitan un nombre.");
+        setTab("variants");
+        return;
+      }
+    }
+
+    const input = buildProductInput(formData);
 
     startTransition(async () => {
-      const result = await upsertStoreProductAction(productId, {
-        name: String(formData.get("name") ?? ""),
-        slug: String(formData.get("slug") ?? ""),
-        sku: String(formData.get("sku") ?? "") || null,
-        category: String(formData.get("category") ?? "general"),
-        description: String(formData.get("description") ?? "") || null,
-        short_description: String(formData.get("short_description") ?? "") || null,
-        public_price: publicPrice,
-        community_price: communityPrice,
-        main_image_url: mainImageUrl,
-        gallery_urls: galleryUrls,
-        is_active: formData.get("is_active") === "on",
-        is_featured: formData.get("is_featured") === "on",
-        show_in_store: formData.get("show_in_store") === "on",
-        community_only: formData.get("community_only") === "on",
-        track_stock: true,
-        stock_total: Number.isFinite(stockTotal) ? stockTotal : 0,
-        status: formData.get("is_active") === "on" ? "active" : "inactive",
-        available_from: String(formData.get("available_from") ?? "") || null,
-        available_until: String(formData.get("available_until") ?? "") || null,
-      });
+      const result = isDuplicateMode
+        ? await createStoreProductWithVariantsAction(
+            input,
+            duplicateVariants.map((variant) => variantDraftToInput(variant)),
+          )
+        : await upsertStoreProductAction(productId, input);
 
       if (!result.success) {
         setError(result.error ?? "No se pudo guardar el producto.");
+        if (result.id && isDuplicateMode) {
+          onProductCreated?.(result.id);
+        }
         return;
       }
 
       setSuccess(
-        productId ? "Producto actualizado correctamente." : "Producto creado correctamente.",
+        isDuplicateMode
+          ? "Producto duplicado creado correctamente."
+          : productId
+            ? "Producto actualizado correctamente."
+            : "Producto creado correctamente.",
       );
 
       if (!productId && result.id) {
         onProductCreated?.(result.id);
-        setTab("variants");
+        setTab(isDuplicateMode ? "variants" : "variants");
       }
 
       router.refresh();
@@ -173,11 +226,24 @@ export function AdminStoreProductHubForm({
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="text-base font-semibold text-white">
-              {editingProduct ? "Editar producto" : "Nuevo producto"}
+              {isDuplicateMode
+                ? "Nuevo producto (copia)"
+                : editingProduct
+                  ? "Editar producto"
+                  : "Nuevo producto"}
             </h2>
             <p className="mt-0.5 text-xs text-zinc-500">
               Centro de control: datos, variantes, canales y eventos.
             </p>
+            {isDuplicateMode && duplicateContext ? (
+              <p
+                className="mt-3 rounded-lg border border-violet-500/30 bg-violet-500/10 px-3 py-2 text-sm text-violet-100"
+                role="status"
+              >
+                Estás creando una copia de “{duplicateContext.sourceProductName}”. El producto
+                original no será modificado.
+              </p>
+            ) : null}
             {channel ? (
               <div className="mt-2 space-y-2">
                 <AdminStoreChannelChips chips={channel.chips} />
@@ -185,15 +251,26 @@ export function AdminStoreProductHubForm({
               </div>
             ) : null}
           </div>
-          {editingProduct ? (
-            <button
-              type="button"
-              onClick={onCancelEdit}
-              className="rounded-lg border border-zinc-700 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800"
-            >
-              Cancelar edición
-            </button>
-          ) : null}
+          <div className="flex flex-wrap gap-2">
+            {editingProduct ? (
+              <Link
+                href={ROUTES.adminTiendaProductosDuplicate(editingProduct.id)}
+                className="rounded-lg border border-violet-500/40 px-3 py-1.5 text-xs text-violet-200 hover:bg-violet-500/10"
+                title="Crear un nuevo producto usando estos datos"
+              >
+                Duplicar y editar
+              </Link>
+            ) : null}
+            {editingProduct || isDuplicateMode ? (
+              <button
+                type="button"
+                onClick={onCancelEdit}
+                className="rounded-lg border border-zinc-700 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800"
+              >
+                {isDuplicateMode ? "Cancelar copia" : "Cancelar edición"}
+              </button>
+            ) : null}
+          </div>
         </div>
 
         <div className="mt-4 flex flex-wrap gap-1.5">
@@ -227,6 +304,13 @@ export function AdminStoreProductHubForm({
           />
         ) : null}
 
+        {tab === "variants" && isDuplicateMode ? (
+          <AdminStoreProductDuplicateVariantsPanel
+            variants={duplicateVariants}
+            onChange={setDuplicateVariants}
+          />
+        ) : null}
+
         {tab === "events" && productId && editingProduct ? (
           <AdminStoreProductEventsSection
             product={editingProduct}
@@ -238,8 +322,8 @@ export function AdminStoreProductHubForm({
         {tab === "channels" && editingProduct ? (
           <div className="space-y-4">
             <p className="text-sm text-zinc-400">
-              Los canales se calculan desde el estado del producto y sus asociaciones.
-              Guardá los cambios en la pestaña General.
+              Los canales se calculan desde el estado del producto y sus asociaciones. Guardá los
+              cambios en la pestaña General.
             </p>
             <AdminStoreChannelChips chips={channel?.chips ?? []} />
             <dl className="grid gap-3 sm:grid-cols-2">
@@ -295,7 +379,7 @@ export function AdminStoreProductHubForm({
         {tab === "images" ? (
           <div className="space-y-4">
             <AdminStoreProductImageFields
-              key={`${productId ?? "new"}-images`}
+              key={`${productId ?? (isDuplicateMode ? "duplicate" : "new")}-images`}
               productId={productId}
               mainImageUrl={mainImageUrl}
               galleryUrls={galleryUrls}
@@ -313,7 +397,9 @@ export function AdminStoreProductHubForm({
               </button>
               {!productId ? (
                 <p className="text-xs text-zinc-500">
-                  Creá el producto en General para habilitar el guardado de imágenes.
+                  {isDuplicateMode
+                    ? "Las imágenes se guardarán al crear el producto duplicado."
+                    : "Creá el producto en General para habilitar el guardado de imágenes."}
                 </p>
               ) : null}
               {error && tab === "images" ? (
@@ -334,7 +420,7 @@ export function AdminStoreProductHubForm({
                   id="name"
                   name="name"
                   required
-                  defaultValue={editingProduct?.name ?? ""}
+                  defaultValue={formProduct?.name ?? ""}
                   className={adminStoreFieldClass}
                 />
               </AdminStoreField>
@@ -342,7 +428,12 @@ export function AdminStoreProductHubForm({
                 <input
                   id="slug"
                   name="slug"
-                  defaultValue={editingProduct?.slug ?? ""}
+                  defaultValue={formProduct?.slug ?? ""}
+                  placeholder={
+                    isDuplicateMode
+                      ? "Se generará desde el nombre si queda vacío"
+                      : undefined
+                  }
                   className={adminStoreFieldClass}
                 />
               </AdminStoreField>
@@ -353,7 +444,8 @@ export function AdminStoreProductHubForm({
                 <input
                   id="sku"
                   name="sku"
-                  defaultValue={editingProduct?.sku ?? ""}
+                  defaultValue={isDuplicateMode ? "" : (formProduct?.sku ?? "")}
+                  placeholder={isDuplicateMode ? "Opcional en la copia" : undefined}
                   className={adminStoreFieldClass}
                 />
               </AdminStoreField>
@@ -361,7 +453,7 @@ export function AdminStoreProductHubForm({
                 <select
                   id="category"
                   name="category"
-                  defaultValue={editingProduct?.category ?? "general"}
+                  defaultValue={formProduct?.category ?? "general"}
                   className={adminStoreFieldClass}
                 >
                   {STORE_CATEGORIES.map((category) => (
@@ -378,7 +470,7 @@ export function AdminStoreProductHubForm({
                   type="number"
                   min={0}
                   required
-                  defaultValue={editingProduct?.public_price ?? ""}
+                  defaultValue={formProduct?.public_price ?? ""}
                   className={adminStoreFieldClass}
                 />
               </AdminStoreField>
@@ -388,27 +480,26 @@ export function AdminStoreProductHubForm({
                   name="community_price"
                   type="number"
                   min={0}
-                  defaultValue={editingProduct?.community_price ?? ""}
+                  defaultValue={formProduct?.community_price ?? ""}
                   className={adminStoreFieldClass}
                 />
               </AdminStoreField>
             </div>
 
-            {(editingProduct?.variants.length ?? 0) === 0 ? (
+            {activeVariants.length === 0 ? (
               <AdminStoreField label="Stock total (sin variantes)" htmlFor="stock_total">
                 <input
                   id="stock_total"
                   name="stock_total"
                   type="number"
                   min={0}
-                  defaultValue={editingProduct?.stock_total ?? 0}
+                  defaultValue={formProduct?.stock_total ?? 0}
                   className={adminStoreFieldClass}
                 />
               </AdminStoreField>
             ) : (
               <p className="rounded-lg border border-zinc-800 bg-zinc-950/40 px-3 py-2 text-xs text-zinc-400">
-                Este producto usa stock por variante. Administrá el stock en la pestaña
-                Variantes.
+                Este producto usa stock por variante. Revisá el stock en la pestaña Variantes.
               </p>
             )}
 
@@ -416,7 +507,7 @@ export function AdminStoreProductHubForm({
               <input
                 id="short_description"
                 name="short_description"
-                defaultValue={editingProduct?.short_description ?? ""}
+                defaultValue={formProduct?.short_description ?? ""}
                 className={adminStoreFieldClass}
               />
             </AdminStoreField>
@@ -426,7 +517,7 @@ export function AdminStoreProductHubForm({
                 id="description"
                 name="description"
                 rows={3}
-                defaultValue={editingProduct?.description ?? ""}
+                defaultValue={formProduct?.description ?? ""}
                 className={cn(adminStoreFieldClass, "resize-y")}
               />
             </AdminStoreField>
@@ -438,8 +529,8 @@ export function AdminStoreProductHubForm({
                   name="available_from"
                   type="datetime-local"
                   defaultValue={
-                    editingProduct?.available_from
-                      ? editingProduct.available_from.slice(0, 16)
+                    formProduct?.available_from
+                      ? formProduct.available_from.slice(0, 16)
                       : ""
                   }
                   className={adminStoreFieldClass}
@@ -451,8 +542,8 @@ export function AdminStoreProductHubForm({
                   name="available_until"
                   type="datetime-local"
                   defaultValue={
-                    editingProduct?.available_until
-                      ? editingProduct.available_until.slice(0, 16)
+                    formProduct?.available_until
+                      ? formProduct.available_until.slice(0, 16)
                       : ""
                   }
                   className={adminStoreFieldClass}
@@ -465,7 +556,7 @@ export function AdminStoreProductHubForm({
                 <input
                   type="checkbox"
                   name="is_active"
-                  defaultChecked={editingProduct?.is_active ?? true}
+                  defaultChecked={formProduct?.is_active ?? true}
                   className="rounded border-zinc-600"
                 />
                 Activo
@@ -474,7 +565,7 @@ export function AdminStoreProductHubForm({
                 <input
                   type="checkbox"
                   name="show_in_store"
-                  defaultChecked={editingProduct?.show_in_store ?? true}
+                  defaultChecked={formProduct?.show_in_store ?? true}
                   className="rounded border-zinc-600"
                 />
                 Mostrar en tienda
@@ -483,7 +574,7 @@ export function AdminStoreProductHubForm({
                 <input
                   type="checkbox"
                   name="is_featured"
-                  defaultChecked={editingProduct?.is_featured ?? false}
+                  defaultChecked={formProduct?.is_featured ?? false}
                   className="rounded border-zinc-600"
                 />
                 Destacado
@@ -492,7 +583,7 @@ export function AdminStoreProductHubForm({
                 <input
                   type="checkbox"
                   name="community_only"
-                  defaultChecked={editingProduct?.community_only ?? false}
+                  defaultChecked={formProduct?.community_only ?? false}
                   className="rounded border-zinc-600"
                 />
                 Solo comunidad
@@ -505,7 +596,13 @@ export function AdminStoreProductHubForm({
                 disabled={pending}
                 className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-500 disabled:opacity-50"
               >
-                {pending ? "Guardando..." : productId ? "Guardar cambios" : "Crear producto"}
+                {pending
+                  ? "Guardando..."
+                  : isDuplicateMode
+                    ? "Crear producto duplicado"
+                    : productId
+                      ? "Guardar cambios"
+                      : "Crear producto"}
               </button>
               {error ? <p className="text-sm text-red-400">{error}</p> : null}
               {success ? <p className="text-sm text-emerald-400">{success}</p> : null}

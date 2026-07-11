@@ -1389,6 +1389,7 @@ body {
 .store-theme .store-hero-campaign-visual {
   position: relative;
   width: 100%;
+  min-width: 0;
   isolation: isolate;
   background: transparent;
   border: none;

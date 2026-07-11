@@ -19,6 +19,10 @@ export const metadata: Metadata = {
   },
   description:
     "Eventos, entradas, comunidad y gestión operativa para Australe Producciones.",
+  icons: {
+    icon: "/images/favicom.png",
+    apple: "/images/favicom.png",
+  },
 };
 
 export default function RootLayout({

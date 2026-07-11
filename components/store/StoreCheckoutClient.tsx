@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { useStoreCart } from "@/components/store/StoreCartProvider";
-import { PageContainer, PublicButton, PublicCard } from "@/components/ui/public";
+import { useCartLineDetails } from "@/components/store/hooks/useCartLineDetails";
+import { PublicButton } from "@/components/ui/public";
 import { ROUTES } from "@/lib/constants/routes";
 import { createStoreOrderAction } from "@/lib/store/actions";
 import { formatStorePrice } from "@/lib/store/utils";
@@ -21,6 +22,7 @@ export function StoreCheckoutClient({
   mercadoPagoEnabled: boolean;
 }) {
   const { items, clearCart, eventSlug } = useStoreCart();
+  const { lines } = useCartLineDetails(items);
   const [pending, startTransition] = useTransition();
   const [paying, setPaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,6 +39,15 @@ export function StoreCheckoutClient({
     customerPhone: "",
     applyCommunityPrice: isCommunityMember,
   });
+
+  const estimatedTotal = lines.reduce((sum, line) => {
+    const item = items.find(
+      (i) =>
+        i.productId === line.productId &&
+        (i.variantId ?? null) === (line.variantId ?? null),
+    );
+    return sum + line.unitPrice * (item?.quantity ?? 0);
+  }, 0);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -103,77 +114,91 @@ export function StoreCheckoutClient({
 
   if (success) {
     return (
-      <PageContainer>
-        <PublicCard padding="lg" className="text-center">
-          <h1 className="public-heading text-2xl font-bold">¡Pedido reservado!</h1>
-          <p className="mt-3 text-sm public-text-muted">
-            Número de pedido: <strong>{success.orderNumber}</strong>
-          </p>
-          <p className="mt-2 text-sm public-text-muted">
-            Código de retiro: <strong>{success.pickupCode}</strong>
-          </p>
-          <p className="mt-2 text-sm public-text-muted">
-            Total: <strong>{formatStorePrice(success.total)}</strong>
-          </p>
-          <p className="mt-4 text-sm public-text-muted">
+      <div className="mx-auto max-w-lg px-4 py-12 sm:px-6 sm:py-16">
+        <div className="store-surface rounded-2xl p-8 text-center sm:p-10">
+          <p className="store-badge">Reserva confirmada</p>
+          <h1 className="mt-4 text-2xl font-bold tracking-tight">¡Pedido reservado!</h1>
+          <div className="mt-6 space-y-2 text-sm text-[var(--public-text-secondary)]">
+            <p>
+              Pedido <strong className="text-[var(--public-text)]">{success.orderNumber}</strong>
+            </p>
+            <p>
+              Código de retiro{" "}
+              <strong className="text-[var(--public-text)]">{success.pickupCode}</strong>
+            </p>
+            <p className="text-lg font-bold text-[var(--public-text)]">
+              {formatStorePrice(success.total)}
+            </p>
+          </div>
+          <p className="mt-5 text-sm text-[var(--public-text-secondary)]">
             Tenés 30 minutos para completar el pago.
           </p>
 
           {mercadoPagoEnabled ? (
-            <div className="mt-6 space-y-3">
+            <div className="mt-8 space-y-3">
               <PublicButton
                 type="button"
                 variant="primary"
+                size="lg"
                 className="w-full"
                 disabled={paying}
                 onClick={handlePayWithMercadoPago}
               >
                 {paying ? "Redirigiendo a Mercado Pago..." : "Pagar con Mercado Pago"}
               </PublicButton>
-              <p className="text-xs public-text-muted">
-                Medios offline excluidos: la reserva vence en 30 minutos.
+              <p className="text-xs text-[var(--public-text-soft)]">
+                Pago procesado de forma segura. Medios offline excluidos por la
+                duración de la reserva.
               </p>
             </div>
           ) : (
-            <p className="mt-4 text-sm public-text-muted">
-              Un administrador confirmará tu pago manualmente o por transferencia
-              según instrucciones de Australe.
+            <p className="mt-6 text-sm text-[var(--public-text-secondary)]">
+              Un administrador confirmará tu pago según las instrucciones de
+              Australe.
             </p>
           )}
 
-          {error ? <p className="mt-4 text-sm text-red-600">{error}</p> : null}
+          {error ? (
+            <p className="mt-4 text-sm text-red-400" role="alert">
+              {error}
+            </p>
+          ) : null}
 
-          <PublicButton href={ROUTES.tienda} variant="outline" className="mt-6">
+          <PublicButton href={ROUTES.tienda} variant="outline" className="mt-8">
             Volver a la tienda
           </PublicButton>
-        </PublicCard>
-      </PageContainer>
+        </div>
+      </div>
     );
   }
 
   if (items.length === 0) {
     return (
-      <PageContainer>
-        <PublicCard padding="lg" className="text-center">
-          <p>No hay productos en el carrito.</p>
-          <PublicButton href={ROUTES.tienda} variant="primary" className="mt-4">
+      <div className="mx-auto max-w-lg px-4 py-12 text-center sm:px-6">
+        <div className="store-surface rounded-2xl p-8">
+          <p className="text-[var(--public-text-secondary)]">Tu carrito está vacío.</p>
+          <PublicButton href={ROUTES.tienda} variant="primary" className="mt-6">
             Ir a la tienda
           </PublicButton>
-        </PublicCard>
-      </PageContainer>
+        </div>
+      </div>
     );
   }
 
   return (
-    <PageContainer>
-      <h1 className="public-heading text-3xl font-black">Checkout</h1>
-      <p className="mt-2 text-sm public-text-muted">
+    <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 sm:py-14">
+      <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[var(--public-text-soft)]">
+        Finalizar compra
+      </p>
+      <h1 className="mt-2 text-3xl font-black tracking-tight">Checkout</h1>
+      <p className="mt-2 text-sm text-[var(--public-text-secondary)]">
         Completá tus datos para reservar el pedido.
         {!isLoggedIn ? " Podés comprar como invitado." : null}
       </p>
 
-      <form onSubmit={handleSubmit} className="mt-8 grid gap-6 lg:grid-cols-2">
-        <PublicCard padding="lg" className="space-y-4">
+      <form onSubmit={handleSubmit} className="mt-10 grid gap-8 lg:grid-cols-5">
+        <div className="store-surface space-y-5 rounded-2xl p-6 lg:col-span-3">
+          <h2 className="text-lg font-bold">Tus datos</h2>
           <div>
             <label className="text-sm font-semibold" htmlFor="name">
               Nombre
@@ -185,7 +210,7 @@ export function StoreCheckoutClient({
               onChange={(e) =>
                 setForm((f) => ({ ...f, customerName: e.target.value }))
               }
-              className="mt-1 w-full rounded-xl border px-3 py-2 text-sm"
+              className="store-input mt-2"
             />
           </div>
           <div>
@@ -199,7 +224,7 @@ export function StoreCheckoutClient({
               onChange={(e) =>
                 setForm((f) => ({ ...f, customerEmail: e.target.value }))
               }
-              className="mt-1 w-full rounded-xl border px-3 py-2 text-sm"
+              className="store-input mt-2"
             />
           </div>
           <div>
@@ -212,11 +237,11 @@ export function StoreCheckoutClient({
               onChange={(e) =>
                 setForm((f) => ({ ...f, customerPhone: e.target.value }))
               }
-              className="mt-1 w-full rounded-xl border px-3 py-2 text-sm"
+              className="store-input mt-2"
             />
           </div>
           {isCommunityMember ? (
-            <label className="flex items-center gap-2 text-sm">
+            <label className="flex items-center gap-3 text-sm">
               <input
                 type="checkbox"
                 checked={form.applyCommunityPrice}
@@ -226,41 +251,74 @@ export function StoreCheckoutClient({
                     applyCommunityPrice: e.target.checked,
                   }))
                 }
+                className="h-4 w-4 rounded border-[var(--public-border)]"
               />
               Aplicar precio comunidad
             </label>
           ) : null}
-        </PublicCard>
+        </div>
 
-        <PublicCard padding="lg">
-          <h2 className="public-heading font-bold">Resumen</h2>
-          <p className="mt-2 text-sm public-text-muted">
-            {items.length} líneas en el carrito
-          </p>
+        <div className="store-surface rounded-2xl p-6 lg:col-span-2">
+          <h2 className="text-lg font-bold">Resumen</h2>
+          <ul className="mt-4 space-y-3 border-b border-[var(--public-border)] pb-4">
+            {lines.map((line) => {
+              const item = items.find(
+                (i) =>
+                  i.productId === line.productId &&
+                  (i.variantId ?? null) === (line.variantId ?? null),
+              );
+              if (!item) return null;
+              return (
+                <li
+                  key={`${line.productId}:${line.variantId}`}
+                  className="flex justify-between gap-3 text-sm"
+                >
+                  <span className="text-[var(--public-text-secondary)]">
+                    {line.productName}
+                    {line.variantName ? ` · ${line.variantName}` : ""} × {item.quantity}
+                  </span>
+                  <span className="shrink-0 font-medium">
+                    {formatStorePrice(line.unitPrice * item.quantity)}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+          <div className="mt-4 flex justify-between font-semibold">
+            <span>Total estimado</span>
+            <span className="text-xl">
+              {estimatedTotal > 0 ? formatStorePrice(estimatedTotal) : "—"}
+            </span>
+          </div>
           {eventSlug ? (
-            <p className="mt-1 text-xs public-text-muted">Evento: {eventSlug}</p>
+            <p className="mt-2 text-xs text-[var(--public-text-soft)]">
+              Contexto evento: {eventSlug}
+            </p>
           ) : null}
-          {error ? <p className="mt-4 text-sm text-red-600">{error}</p> : null}
+          {error ? (
+            <p className="mt-4 text-sm text-red-400" role="alert">
+              {error}
+            </p>
+          ) : null}
           <PublicButton
             type="submit"
             variant="primary"
+            size="lg"
             className="mt-6 w-full"
             disabled={pending}
           >
             {pending ? "Reservando..." : "Confirmar reserva"}
           </PublicButton>
-          {mercadoPagoEnabled ? (
-            <p className="mt-3 text-xs public-text-muted">
-              Después de reservar podrás pagar con Mercado Pago de forma segura.
-            </p>
-          ) : (
-            <p className="mt-3 text-xs public-text-muted">
-              El pago se confirma manualmente o por transferencia según
-              instrucciones de Australe.
-            </p>
-          )}
-        </PublicCard>
+          <p className="mt-4 text-xs leading-relaxed text-[var(--public-text-soft)]">
+            {mercadoPagoEnabled
+              ? "Después de reservar podrás pagar con Mercado Pago de forma segura."
+              : "El pago se confirma manualmente según instrucciones de Australe."}
+          </p>
+          <p className="mt-2 text-xs text-[var(--public-text-soft)]">
+            ◈ Compra segura · Reserva de stock por 30 minutos
+          </p>
+        </div>
       </form>
-    </PageContainer>
+    </div>
   );
 }

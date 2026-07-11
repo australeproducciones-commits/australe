@@ -6,7 +6,8 @@ import { isMercadoPagoEnabled } from "@/lib/payments/config";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
-  title: "Checkout · Tienda",
+  title: "Checkout · Tienda Australe",
+  description: "Completá tu compra de merchandising oficial de Australe Producciones.",
 };
 
 export default async function TiendaCheckoutPage() {

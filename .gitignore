@@ -35,6 +35,9 @@ yarn-error.log*
 .env.local
 .env.*.local
 !.env.example
+!.env.staging.example
+.staging-provision.json
+.staging-pg-cron.json
 
 # vercel
 .vercel

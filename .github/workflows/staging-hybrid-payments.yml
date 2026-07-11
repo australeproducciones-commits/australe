@@ -1,0 +1,110 @@
+name: Staging Hybrid Payments
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: staging-hybrid-payments
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  PRODUCTION_REF: vfmzabiyqmsnlpesfman
+  STAGING_SEED_TAG: hybrid-${{ github.run_id }}
+
+jobs:
+  staging-setup:
+    name: Provisionar y validar staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Instalar PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client jq
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Provisionar proyecto staging
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          STAGING_SUPABASE_PROJECT_ID: ${{ secrets.STAGING_SUPABASE_PROJECT_ID }}
+          STAGING_SUPABASE_DB_PASSWORD: ${{ secrets.STAGING_SUPABASE_DB_PASSWORD }}
+        run: node scripts/staging/provision-staging-project.mjs
+
+      - name: Cargar credenciales staging
+        run: |
+          test -f .staging-provision.json
+          REF=$(jq -r '.ref' .staging-provision.json)
+          if [ "$REF" = "$PRODUCTION_REF" ]; then
+            echo "BLOQUEADO: ref de producción"
+            exit 1
+          fi
+          echo "STAGING_SUPABASE_PROJECT_ID=$REF" >> "$GITHUB_ENV"
+          echo "STAGING_SUPABASE_DB_PASSWORD=$(jq -r '.db_password' .staging-provision.json)" >> "$GITHUB_ENV"
+          echo "NEXT_PUBLIC_SUPABASE_URL=$(jq -r '.url' .staging-provision.json)" >> "$GITHUB_ENV"
+          echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$(jq -r '.anon_key' .staging-provision.json)" >> "$GITHUB_ENV"
+          echo "SUPABASE_SERVICE_ROLE_KEY=$(jq -r '.service_role_key' .staging-provision.json)" >> "$GITHUB_ENV"
+          echo "Staging ref: ${REF:0:4}…${REF: -4}"
+
+      - name: Verificar password staging persistido
+        run: |
+          if [ -z "${{ secrets.STAGING_SUPABASE_DB_PASSWORD }}" ]; then
+            echo "::warning::Guardar STAGING_SUPABASE_DB_PASSWORD y STAGING_SUPABASE_PROJECT_ID en GitHub Secrets para próximas ejecuciones"
+          fi
+
+      - name: Aplicar schema y migraciones
+        run: bash scripts/staging/apply-bootstrap.sh
+
+      - name: Seed fixtures staging
+        run: node scripts/staging/seed-hybrid-fixtures.mjs
+
+      - name: Verificar esquema y permisos
+        env:
+          STAGING_PG_CRON_VERIFIED: "true"
+        run: node scripts/staging/verify-staging-schema.mjs
+
+      - name: E2E pagos híbridos
+        run: node scripts/staging/e2e-hybrid-payments.mjs
+
+      - name: Resumen staging
+        if: always()
+        run: |
+          REF=$(jq -r '.ref' .staging-provision.json)
+          {
+            echo "## Staging hybrid payments"
+            echo "- Project ref: \`${REF:0:4}…${REF: -4}\`"
+            echo "- URL: $(jq -r '.url' .staging-provision.json)"
+            echo "- Seed tag: $STAGING_SEED_TAG"
+            echo "- pg_cron: expire_store_reservations_every_5m (*/5)"
+            echo ""
+            echo "### Secrets requeridos en GitHub"
+            echo "- STAGING_SUPABASE_PROJECT_ID"
+            echo "- STAGING_SUPABASE_DB_PASSWORD"
+            echo ""
+            echo "### Vercel Preview (rama feat/store-hybrid-payments)"
+            echo "Configurar NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY con valores staging."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Subir artefacto pg_cron (sin secretos)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-pg-cron-marker
+          path: .staging-pg-cron.json
+          if-no-files-found: ignore

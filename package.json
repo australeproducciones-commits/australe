@@ -11,7 +11,11 @@
     "typecheck": "tsc --noEmit",
     "test": "node scripts/validate-mercadopago-unit.mjs && node scripts/validate-mercadopago-payments.mjs && node scripts/validate-store-module.mjs && node scripts/validate-store-hybrid-payments.mjs && node scripts/validate-store-hybrid-integration.mjs",
     "validate:store:hybrid-payments": "node scripts/validate-store-hybrid-payments.mjs",
-    "validate:store:hybrid-integration": "node scripts/validate-store-hybrid-integration.mjs"
+    "validate:store:hybrid-integration": "node scripts/validate-store-hybrid-integration.mjs",
+    "staging:provision": "node scripts/staging/provision-staging-project.mjs",
+    "staging:seed": "node scripts/staging/seed-hybrid-fixtures.mjs",
+    "staging:verify": "node scripts/staging/verify-staging-schema.mjs",
+    "staging:e2e": "node scripts/staging/e2e-hybrid-payments.mjs"
   },
   "engines": {
     "node": ">=20.0.0"

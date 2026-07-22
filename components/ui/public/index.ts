@@ -1,7 +1,5 @@
 export { PublicAccordion } from "@/components/ui/public/PublicAccordion";
 export { PageContainer } from "@/components/ui/public/PageContainer";
-export { PublicLoadingSkeleton } from "@/components/ui/public/PublicLoadingSkeleton";
-export type { PublicLoadingVariant } from "@/components/ui/public/PublicLoadingSkeleton";
 export { PublicPageShell } from "@/components/ui/public/PublicPageShell";
 export { PublicButton } from "@/components/ui/public/PublicButton";
 export type { PublicButtonProps } from "@/components/ui/public/PublicButton";

@@ -1886,43 +1886,29 @@ body {
   width: 100%;
 }
 
-.public-theme .public-loading-shell {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-height: inherit;
-  width: 100%;
-}
-
-.public-theme .public-skeleton-bar {
+.public-theme .public-nav-progress__bar {
   background: linear-gradient(
     90deg,
-    rgba(255, 255, 255, 0.04) 0%,
-    rgba(255, 255, 255, 0.09) 50%,
-    rgba(255, 255, 255, 0.04) 100%
+    var(--public-primary) 0%,
+    var(--public-primary-hover) 55%,
+    rgba(196, 168, 240, 0.85) 100%
   );
-  background-size: 200% 100%;
-  animation: public-skeleton-shimmer 1.6s ease-in-out infinite;
+  box-shadow: 0 0 10px rgba(167, 139, 219, 0.45);
+  transition: width 320ms ease;
 }
 
-@keyframes public-skeleton-shimmer {
-  0% {
-    background-position: 200% 0;
-  }
-
-  100% {
-    background-position: -200% 0;
-  }
+.public-theme .public-nav-progress__bar--complete {
+  transition: width 140ms ease-out;
 }
 
 .public-theme .public-page-enter {
-  animation: public-page-enter 220ms ease-out both;
+  animation: public-page-enter 150ms ease-out both;
 }
 
 @keyframes public-page-enter {
   from {
-    opacity: 0;
-    transform: translateY(6px);
+    opacity: 0.96;
+    transform: translateY(4px);
   }
 
   to {
@@ -1952,9 +1938,8 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .public-theme .public-skeleton-bar {
-    animation: none;
-    background: rgba(255, 255, 255, 0.06);
+  .public-theme .public-nav-progress__bar {
+    transition: none;
   }
 
   .public-theme .public-page-enter,

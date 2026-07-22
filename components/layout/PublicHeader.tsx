@@ -3,7 +3,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import { PublicNavigationProgress } from "@/components/layout/PublicNavigationProgress";
 import { PublicUserMenu } from "@/components/layout/PublicUserMenu";
 import { BRAND_LOGO_ON_DARK } from "@/lib/constants/branding";
 import { PUBLIC_HEADER_LINKS, ROUTES } from "@/lib/constants/routes";
@@ -23,7 +24,7 @@ export function PublicHeader() {
 
   return (
     <header
-      className="sticky top-0 isolate z-50 border-b backdrop-blur-xl"
+      className="sticky top-0 isolate z-50 border-b backdrop-blur-xl relative"
       style={{
         borderColor: "var(--public-border)",
         backgroundColor: "var(--public-header-bg)",
@@ -128,6 +129,9 @@ export function PublicHeader() {
           </div>
         </nav>
       </div>
+      <Suspense fallback={null}>
+        <PublicNavigationProgress />
+      </Suspense>
     </header>
   );
 }

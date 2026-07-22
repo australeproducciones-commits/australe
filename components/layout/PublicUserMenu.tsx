@@ -3,13 +3,12 @@
 import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 import { LogoutButton } from "@/components/auth/LogoutButton";
-import type { PublicSessionUser } from "@/lib/auth/getPublicSessionUser";
+import { usePublicAuth } from "@/components/layout/PublicAuthProvider";
 import { getPublicNavAuthLink } from "@/lib/auth/getPublicNavAuth";
-import { getEffectiveRole, normalizeRole } from "@/lib/auth/routeAccess";
+import { getEffectiveRole } from "@/lib/auth/routeAccess";
 import { getSessionUserInitial } from "@/lib/auth/resolvePublicSessionUser";
 import { ROLES } from "@/lib/constants/roles";
 import { ROUTES } from "@/lib/constants/routes";
-import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils/cn";
 
 type PublicUserMenuProps = {
@@ -18,118 +17,16 @@ type PublicUserMenuProps = {
   onNavigate?: () => void;
 };
 
-const PROFILE_COLUMNS =
-  "id, full_name, whatsapp, role, is_active, staff_all_events" as const;
-
-async function resolveSessionUserFromClient(): Promise<PublicSessionUser | null> {
-  const supabase = createClient();
-  const {
-    data: { session },
-    error: sessionError,
-  } = await supabase.auth.getSession();
-
-  if (sessionError || !session?.user) {
-    return null;
-  }
-
-  const user = session.user;
-  const { data, error: profileError } = await supabase
-    .from("profiles")
-    .select(PROFILE_COLUMNS)
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (profileError || !data) {
-    return null;
-  }
-
-  return {
-    email: user.email ?? null,
-    profile: {
-      id: data.id,
-      full_name: data.full_name,
-      whatsapp: data.whatsapp,
-      role: normalizeRole(data.role),
-      is_active: data.is_active,
-      staff_all_events: data.staff_all_events ?? false,
-    },
-  };
-}
-
 export function PublicUserMenu({
   stacked = false,
   compact = false,
   onNavigate,
 }: PublicUserMenuProps) {
   const menuId = useId();
-  const [sessionUser, setSessionUser] = useState<PublicSessionUser | null>(null);
-  const [sessionReady, setSessionReady] = useState(false);
+  const { sessionUser, sessionReady } = usePublicAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const syncInFlight = useRef<Promise<void> | null>(null);
-
-  useEffect(() => {
-    const supabase = createClient();
-    let active = true;
-
-    async function syncSession() {
-      if (syncInFlight.current) {
-        return syncInFlight.current;
-      }
-
-      const task = (async () => {
-        try {
-          const resolved = await resolveSessionUserFromClient();
-          if (!active) {
-            return;
-          }
-          setSessionUser(resolved);
-        } catch {
-          if (!active) {
-            return;
-          }
-          setSessionUser(null);
-        } finally {
-          if (active) {
-            setSessionReady(true);
-          }
-          syncInFlight.current = null;
-        }
-      })();
-
-      syncInFlight.current = task;
-      return task;
-    }
-
-    void syncSession();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "INITIAL_SESSION") {
-        return;
-      }
-
-      if (event === "SIGNED_OUT") {
-        if (!active) {
-          return;
-        }
-        setSessionUser(null);
-        setSessionReady(true);
-        setMenuOpen(false);
-        return;
-      }
-
-      void syncSession();
-    });
-
-    return () => {
-      active = false;
-      subscription.unsubscribe();
-    };
-  }, []);
-
   useEffect(() => {
     if (!menuOpen) {
       return;
@@ -194,8 +91,6 @@ export function PublicUserMenu({
   }
 
   function handleSignedOut() {
-    setSessionUser(null);
-    setSessionReady(true);
     setMenuOpen(false);
     onNavigate?.();
   }

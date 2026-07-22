@@ -52,7 +52,7 @@ export default async function Home() {
           />
           <HomeEventsSection items={carteleraItems} />
           <HomeStoreSection />
-          <HomeStreamingSection />
+          <HomeStreamingSection featuredStream={featuredStream} />
         </>
       )}
     </div>

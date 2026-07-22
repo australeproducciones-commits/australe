@@ -84,19 +84,19 @@ export function PublicNavigationProgress() {
   const startProgress = useCallback(() => {
     clearTimers();
     setActive(true);
-    setProgress(12);
+    setProgress(8);
 
     requestAnimationFrame(() => {
-      setProgress(68);
+      setProgress(28);
     });
 
     creepTimerRef.current = setTimeout(() => {
-      setProgress((current) => (current < 92 ? 92 : current));
-    }, 2500);
+      setProgress((current) => (current < 72 ? 72 : current));
+    }, 1800);
 
     safetyTimerRef.current = setTimeout(() => {
       finishProgress();
-    }, 12000);
+    }, 15000);
   }, [clearTimers, finishProgress]);
 
   useEffect(() => {

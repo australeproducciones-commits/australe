@@ -141,6 +141,16 @@ function rpcArgsForPreflight(rpc) {
   }
 }
 
+function formatError(error) {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === "object") {
+    const message = error.message ?? error.error_description ?? error.msg;
+    if (message) return String(message);
+    return JSON.stringify(error);
+  }
+  return String(error);
+}
+
 function isMissingRpcError(error) {
   return /function|does not exist|not found/i.test(error.message ?? "");
 }
@@ -214,14 +224,18 @@ async function createTestUser(label) {
     community_code: `${RUN_ID}${label}`,
   });
   await admin.rpc("ensure_loyalty_account", { p_user_id: userId });
-  await admin.rpc("adjust_loyalty_points", {
-    p_user_id: userId,
-    p_points: 500,
-    p_reason: "Test sorteos",
-    p_admin_id: userId,
+  const { error: loyaltyError } = await admin.from("loyalty_accounts").upsert({
+    user_id: userId,
+    points_balance: 500,
+    lifetime_points: 500,
   });
+  if (loyaltyError) throw loyaltyError;
 
-  const { data: session } = await admin.auth.signInWithPassword({ email, password });
+  const { data: session, error: signInError } = await admin.auth.signInWithPassword({ email, password });
+  if (signInError) throw signInError;
+  if (!session?.session?.access_token) {
+    throw new Error("signInWithPassword no devolvió sesión");
+  }
   const client = createSupabaseClient(anonKey, {
     global: { headers: { Authorization: `Bearer ${session.session.access_token}` } },
   });
@@ -652,7 +666,7 @@ async function main() {
     await testWinnerPrivacy();
     await testPublicRpc();
   } catch (error) {
-    fail("suite sorteos", error instanceof Error ? error.message : String(error));
+    fail("suite sorteos", formatError(error));
   } finally {
     await cleanup();
   }

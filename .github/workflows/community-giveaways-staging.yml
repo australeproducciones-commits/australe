@@ -176,9 +176,12 @@ jobs:
         if: steps.branch.outputs.staging_mode == 'dedicated_project'
         run: |
           set -euo pipefail
-          HAS_EVENTS=$(supabase db query --linked "SELECT to_regclass('public.events') IS NOT NULL;" | tail -n 1 | tr -d '[:space:]')
+          db_bool() {
+            supabase db query --linked "$1" | { grep -E '^\s*[tf]\s*$' || true; } | tr -d '[:space:]' | head -1
+          }
+          HAS_EVENTS=$(db_bool "SELECT to_regclass('public.events') IS NOT NULL;")
           if [ "$HAS_EVENTS" != "t" ]; then
-            HAS_PROFILES=$(supabase db query --linked "SELECT to_regclass('public.profiles') IS NOT NULL;" | tail -n 1 | tr -d '[:space:]')
+            HAS_PROFILES=$(db_bool "SELECT to_regclass('public.profiles') IS NOT NULL;")
             echo "Aplicando baseline schema-v1 (events ausente)…"
             if [ "$HAS_PROFILES" != "t" ]; then
               echo "→ supabase/schema-v1.sql"

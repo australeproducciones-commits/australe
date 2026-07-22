@@ -33,7 +33,7 @@ export default async function Home() {
   }
 
   return (
-    <main className="home-premium">
+    <div className="home-premium">
       {loadError ? (
         <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
           <PublicQueryError message={loadError} />
@@ -46,6 +46,6 @@ export default async function Home() {
           <HomeStreamingSection />
         </>
       )}
-    </main>
+    </div>
   );
 }

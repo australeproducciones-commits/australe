@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { WhatsAppIcon } from "@/components/icons/WhatsAppIcon";
 import { RemoteImage } from "@/components/ui/RemoteImage";
 import {
@@ -23,6 +23,30 @@ export function PartnersSection({
 }: PartnersSectionProps) {
   const sectionRef = useRef<HTMLElement | null>(null);
   const trackedIds = useRef(new Set<string>());
+  const [revealed, setRevealed] = useState(false);
+
+  useEffect(() => {
+    const section = sectionRef.current;
+    if (!section) {
+      return;
+    }
+
+    const revealObserver = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) {
+          setRevealed(true);
+          revealObserver.disconnect();
+        }
+      },
+      { threshold: 0.08, rootMargin: "0px 0px -4% 0px" },
+    );
+
+    revealObserver.observe(section);
+
+    return () => {
+      revealObserver.disconnect();
+    };
+  }, []);
 
   useEffect(() => {
     const section = sectionRef.current;
@@ -101,7 +125,10 @@ export function PartnersSection({
   return (
     <section
       ref={sectionRef}
-      className="home-partners-section overflow-hidden border-t py-12 sm:py-16"
+      className={cn(
+        "home-partners-section overflow-hidden border-t py-12 sm:py-16",
+        revealed && "home-partners-section--in-view",
+      )}
       style={{
         borderColor: "var(--public-border)",
         backgroundColor: "var(--public-bg-section)",

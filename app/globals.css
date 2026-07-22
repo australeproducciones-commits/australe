@@ -41,6 +41,7 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
+  scrollbar-gutter: stable;
 }
 
 /* ——— Tema público Australe (premium oscuro — variante emocional) ——— */
@@ -73,6 +74,9 @@ body {
   );
   --store-glow: var(--australe-glow);
   --store-glow-strong: rgba(167, 139, 219, 0.28);
+  --public-header-height: 3.5625rem;
+  --public-store-subnav-height: 2.875rem;
+  --public-main-min-height: calc(100dvh - var(--public-header-height));
 
   /* Alias semánticos */
   --surface: var(--public-card);
@@ -1861,5 +1865,100 @@ body {
 @media (min-width: 640px) {
   .australe-auth-card {
     padding: 2.25rem 2rem;
+  }
+}
+
+/* ——— Layout público: área principal, loading y transiciones ——— */
+.public-theme .public-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: var(--public-main-min-height);
+}
+
+.public-theme .public-main:has(.store-theme) {
+  --public-main-min-height: calc(
+    100dvh - var(--public-header-height) - var(--public-store-subnav-height)
+  );
+}
+
+.public-theme .public-page-shell {
+  width: 100%;
+}
+
+.public-theme .public-loading-shell {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: inherit;
+  width: 100%;
+}
+
+.public-theme .public-skeleton-bar {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.04) 0%,
+    rgba(255, 255, 255, 0.09) 50%,
+    rgba(255, 255, 255, 0.04) 100%
+  );
+  background-size: 200% 100%;
+  animation: public-skeleton-shimmer 1.6s ease-in-out infinite;
+}
+
+@keyframes public-skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.public-theme .public-page-enter {
+  animation: public-page-enter 220ms ease-out both;
+}
+
+@keyframes public-page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.home-partners-section {
+  scroll-margin-top: var(--public-header-height);
+}
+
+.home-partners-section--in-view {
+  animation: public-partners-enter 320ms ease-out both;
+}
+
+@keyframes public-partners-enter {
+  from {
+    opacity: 0.92;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .public-theme .public-skeleton-bar {
+    animation: none;
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .public-theme .public-page-enter,
+  .home-partners-section--in-view {
+    animation: none;
   }
 }

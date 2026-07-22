@@ -30,7 +30,7 @@ export async function PublicThemeShell({ children }: PublicThemeShellProps) {
       <PublicAnalyticsTracker />
       <PublicHeader />
       <StoreShell>
-        <div className="flex-1">{children}</div>
+        <main className="public-main flex flex-1 flex-col">{children}</main>
       </StoreShell>
       <PartnersSection
         partners={partners}

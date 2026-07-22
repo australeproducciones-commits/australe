@@ -56,7 +56,7 @@ export function StoreSubNav() {
         aria-hidden
       />
       <div
-        className="sticky top-[57px] z-40 border-b backdrop-blur-xl lg:top-[65px]"
+        className="sticky top-[57px] z-40 border-b backdrop-blur-xl"
         style={{
           borderColor: "var(--public-border)",
           backgroundColor: "rgba(10, 9, 13, 0.92)",

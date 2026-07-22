@@ -37,13 +37,108 @@ Documentación técnica del módulo de sorteos exclusivos para miembros de Comun
 | `draw_community_giveaway` | `service_role` | Ejecución del sorteo |
 | `activate_community_giveaway_alternate` | `service_role` | Activar suplente |
 | `maintain_community_giveaways` | `service_role` | Cron |
+| `get_public_community_giveaway_results` | `anon`, `authenticated` | Resultados públicos sanitizados |
 
 ## RLS
 
 - Sorteos públicos visibles en estados publicados.
-- Entries: usuario ve solo las propias; admin ve todas.
-- Winners: públicos cuando el sorteo está `drawn`; usuario ve los propios.
-- Audit logs: solo admin (lectura).
+- Entries: usuario ve solo las propias; admin vía `service_role`.
+- Winners: usuario ve solo los propios; resultados públicos vía RPC sanitizada.
+- Audit logs: solo `service_role` / servidor admin.
+
+## Privacidad de ganadores
+
+La tabla `community_giveaway_winners` **no** es legible en su totalidad por clientes. Los resultados públicos se obtienen exclusivamente con:
+
+```sql
+SELECT * FROM get_public_community_giveaway_results('slug-del-sorteo');
+```
+
+Columnas devueltas (sin `user_id`, email, teléfono ni metadata):
+
+- `display_name` — generado en servidor (`Diego R.`, `María G.`, `Miembro #A7F4`)
+- `winner_type`, `position`, `status_public`
+- `selected_at`, `claimed_at`
+- `verification_code` — solo para el ganador principal (posición 1)
+- Metadatos del sorteo: `giveaway_name`, `drawn_at`, `participant_count`, `total_chances`
+
+## Algoritmo de sorteo y verificación
+
+1. `FOR UPDATE` en la fila del sorteo (una sola ejecución válida).
+2. Semilla generada en la transacción: `encode(gen_random_bytes(32), 'hex')` — **no** provista por el cliente.
+3. Cada chance recibe clave única: `md5(entry_id || chance_index || draw_seed)`.
+4. Se excluyen entries `cancelled`, `disqualified`, `refunded`.
+5. Sin duplicados de usuario salvo `allow_duplicate_winners = true`.
+6. Segunda ejecución retorna `{ already_drawn: true }`.
+7. Se almacena `md5(draw_seed)` en auditoría como identificador de trazabilidad interna.
+
+**Limitación:** sin publicar la semilla original, el hash **no** constituye una prueba criptográfica reproducible para terceros. Es un identificador de auditoría interna, no verificación pública completa.
+
+## Validación de `image_url`
+
+El servidor valida URLs con `validateGiveawayImageUrl()`:
+
+- Acepta: `https://`, `http://`, rutas internas `/...`
+- Rechaza: `javascript:`, `data:`, `file:`, `vbscript:`
+
+## Cron y seguridad
+
+```http
+GET /api/cron/community-giveaways
+Authorization: Bearer <CRON_SECRET>
+```
+
+- Comparación con `crypto.timingSafeEqual()` (resistente a timing attacks).
+- Rechaza si `CRON_SECRET` no está configurado.
+- El cron **no** ejecuta sorteos automáticamente; solo mantenimiento (activar, cerrar, expirar premios).
+
+## Staging y E2E
+
+**No ejecutar E2E contra producción.**
+
+1. Crear o identificar proyecto Supabase de staging (branch, proyecto separado o local).
+2. Copiar `.env.staging.local.example` → `.env.staging.local` (ignorado por Git).
+3. Verificar `EXPECTED_SUPABASE_PROJECT_REF` coincide con la URL.
+4. Aplicar solo migraciones de sorteos:
+
+```bash
+supabase db push
+# o aplicar manualmente:
+# 20260722000000_community_giveaways_foundation.sql
+# 20260722000100_community_giveaways_rpc.sql
+# 20260722000200_community_giveaways_security_hardening.sql
+```
+
+5. Auditoría SQL:
+
+```bash
+psql $DATABASE_URL -f scripts/validate-community-giveaways-security.sql
+```
+
+6. E2E (requiere `ALLOW_GIVEAWAY_E2E=true`):
+
+```bash
+npm run validate:community-giveaways
+```
+
+7. Build en worktree limpio:
+
+```bash
+npm ci
+npm run lint
+npm run typecheck
+npm run build
+```
+
+Variables de build: usar credenciales de staging en `.env.local` **solo dentro del worktree**, verificando el project ref antes de copiar.
+
+## Pruebas
+
+```bash
+node scripts/validate-community-giveaways-cron.mjs
+node scripts/validate-community-giveaways.mjs
+psql $DATABASE_URL -f scripts/validate-community-giveaways-security.sql
+```
 
 ## Idempotencia
 
@@ -80,6 +175,8 @@ Igual que puntos pero sin débito; aplica `level_bonus_config` desde servidor.
 
 La segunda ejecución retorna `{ already_drawn: true }`.
 
+Ver sección **Algoritmo de sorteo y verificación** para detalles y limitaciones.
+
 ## Concurrencia
 
 El lock `FOR UPDATE` en la fila del sorteo garantiza una sola ejecución válida.
@@ -105,9 +202,9 @@ GET /api/cron/community-giveaways
 Authorization: Bearer <CRON_SECRET>
 ```
 
-Variable: `CRON_SECRET` en `.env.local` / entorno.
+Variable: `CRON_SECRET` en `.env.staging.local` / entorno de staging.
 
-Acciones: activar programados, cerrar vencidos, expirar premios no reclamados.
+Acciones: activar programados, cerrar vencidos, expirar premios no reclamados. **No ejecuta sorteos.**
 
 **Activación en Vercel:** configurar cron manualmente; no se incluye `vercel.json` automático.
 
@@ -122,10 +219,7 @@ Servicio: `processAutomaticGiveawayEntries()`.
 
 ## Pruebas
 
-```bash
-node scripts/validate-community-giveaways.mjs
-psql $DATABASE_URL -f scripts/validate-community-giveaways-security.sql
-```
+Ver sección **Staging y E2E** arriba.
 
 ## Seed de prueba
 

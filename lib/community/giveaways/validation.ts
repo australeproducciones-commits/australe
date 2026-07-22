@@ -1,6 +1,42 @@
 import type { GiveawayFormInput } from "@/lib/community/giveaways/types";
 import { slugifyGiveawayName } from "@/lib/community/giveaways/utils";
 
+const BLOCKED_IMAGE_URL_PROTOCOLS = /^(javascript|data|file|vbscript):/i;
+
+/**
+ * Valida image_url en servidor. Acepta https, http o rutas internas (/...).
+ */
+export function validateGiveawayImageUrl(
+  imageUrl: string | null | undefined,
+): string | null {
+  if (imageUrl == null || imageUrl.trim() === "") {
+    return null;
+  }
+
+  const value = imageUrl.trim();
+
+  if (BLOCKED_IMAGE_URL_PROTOCOLS.test(value)) {
+    return "La URL de imagen usa un protocolo no permitido.";
+  }
+
+  if (value.startsWith("/")) {
+    return null;
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    return "La URL de imagen no es válida.";
+  }
+
+  if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+    return "La URL de imagen debe usar http o https.";
+  }
+
+  return null;
+}
+
 export function validateGiveawayForm(input: GiveawayFormInput): string | null {
   if (!input.name?.trim()) return "El nombre es obligatorio.";
   if (!input.prize_description?.trim()) return "La descripción del premio es obligatoria.";
@@ -24,6 +60,10 @@ export function validateGiveawayForm(input: GiveawayFormInput): string | null {
       return "El sorteo debe programarse después del cierre.";
     }
   }
+
+  const imageError = validateGiveawayImageUrl(input.image_url);
+  if (imageError) return imageError;
+
   return null;
 }
 

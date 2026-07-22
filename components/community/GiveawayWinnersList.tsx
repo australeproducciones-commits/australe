@@ -1,8 +1,8 @@
 import { PublicCard } from "@/components/ui/public";
-import type { CommunityGiveawayWinner } from "@/lib/community/giveaways/types";
+import type { PublicGiveawayResultRow } from "@/lib/community/giveaways/types";
 
 type GiveawayWinnersListProps = {
-  winners: CommunityGiveawayWinner[];
+  winners: PublicGiveawayResultRow[];
   verificationCode?: string | null;
 };
 
@@ -36,8 +36,11 @@ export function GiveawayWinnersList({
         <h3 className="public-heading text-base font-bold">Ganadores</h3>
         <ul className="mt-3 space-y-2">
           {mainWinners.map((w) => (
-            <li key={w.id} className="flex items-center justify-between text-sm">
-              <span>{w.public_display_name ?? `Miembro #${w.position}`}</span>
+            <li
+              key={`winner-${w.position}`}
+              className="flex items-center justify-between text-sm"
+            >
+              <span>{w.display_name ?? `Miembro #${w.position}`}</span>
               <span className="public-text-soft">#{w.position}</span>
             </li>
           ))}
@@ -49,8 +52,11 @@ export function GiveawayWinnersList({
           <h3 className="public-heading text-base font-bold">Suplentes</h3>
           <ul className="mt-3 space-y-2">
             {alternates.map((w) => (
-              <li key={w.id} className="flex items-center justify-between text-sm">
-                <span>{w.public_display_name ?? `Suplente #${w.position}`}</span>
+              <li
+                key={`alternate-${w.position}`}
+                className="flex items-center justify-between text-sm"
+              >
+                <span>{w.display_name ?? `Suplente #${w.position}`}</span>
                 <span className="public-text-soft">#{w.position}</span>
               </li>
             ))}

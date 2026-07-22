@@ -1795,6 +1795,24 @@ export type Database = {
         Args: Record<string, never>;
         Returns: Json;
       };
+      get_public_community_giveaway_results: {
+        Args: {
+          p_giveaway_slug: string;
+        };
+        Returns: {
+          giveaway_name: string | null;
+          drawn_at: string | null;
+          participant_count: number | null;
+          total_chances: number | null;
+          display_name: string | null;
+          winner_type: string | null;
+          position: number | null;
+          status_public: string | null;
+          selected_at: string | null;
+          claimed_at: string | null;
+          verification_code: string | null;
+        }[];
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

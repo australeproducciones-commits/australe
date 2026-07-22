@@ -21,6 +21,7 @@ import {
   buildGiveawaySlug,
   canEditEssentialRules,
   validateGiveawayForm,
+  validateGiveawayImageUrl,
 } from "@/lib/community/giveaways/validation";
 import { ROUTES } from "@/lib/constants/routes";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -63,13 +64,18 @@ async function logGiveawayAudit(
 }
 
 function toDbPayload(input: GiveawayFormInput, createdBy?: string) {
+  const imageUrlError = validateGiveawayImageUrl(input.image_url);
+  if (imageUrlError) {
+    throw new Error(imageUrlError);
+  }
+
   return {
     name: input.name.trim(),
     slug: buildGiveawaySlug(input.name, input.slug),
     short_description: input.short_description?.trim() || null,
     description: input.description?.trim() || null,
     prize_description: input.prize_description.trim(),
-    image_url: input.image_url ?? null,
+    image_url: input.image_url?.trim() || null,
     terms_and_conditions: input.terms_and_conditions?.trim() || null,
     status: input.status ?? "draft",
     entry_type: input.entry_type,

@@ -15,8 +15,7 @@ import { getProfile } from "@/lib/auth/getProfile";
 import {
   getGiveawayBySlug,
   getGiveawayEligibility,
-  getGiveawayPublicWinners,
-  getGiveawayTransparencyStats,
+  getPublicCommunityGiveawayResults,
   getUserGiveawayParticipation,
 } from "@/lib/community/giveaways/queries";
 import { entryTypeLabel, getGiveawayVisualStatus } from "@/lib/community/giveaways/utils";
@@ -47,20 +46,20 @@ export default async function ComunidadSorteoDetallePage({ params }: PageProps) 
   const supabase = await createClient();
   const profile = await getProfile(supabase);
 
-  const [eligibility, participation, winners, stats] = await Promise.all([
+  const [eligibility, participation, publicResults] = await Promise.all([
     getGiveawayEligibility(giveaway, profile?.id),
     getUserGiveawayParticipation(giveaway.id, profile?.id),
     giveaway.status === "drawn"
-      ? getGiveawayPublicWinners(giveaway.id)
-      : Promise.resolve([]),
-    giveaway.status === "drawn"
-      ? getGiveawayTransparencyStats(giveaway.id)
-      : Promise.resolve({
-          participant_count: 0,
-          total_chances: 0,
-          verification_code: null,
-        }),
+      ? getPublicCommunityGiveawayResults(slug)
+      : Promise.resolve(null),
   ]);
+
+  const winners = publicResults?.winners ?? [];
+  const stats = {
+    participant_count: publicResults?.participant_count ?? 0,
+    total_chances: publicResults?.total_chances ?? 0,
+    verification_code: publicResults?.verification_code ?? null,
+  };
 
   const visualStatus = getGiveawayVisualStatus(giveaway, {
     user_chances: participation?.total_chances ?? 0,

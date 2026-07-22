@@ -108,6 +108,25 @@ export type CommunityGiveawayEntry = {
   created_at: string;
 };
 
+export type PublicGiveawayResultRow = {
+  display_name: string | null;
+  winner_type: GiveawayWinnerType | null;
+  position: number | null;
+  status_public: string | null;
+  selected_at: string | null;
+  claimed_at: string | null;
+  verification_code: string | null;
+};
+
+export type PublicGiveawayResults = {
+  giveaway_name: string | null;
+  drawn_at: string | null;
+  participant_count: number;
+  total_chances: number;
+  verification_code: string | null;
+  winners: PublicGiveawayResultRow[];
+};
+
 export type CommunityGiveawayWinner = {
   id: string;
   giveaway_id: string;

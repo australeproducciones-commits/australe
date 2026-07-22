@@ -8,11 +8,12 @@ import type {
   GiveawayEntryStatus,
   GiveawayListItem,
   GiveawayUserParticipation,
+  PublicGiveawayResults,
+  PublicGiveawayResultRow,
 } from "@/lib/community/giveaways/types";
 import { isActiveCommunityMember } from "@/lib/community/membership";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { formatPublicWinnerName } from "@/lib/community/giveaways/utils";
 
 const GIVEAWAY_PUBLIC_STATUSES = ["scheduled", "active", "closed", "drawn"] as const;
 
@@ -227,33 +228,57 @@ export async function getGiveawayEligibility(
   return { ...base, eligible: true };
 }
 
-export async function getGiveawayPublicWinners(
-  giveawayId: string,
-): Promise<CommunityGiveawayWinner[]> {
+export async function getPublicCommunityGiveawayResults(
+  slug: string,
+): Promise<PublicGiveawayResults | null> {
   const supabase = await createClient();
-  const { data: winners, error } = await supabase
-    .from("community_giveaway_winners")
-    .select("*")
-    .eq("giveaway_id", giveawayId)
-    .order("winner_type", { ascending: true })
-    .order("position", { ascending: true });
+  const { data, error } = await supabase.rpc("get_public_community_giveaway_results", {
+    p_giveaway_slug: slug,
+  });
 
-  if (error || !winners?.length) return [];
+  if (error) {
+    console.error("getPublicCommunityGiveawayResults:", error.message);
+    return null;
+  }
 
-  const userIds = [...new Set(winners.map((w) => w.user_id))];
-  const { data: profiles } = await supabase
-    .from("profiles")
-    .select("id, full_name")
-    .in("id", userIds);
+  if (!data?.length) {
+    return null;
+  }
 
-  const nameMap = new Map(
-    (profiles ?? []).map((p) => [p.id, p.full_name as string | null]),
-  );
+  const first = data[0];
+  const winners: PublicGiveawayResultRow[] = data
+    .filter((row) => row.winner_type != null && row.position != null)
+    .map((row) => ({
+      display_name: row.display_name,
+      winner_type: row.winner_type as PublicGiveawayResultRow["winner_type"],
+      position: row.position,
+      status_public: row.status_public,
+      selected_at: row.selected_at,
+      claimed_at: row.claimed_at,
+      verification_code: row.verification_code,
+    }));
 
-  return winners.map((w) => ({
-    ...(w as CommunityGiveawayWinner),
-    public_display_name: formatPublicWinnerName(nameMap.get(w.user_id), w.user_id),
-  }));
+  const verificationCode =
+    winners.find((w) => w.winner_type === "winner" && w.position === 1)?.verification_code ??
+    first.verification_code ??
+    null;
+
+  return {
+    giveaway_name: first.giveaway_name,
+    drawn_at: first.drawn_at,
+    participant_count: first.participant_count ?? 0,
+    total_chances: first.total_chances ?? 0,
+    verification_code: verificationCode,
+    winners,
+  };
+}
+
+/** @deprecated Usar getPublicCommunityGiveawayResults (RPC sanitizada). */
+export async function getGiveawayPublicWinners(
+  giveawaySlug: string,
+): Promise<PublicGiveawayResultRow[]> {
+  const results = await getPublicCommunityGiveawayResults(giveawaySlug);
+  return results?.winners ?? [];
 }
 
 export async function getGiveawayTransparencyStats(giveawayId: string) {

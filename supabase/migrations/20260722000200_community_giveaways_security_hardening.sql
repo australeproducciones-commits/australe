@@ -196,7 +196,7 @@ ALTER FUNCTION public.cancel_community_giveaway(uuid, uuid, text)
 ALTER FUNCTION public.disqualify_community_giveaway_entry(uuid, uuid, text)
   SET search_path = public, pg_temp;
 ALTER FUNCTION public.draw_community_giveaway(uuid, uuid)
-  SET search_path = public, pg_temp;
+  SET search_path = public, extensions, pg_temp;
 ALTER FUNCTION public.activate_community_giveaway_alternate(uuid, uuid)
   SET search_path = public, pg_temp;
 ALTER FUNCTION public.claim_community_giveaway_prize(uuid, uuid)

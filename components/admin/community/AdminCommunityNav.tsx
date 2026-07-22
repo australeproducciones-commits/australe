@@ -23,6 +23,11 @@ const TABS = [
     match: "exact" as const,
   },
   {
+    href: ROUTES.adminComunidadSorteos,
+    label: "Sorteos",
+    match: "prefix" as const,
+  },
+  {
     href: ROUTES.adminComunidadInvitaciones,
     label: "Invitaciones",
     match: "exact" as const,

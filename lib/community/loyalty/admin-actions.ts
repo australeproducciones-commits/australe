@@ -15,6 +15,7 @@ function revalidateAdminCommunity() {
   revalidatePath(ROUTES.adminComunidadMovimientos);
   revalidatePath(ROUTES.adminComunidadConfiguracion);
   revalidatePath(ROUTES.adminComunidadInvitaciones);
+  revalidatePath(ROUTES.adminComunidadSorteos);
 }
 
 export async function adjustMemberPointsAction(

@@ -4,6 +4,7 @@ import { AdminCommunityShell } from "@/components/admin/community/AdminCommunity
 import { AdminAdvertisingScadaList } from "@/components/admin/advertising/AdminAdvertisingScadaList";
 import {
   ADVERTISING_FILTER_STATUS,
+  computeAdvertisingOperationalStats,
   computeAdvertisingSummary,
   filterAndSortAdvertisingCampaigns,
   parseAdvertisingFilterStatus,
@@ -35,6 +36,7 @@ export default async function AdminComunidadPublicidadPage({
 
   const allCampaigns = await getAllAdvertisingCampaignsForAdmin();
   const summary = computeAdvertisingSummary(allCampaigns);
+  const operationalStats = computeAdvertisingOperationalStats(allCampaigns);
   const campaigns = filterAndSortAdvertisingCampaigns(allCampaigns, {
     search,
     status,
@@ -45,14 +47,12 @@ export default async function AdminComunidadPublicidadPage({
     Boolean(search) || status !== ADVERTISING_FILTER_STATUS.ALL;
 
   return (
-    <AdminCommunityShell
-      title="Comunidad"
-      description="Gestión de la comunidad, fidelización y publicidad."
-    >
+    <AdminCommunityShell>
       <Suspense fallback={<p className="admin-ad-scada-muted">Cargando…</p>}>
         <AdminAdvertisingScadaList
           campaigns={campaigns}
           summary={summary}
+          operationalStats={operationalStats}
           initialSearch={search}
           initialStatus={status}
           initialSort={sort}

@@ -16,10 +16,12 @@ export type AdvertisingFilterStatus =
 
 export const ADVERTISING_SORT = {
   RECENT: "recent",
+  OLDEST: "oldest",
   STARTS: "starts",
   ENDS: "ends",
   VIEWS: "views",
   CLICKS: "clicks",
+  CTR: "ctr",
 } as const;
 
 export type AdvertisingSort =
@@ -40,6 +42,140 @@ export type AdvertisingDisplayStatus = {
   scheduleDetail: string;
   schedulePrefix: string | null;
 };
+
+export type AdvertisingOperationalStats = {
+  activeCount: number;
+  endingSoonCount: number;
+  withoutDestinationCount: number;
+  withoutImageCount: number;
+  hasIssues: boolean;
+  systemLabel: string;
+  systemTone: "ok" | "warn" | "error" | "idle";
+};
+
+export function computeAdvertisingOperationalStats(
+  campaigns: AdvertisingCampaign[],
+): AdvertisingOperationalStats {
+  const now = Date.now();
+  const weekMs = 7 * 24 * 60 * 60 * 1000;
+  let activeCount = 0;
+  let endingSoonCount = 0;
+  let withoutDestinationCount = 0;
+  let withoutImageCount = 0;
+
+  for (const campaign of campaigns) {
+    const display = getAdvertisingDisplayStatus(campaign);
+    if (display.kind === "active" || display.kind === "incomplete") {
+      activeCount += 1;
+      if (
+        campaign.ends_at &&
+        Date.parse(campaign.ends_at) > now &&
+        Date.parse(campaign.ends_at) - now <= weekMs
+      ) {
+        endingSoonCount += 1;
+      }
+    }
+
+    if (campaign.is_active && !campaign.destination_url?.trim()) {
+      withoutDestinationCount += 1;
+    }
+
+    if (campaign.is_active && !campaign.image_url?.trim()) {
+      withoutImageCount += 1;
+    }
+  }
+
+  const hasIssues = withoutDestinationCount > 0 || withoutImageCount > 0;
+
+  if (campaigns.length === 0) {
+    return {
+      activeCount: 0,
+      endingSoonCount: 0,
+      withoutDestinationCount: 0,
+      withoutImageCount: 0,
+      hasIssues: false,
+      systemLabel: "Sin campañas configuradas",
+      systemTone: "idle",
+    };
+  }
+
+  if (hasIssues) {
+    return {
+      activeCount,
+      endingSoonCount,
+      withoutDestinationCount,
+      withoutImageCount,
+      hasIssues: true,
+      systemLabel: "Revisar configuración",
+      systemTone: "error",
+    };
+  }
+
+  if (endingSoonCount > 0 || activeCount === 0) {
+    return {
+      activeCount,
+      endingSoonCount,
+      withoutDestinationCount,
+      withoutImageCount,
+      hasIssues: false,
+      systemLabel:
+        endingSoonCount > 0
+          ? "Hay campañas próximas a finalizar"
+          : "Sin campañas activas en este momento",
+      systemTone: "warn",
+    };
+  }
+
+  return {
+    activeCount,
+    endingSoonCount,
+    withoutDestinationCount,
+    withoutImageCount,
+    hasIssues: false,
+    systemLabel: "Sistema publicitario operativo",
+    systemTone: "ok",
+  };
+}
+
+export function getDestinationTypeLabel(url: string | null | undefined): string {
+  const destination = url?.trim();
+  if (!destination) {
+    return "Sin enlace";
+  }
+  if (destination.startsWith("/")) {
+    if (destination.startsWith("/eventos")) return "Evento";
+    if (destination.startsWith("/tienda")) return "Tienda";
+    if (destination.startsWith("/comunidad/sorteos")) return "Sorteo";
+    return "Página interna";
+  }
+  return "Enlace externo";
+}
+
+export function formatDestinationDomain(url: string | null | undefined): string {
+  const destination = url?.trim();
+  if (!destination) {
+    return "—";
+  }
+  if (destination.startsWith("/")) {
+    return "australeproducciones.com";
+  }
+  try {
+    return new URL(destination).hostname.replace(/^www\./, "");
+  } catch {
+    return destination.slice(0, 40);
+  }
+}
+
+export function truncateDestinationUrl(url: string | null | undefined): string {
+  const destination = url?.trim();
+  if (!destination) {
+    return "—";
+  }
+  if (destination.length <= 48) {
+    return destination;
+  }
+  return `${destination.slice(0, 45)}…`;
+}
 
 export type AdvertisingSummary = {
   total: number;
@@ -385,6 +521,16 @@ export function filterAndSortAdvertisingCampaigns(
         return b.view_count - a.view_count;
       case ADVERTISING_SORT.CLICKS:
         return b.click_count - a.click_count;
+      case ADVERTISING_SORT.CTR: {
+        const aCtr = computeAdvertisingCtr(a.view_count, a.click_count);
+        const bCtr = computeAdvertisingCtr(b.view_count, b.click_count);
+        return bCtr - aCtr;
+      }
+      case ADVERTISING_SORT.OLDEST:
+        return (
+          Date.parse(a.created_at) - Date.parse(b.created_at) ||
+          a.priority - b.priority
+        );
       case ADVERTISING_SORT.RECENT:
       default:
         return (

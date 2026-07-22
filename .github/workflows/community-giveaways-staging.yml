@@ -269,6 +269,16 @@ jobs:
           CODE=$(curl -sS "${BYPASS_HEADER[@]}" -o /tmp/cron-body -w "%{http_code}" \
             "${PREVIEW_BASE_URL}/api/cron/community-giveaways")
           echo "cron sin auth: HTTP ${CODE}"
+
+          if [ -z "${VERCEL_AUTOMATION_BYPASS_SECRET:-}" ]; then
+            case "${CODE}" in
+              302|307|308)
+                echo "::warning::Preview protegido por Vercel SSO (HTTP ${CODE}). Agregá VERCEL_AUTOMATION_BYPASS_SECRET en GitHub Secrets para validación HTTP completa."
+                exit 0
+                ;;
+            esac
+          fi
+
           if [ "${CODE}" != "401" ]; then
             echo "Se esperaba 401 sin autorización en /api/cron/community-giveaways"
             head -c 240 /tmp/cron-body || true

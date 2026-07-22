@@ -5,6 +5,29 @@
   --foreground: #fafafa;
   --accent: #a855f7;
   --accent-secondary: #ec4899;
+
+  /* Tokens Australe — identidad compartida */
+  --australe-background: #0a090d;
+  --australe-background-elevated: #100e14;
+  --australe-surface: #14111c;
+  --australe-surface-hover: #1a1624;
+  --australe-border: rgba(255, 255, 255, 0.08);
+  --australe-border-strong: rgba(255, 255, 255, 0.14);
+  --australe-text: #f5f0fa;
+  --australe-text-muted: #b8afc4;
+  --australe-text-soft: #8a8196;
+  --australe-primary: #a78bdb;
+  --australe-primary-hover: #c4a8f0;
+  --australe-primary-soft: rgba(167, 139, 219, 0.15);
+  --australe-accent: #d4a574;
+  --australe-success: #6bc4a8;
+  --australe-success-foreground: #d4f5ea;
+  --australe-warning: #e8c468;
+  --australe-warning-foreground: #f5e6b8;
+  --australe-danger: #e85d5d;
+  --australe-danger-foreground: #fecaca;
+  --australe-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
+  --australe-glow: rgba(167, 139, 219, 0.15);
 }
 
 @theme inline {
@@ -20,34 +43,36 @@ body {
   font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
 
-/* ——— Tema público Australe (referencia visual única) ——— */
+/* ——— Tema público Australe (premium oscuro — variante emocional) ——— */
 .public-theme {
-  --public-bg: #f8f3ff;
-  --public-bg-warm: #fff9f4;
-  --public-bg-section: #f1e8ff;
-  --public-card: #ffffff;
-  --public-card-tint: #fbf7ff;
-  --public-text: #2f2a3a;
-  --public-text-secondary: #6f647c;
-  --public-text-soft: #8b7a99;
-  --public-primary: #9b7ede;
-  --public-primary-hover: #8568cc;
-  --public-secondary: #c8b6ff;
-  --public-accent: #d96c4a;
-  --public-community: #f2c14e;
-  --public-fresh: #7fd8be;
-  --public-fresh-foreground: #2f6f5e;
-  --public-border: #e8ddf8;
-  --public-shadow: 0 12px 40px rgba(75, 55, 110, 0.1);
-  --public-header-bg: rgba(248, 243, 255, 0.9);
-  --public-header-hover: #f1e8ff;
-  --public-footer-bg: #fbf7ff;
+  --public-bg: var(--australe-background);
+  --public-bg-warm: var(--australe-background-elevated);
+  --public-bg-section: #121018;
+  --public-card: var(--australe-surface);
+  --public-card-tint: var(--australe-surface-hover);
+  --public-text: var(--australe-text);
+  --public-text-secondary: var(--australe-text-muted);
+  --public-text-soft: var(--australe-text-soft);
+  --public-primary: var(--australe-primary);
+  --public-primary-hover: var(--australe-primary-hover);
+  --public-secondary: #7c6a9e;
+  --public-accent: var(--australe-accent);
+  --public-community: var(--australe-warning);
+  --public-fresh: var(--australe-success);
+  --public-fresh-foreground: var(--australe-success-foreground);
+  --public-border: var(--australe-border);
+  --public-shadow: var(--australe-shadow);
+  --public-header-bg: rgba(10, 9, 13, 0.92);
+  --public-header-hover: rgba(255, 255, 255, 0.06);
+  --public-footer-bg: var(--australe-background);
   --public-image-fallback: linear-gradient(
-    135deg,
-    #fbf7ff 0%,
-    #f1e8ff 50%,
-    #fff9f4 100%
+    145deg,
+    #1a1624 0%,
+    #14111c 45%,
+    #0f0d14 100%
   );
+  --store-glow: var(--australe-glow);
+  --store-glow-strong: rgba(167, 139, 219, 0.28);
 
   /* Alias semánticos */
   --surface: var(--public-card);
@@ -64,10 +89,10 @@ body {
   --community: var(--public-community);
   --success: var(--public-fresh);
   --success-foreground: var(--public-fresh-foreground);
-  --warning: #f2c14e;
-  --warning-foreground: #7a5d00;
-  --danger: #e85d5d;
-  --danger-foreground: #7f1d1d;
+  --warning: var(--australe-warning);
+  --warning-foreground: var(--australe-warning-foreground);
+  --danger: var(--australe-danger);
+  --danger-foreground: var(--australe-danger-foreground);
   --border: var(--public-border);
   --ring: var(--public-primary);
 
@@ -154,7 +179,7 @@ body {
   padding: 1.5rem;
   border: 1px solid var(--public-border);
   background:
-    linear-gradient(180deg, rgba(251, 247, 255, 0.65) 0%, #fff 42%),
+    linear-gradient(180deg, rgba(26, 22, 36, 0.85) 0%, var(--public-card) 42%),
     var(--public-card);
   box-shadow: var(--public-shadow);
 }
@@ -170,8 +195,8 @@ body {
   align-items: center;
   gap: 0.35rem;
   border-radius: 999px;
-  border: 1px solid rgba(155, 126, 222, 0.35);
-  background: rgba(241, 232, 255, 0.9);
+  border: 1px solid rgba(167, 139, 219, 0.35);
+  background: rgba(167, 139, 219, 0.12);
   padding: 0.25rem 0.65rem;
   font-size: 0.65rem;
   font-weight: 700;
@@ -180,8 +205,8 @@ body {
 }
 
 .public-theme .public-scada-date-badge {
-  border-color: rgba(155, 126, 222, 0.35);
-  background: rgba(241, 232, 255, 0.75);
+  border-color: rgba(167, 139, 219, 0.35);
+  background: rgba(167, 139, 219, 0.1);
   color: var(--public-text);
 }
 
@@ -201,8 +226,8 @@ body {
   display: flex;
   gap: 0.85rem;
   border-radius: 1rem;
-  border: 1px dashed rgba(155, 126, 222, 0.35);
-  background: rgba(251, 247, 255, 0.85);
+  border: 1px dashed rgba(167, 139, 219, 0.28);
+  background: rgba(20, 17, 28, 0.75);
   padding: 0.9rem 1rem;
 }
 
@@ -214,8 +239,8 @@ body {
   align-items: center;
   justify-content: center;
   border-radius: 0.65rem;
-  border: 1px solid rgba(155, 126, 222, 0.25);
-  background: #fff;
+  border: 1px solid rgba(167, 139, 219, 0.25);
+  background: var(--public-card-tint);
   color: var(--public-primary);
 }
 
@@ -238,8 +263,8 @@ body {
 .public-theme .public-scada-description-panel {
   border-radius: 1rem;
   border: 1px solid var(--public-border);
-  border-left: 3px solid rgba(155, 126, 222, 0.55);
-  background: rgba(251, 247, 255, 0.55);
+  border-left: 3px solid rgba(167, 139, 219, 0.55);
+  background: rgba(20, 17, 28, 0.65);
   padding: 1.15rem 1.25rem;
 }
 
@@ -285,7 +310,7 @@ body {
 .public-theme .public-scada-ticket-card {
   border: 1px solid var(--public-border);
   background:
-    linear-gradient(135deg, rgba(251, 247, 255, 0.9) 0%, #fff 55%),
+    linear-gradient(135deg, rgba(26, 22, 36, 0.9) 0%, var(--public-card) 55%),
     var(--public-card);
   box-shadow: var(--public-shadow);
 }
@@ -312,7 +337,7 @@ body {
 .public-theme .public-scada-sale-panel {
   border-radius: 1rem;
   border: 1px solid var(--public-border);
-  background: rgba(251, 247, 255, 0.75);
+  background: rgba(20, 17, 28, 0.75);
   padding: 1rem 1.1rem;
 }
 
@@ -339,22 +364,22 @@ body {
 }
 
 .public-theme .public-scada-sale-panel--soon .public-scada-sale-panel__badge {
-  border-color: rgba(155, 126, 222, 0.45);
-  background: rgba(200, 182, 255, 0.35);
-  color: #5b4a8a;
+  border-color: rgba(167, 139, 219, 0.45);
+  background: rgba(167, 139, 219, 0.18);
+  color: var(--public-primary-hover);
 }
 
 .public-theme .public-scada-sale-panel--active .public-scada-sale-panel__badge {
-  border-color: rgba(127, 216, 190, 0.55);
-  background: rgba(127, 216, 190, 0.2);
+  border-color: rgba(107, 196, 168, 0.45);
+  background: rgba(107, 196, 168, 0.15);
   color: var(--public-fresh-foreground);
 }
 
 .public-theme .public-scada-sale-panel--ended .public-scada-sale-panel__badge,
 .public-theme .public-scada-sale-panel--sold-out .public-scada-sale-panel__badge,
 .public-theme .public-scada-sale-panel--unavailable .public-scada-sale-panel__badge {
-  border-color: rgba(139, 122, 153, 0.35);
-  background: rgba(241, 232, 255, 0.9);
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
   color: var(--public-text-secondary);
 }
 
@@ -1592,17 +1617,40 @@ body {
   }
 }
 
-/* ——— Home premium (comparte sistema visual con la tienda) ——— */
+/* ——— Home premium ——— */
+.public-theme .public-header-logo--light {
+  display: none;
+}
+
 .public-theme .public-header-logo--dark {
-  display: none;
-}
-
-.public-theme.store-theme .public-header-logo--light {
-  display: none;
-}
-
-.public-theme.store-theme .public-header-logo--dark {
   display: block;
+}
+
+.public-theme .public-nav-link {
+  position: relative;
+  border-radius: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--public-text-secondary);
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.public-theme .public-nav-link:hover {
+  background: var(--public-header-hover);
+  color: var(--public-text);
+}
+
+.public-theme .public-nav-link--active {
+  background: var(--australe-primary-soft);
+  color: var(--public-primary-hover);
+}
+
+.public-theme .public-nav-link:focus-visible {
+  outline: 2px solid var(--public-primary);
+  outline-offset: 2px;
 }
 
 .home-premium {
@@ -1693,14 +1741,14 @@ body {
   outline-offset: 2px;
 }
 
-.store-theme .home-event-card .public-card {
+.public-theme .home-event-card .public-card {
   transition:
     transform 0.35s ease,
     box-shadow 0.35s ease,
     border-color 0.35s ease;
 }
 
-.store-theme .home-event-card .public-card:hover {
+.public-theme .home-event-card .public-card:hover {
   transform: translateY(-3px);
   border-color: rgba(167, 139, 219, 0.25);
   box-shadow: 0 20px 48px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(167, 139, 219, 0.08);
@@ -1737,19 +1785,81 @@ body {
   }
 
   .home-hero-dot,
-  .store-theme .home-event-card .public-card {
+  .public-theme .home-event-card .public-card {
     transition: none !important;
   }
 
-  .store-theme .home-event-card .public-card:hover {
+  .public-theme .home-event-card .public-card:hover {
     transform: none;
   }
 }
 
-.public-theme.store-theme .public-footer-partnership {
+.public-theme .public-footer-partnership {
   background:
     linear-gradient(135deg, rgba(167, 139, 219, 0.1) 0%, rgba(10, 9, 13, 0) 70%),
     var(--public-card);
   box-shadow: var(--public-shadow);
 }
 
+/* ——— Variante operativa (admin, cajero, puerta) ——— */
+.operational-theme {
+  --australe-background: #09090b;
+  --australe-background-elevated: #0f0f12;
+  --australe-surface: #18181b;
+  --australe-surface-hover: #27272a;
+  --australe-border: rgba(255, 255, 255, 0.1);
+  --australe-border-strong: rgba(255, 255, 255, 0.16);
+  --australe-text: #fafafa;
+  --australe-text-muted: #a1a1aa;
+  --australe-text-soft: #71717a;
+  --australe-primary: #a78bdb;
+  --australe-primary-hover: #c4a8f0;
+  --australe-primary-soft: rgba(167, 139, 219, 0.12);
+  --australe-accent: #d4a574;
+  --australe-success: #34d399;
+  --australe-warning: #fbbf24;
+  --australe-danger: #f87171;
+  --australe-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+  --australe-glow: rgba(167, 139, 219, 0.08);
+
+  background-color: var(--australe-background);
+  color: var(--australe-text);
+}
+
+/* ——— Autenticación pública ——— */
+.australe-auth-shell {
+  position: relative;
+  min-height: calc(100vh - 12rem);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5rem 1rem 3rem;
+}
+
+.australe-auth-shell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 60% 50% at 50% 0%, var(--australe-glow), transparent 70%),
+    radial-gradient(ellipse 40% 30% at 80% 90%, rgba(212, 165, 116, 0.06), transparent 60%);
+}
+
+.australe-auth-card {
+  position: relative;
+  width: 100%;
+  max-width: 28rem;
+  border-radius: 1.5rem;
+  border: 1px solid var(--public-border);
+  background: var(--public-card);
+  box-shadow: var(--public-shadow);
+  padding: 2rem 1.5rem;
+}
+
+@media (min-width: 640px) {
+  .australe-auth-card {
+    padding: 2.25rem 2rem;
+  }
+}

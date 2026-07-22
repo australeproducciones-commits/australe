@@ -1,12 +1,8 @@
-import { HomeCommunitySection } from "@/components/home/HomeCommunitySection";
 import { HomeEventsSection } from "@/components/home/HomeEventsSection";
-import { HomeExperienceSection } from "@/components/home/HomeExperienceSection";
-import { HomeFinalCta } from "@/components/home/HomeFinalCta";
 import { HomePremiumHero } from "@/components/home/HomePremiumHero";
 import { HomePremiumTheme } from "@/components/home/HomePremiumTheme";
 import { HomeStoreSection } from "@/components/home/HomeStoreSection";
 import { HomeStreamingSection } from "@/components/home/HomeStreamingSection";
-import { HomeTrustBar } from "@/components/home/HomeTrustBar";
 import { PublicQueryError } from "@/components/ui/PublicQueryError";
 import { buildCarteleraEvents } from "@/lib/events/cartelera";
 import { filterCarteleraEvents } from "@/lib/events/filters";
@@ -47,13 +43,9 @@ export default async function Home() {
         ) : (
           <>
             <HomePremiumHero featuredEvents={featuredEvents} />
-            <HomeTrustBar />
             <HomeEventsSection items={carteleraItems} />
-            <HomeExperienceSection />
-            <HomeCommunitySection />
             <HomeStoreSection />
             <HomeStreamingSection />
-            <HomeFinalCta />
           </>
         )}
       </main>

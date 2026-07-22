@@ -27,6 +27,7 @@ export function HomeHeroCarousel({
 }: HomeHeroCarouselProps) {
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
+  const [reducedMotion, setReducedMotion] = useState(false);
   const count = slides.length;
   const activeIndex = count > 0 ? index % count : 0;
 
@@ -35,13 +36,32 @@ export function HomeHeroCarousel({
       if (count <= 0) {
         return;
       }
+      setPaused(true);
       setIndex(((nextIndex % count) + count) % count);
     },
     [count],
   );
 
   useEffect(() => {
-    if (count <= 1 || paused) {
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setReducedMotion(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.hidden) {
+        setPaused(true);
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, []);
+
+  useEffect(() => {
+    if (count <= 1 || paused || reducedMotion) {
       return;
     }
 
@@ -50,7 +70,7 @@ export function HomeHeroCarousel({
     }, intervalMs);
 
     return () => window.clearInterval(timer);
-  }, [count, intervalMs, paused]);
+  }, [count, intervalMs, paused, reducedMotion]);
 
   if (count === 0) {
     return null;
@@ -96,7 +116,7 @@ export function HomeHeroCarousel({
 
       {showIndicators ? (
         <div
-          className="absolute inset-x-0 bottom-5 z-20 flex items-center justify-center gap-2 sm:bottom-6"
+          className="home-hero-indicators pointer-events-none absolute inset-x-0 z-20 flex items-center justify-center gap-2"
           role="tablist"
           aria-label="Indicadores del carrusel"
         >
@@ -110,7 +130,7 @@ export function HomeHeroCarousel({
                 aria-selected={isActive}
                 aria-label={`Ir al slide ${slideIndex + 1} de ${count}`}
                 className={cn(
-                  "home-hero-dot motion-safe:transition-all motion-safe:duration-300",
+                  "home-hero-dot pointer-events-auto motion-safe:transition-all motion-safe:duration-300",
                   isActive && "home-hero-dot--active",
                 )}
                 onClick={() => goTo(slideIndex)}

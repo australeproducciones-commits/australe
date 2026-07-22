@@ -1613,25 +1613,65 @@ body {
   isolation: isolate;
 }
 
-.home-hero-slide {
+.home-hero-slide-clean {
+  display: flex;
+  flex-direction: column;
+}
+
+.home-hero-banner-shell {
   position: relative;
+  aspect-ratio: 12 / 5;
+  max-height: min(42vw, 480px);
+  width: 100%;
   overflow: hidden;
-  min-height: min(72vh, 720px);
+  background: var(--public-card);
 }
 
-.home-hero-slide--institutional {
-  background:
-    radial-gradient(ellipse 80% 60% at 70% 20%, var(--store-glow-strong), transparent 55%),
-    radial-gradient(ellipse 50% 40% at 20% 80%, rgba(212, 165, 116, 0.08), transparent 50%),
-    var(--public-bg);
+.home-hero-banner-shell--streaming picture,
+.home-hero-banner-shell--streaming img {
+  height: 100%;
+  width: 100%;
 }
 
-.home-hero-slide--institutional.home-hero-slide--compact {
-  min-height: auto;
+.home-hero-banner-shell--streaming > div {
+  height: 100%;
+  border-radius: 0;
+  background: var(--public-card);
 }
 
-.home-hero-slide--event {
-  min-height: min(72vh, 720px);
+.home-hero-banner-shell--streaming > div img {
+  object-fit: contain;
+  object-position: center;
+}
+
+.home-hero-banner-image {
+  height: 100%;
+  width: 100%;
+  object-fit: contain;
+  object-position: center;
+}
+
+.home-hero-banner-link {
+  display: block;
+  transition: opacity 0.2s ease;
+}
+
+.home-hero-banner-link:hover {
+  opacity: 0.96;
+}
+
+.home-hero-meta-bar {
+  border-top: 1px solid var(--public-border);
+  background: var(--public-card);
+}
+
+.home-hero-indicators {
+  bottom: 4.75rem;
+  padding-bottom: 0.5rem;
+}
+
+.home-hero-premium:not(:has(.home-hero-slide-clean--has-meta)) .home-hero-indicators {
+  bottom: 0.75rem;
 }
 
 .home-hero-dot {
@@ -1653,10 +1693,6 @@ body {
   outline-offset: 2px;
 }
 
-.home-trust-bar {
-  background: rgba(255, 255, 255, 0.02);
-}
-
 .store-theme .home-event-card .public-card {
   transition:
     transform 0.35s ease,
@@ -1668,27 +1704,6 @@ body {
   transform: translateY(-3px);
   border-color: rgba(167, 139, 219, 0.25);
   box-shadow: 0 20px 48px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(167, 139, 219, 0.08);
-}
-
-.home-pillar-card {
-  transition:
-    transform 0.35s ease,
-    border-color 0.35s ease,
-    box-shadow 0.35s ease;
-}
-
-.home-pillar-card:hover {
-  transform: translateY(-2px);
-  border-color: rgba(167, 139, 219, 0.2);
-}
-
-.home-benefit-chip {
-  transition: border-color 0.25s ease, transform 0.25s ease;
-}
-
-.home-benefit-chip:hover {
-  border-color: rgba(232, 196, 104, 0.35);
-  transform: translateY(-1px);
 }
 
 .home-partners-cta {
@@ -1722,14 +1737,10 @@ body {
   }
 
   .home-hero-dot,
-  .home-pillar-card,
-  .home-benefit-chip,
   .store-theme .home-event-card .public-card {
     transition: none !important;
   }
 
-  .home-pillar-card:hover,
-  .home-benefit-chip:hover,
   .store-theme .home-event-card .public-card:hover {
     transform: none;
   }

@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { withQueryTimeout } from "@/lib/supabase/queryTimeout";
 import type {
   AdminCommunityMember,
   AdminCommunitySummary,
@@ -8,74 +9,126 @@ import type {
   LoyaltyTransaction,
 } from "@/lib/community/loyalty/types";
 
-type InvitationStatusRow = { status: string };
+type AggregateSumRow = { sum: number | string | null };
 
-function aggregateInvitationStatuses(
-  rows: InvitationStatusRow[] | null,
-): InvitationStatusCounts {
-  const counts: InvitationStatusCounts = {
-    pending: 0,
-    opened: 0,
-    accepted: 0,
-    used: 0,
-    expired: 0,
-    cancelled: 0,
-    total: 0,
-  };
+function readAggregateSum(data: AggregateSumRow | AggregateSumRow[] | null): number {
+  const row = Array.isArray(data) ? data[0] : data;
+  return Number(row?.sum ?? 0);
+}
 
-  for (const row of rows ?? []) {
-    counts.total += 1;
-    switch (row.status) {
-      case "prepared":
-      case "sent":
-      case "draft":
-        counts.pending += 1;
-        break;
-      case "opened":
-        counts.opened += 1;
-        break;
-      case "accepted":
-        counts.accepted += 1;
-        break;
-      case "used":
-        counts.used += 1;
-        break;
-      case "expired":
-        counts.expired += 1;
-        break;
-      case "cancelled":
-        counts.cancelled += 1;
-        break;
-      default:
-        break;
+async function sumLoyaltyTransactionPoints(
+  admin: ReturnType<typeof createAdminClient>,
+  transactionType: "earn" | "redeem",
+): Promise<number> {
+  try {
+    const { data, error } = await withQueryTimeout(
+      `adminSumLoyaltyPoints:${transactionType}`,
+      (signal) =>
+        admin
+          .from("loyalty_transactions")
+          .select("points.sum()")
+          .eq("transaction_type", transactionType)
+          .abortSignal(signal),
+    );
+
+    if (error) {
+      console.error(`sumLoyaltyTransactionPoints(${transactionType}):`, error.message);
+      return 0;
     }
+
+    const total = readAggregateSum(data as AggregateSumRow[] | null);
+    return transactionType === "redeem" ? Math.abs(total) : total;
+  } catch (error) {
+    console.error(`sumLoyaltyTransactionPoints(${transactionType}):`, error);
+    return 0;
+  }
+}
+
+async function sumLoyaltyPointsInCirculation(
+  admin: ReturnType<typeof createAdminClient>,
+): Promise<number> {
+  try {
+    const { data, error } = await withQueryTimeout(
+      "adminSumLoyaltyBalances",
+      (signal) =>
+        admin
+          .from("loyalty_accounts")
+          .select("points_balance.sum()")
+          .abortSignal(signal),
+    );
+
+    if (error) {
+      console.error("sumLoyaltyPointsInCirculation:", error.message);
+      return 0;
+    }
+
+    return readAggregateSum(data as AggregateSumRow[] | null);
+  } catch (error) {
+    console.error("sumLoyaltyPointsInCirculation:", error);
+    return 0;
+  }
+}
+
+async function countInvitations(
+  admin: ReturnType<typeof createAdminClient>,
+  statuses: string[],
+): Promise<number> {
+  if (statuses.length === 0) {
+    return 0;
   }
 
-  return counts;
+  try {
+    const { count, error } = await withQueryTimeout(
+      `adminInvitationCount:${statuses.join(",")}`,
+      (signal) =>
+        admin
+          .from("community_event_invitations")
+          .select("id", { count: "exact", head: true })
+          .in("status", statuses)
+          .abortSignal(signal),
+    );
+
+    if (error) {
+      console.error("countInvitations:", error.message);
+      return 0;
+    }
+
+    return count ?? 0;
+  } catch (error) {
+    console.error("countInvitations:", error);
+    return 0;
+  }
 }
 
 async function getInvitationStatusCounts(
   admin: ReturnType<typeof createAdminClient>,
 ): Promise<InvitationStatusCounts> {
   try {
-    const { data, error } = await admin
-      .from("community_event_invitations")
-      .select("status");
+    const [pending, opened, accepted, used, expired, cancelled, total] =
+      await Promise.all([
+        countInvitations(admin, ["prepared", "sent", "draft"]),
+        countInvitations(admin, ["opened"]),
+        countInvitations(admin, ["accepted"]),
+        countInvitations(admin, ["used"]),
+        countInvitations(admin, ["expired"]),
+        countInvitations(admin, ["cancelled"]),
+        safeAdminCount("adminInvitationTotal", (signal) =>
+          admin
+            .from("community_event_invitations")
+            .select("id", { count: "exact", head: true })
+            .abortSignal(signal),
+        ),
+      ]);
 
-    if (error) {
-      console.error("getInvitationStatusCounts:", error.message);
-      return {
-        pending: 0,
-        opened: 0,
-        accepted: 0,
-        used: 0,
-        expired: 0,
-        cancelled: 0,
-        total: 0,
-      };
-    }
-
-    return aggregateInvitationStatuses(data);
+    return {
+      pending,
+      opened,
+      accepted,
+      used,
+      expired,
+      cancelled,
+      total,
+    };
   } catch {
     return {
       pending: 0,
@@ -86,6 +139,25 @@ async function getInvitationStatusCounts(
       cancelled: 0,
       total: 0,
     };
+  }
+}
+
+async function safeAdminCount(
+  operation: string,
+  run: (
+    signal: AbortSignal,
+  ) => PromiseLike<{ count: number | null; error: { message: string } | null }>,
+): Promise<number> {
+  try {
+    const { count, error } = await withQueryTimeout(operation, run);
+    if (error) {
+      console.error(`${operation}:`, error.message);
+      return 0;
+    }
+    return count ?? 0;
+  } catch (error) {
+    console.error(`${operation}:`, error);
+    return 0;
   }
 }
 
@@ -100,90 +172,99 @@ export async function getAdminCommunitySummary(): Promise<AdminCommunitySummary>
   const recentCutoffIso = recentCutoff.toISOString();
 
   const [
-    { count: activeMembers },
-    { count: newMembersThisMonth },
-    { data: earnTx },
-    { data: redeemTx },
-    { count: pendingRedemptions },
-    { count: activeRewards },
-    { count: totalRegisteredUsers },
-    { count: recentActiveUsers },
-    { data: loyaltyBalances },
-    { count: completedRedemptions },
-    invitationCounts,
-    { count: activeAdvertisingCampaigns },
-  ] = await Promise.all([
-    admin
-      .from("loyalty_accounts")
-      .select("user_id", { count: "exact", head: true })
-      .gt("lifetime_points", 0),
-    admin
-      .from("loyalty_accounts")
-      .select("user_id", { count: "exact", head: true })
-      .gte("updated_at", monthStartIso),
-    admin
-      .from("loyalty_transactions")
-      .select("points")
-      .eq("transaction_type", "earn"),
-    admin
-      .from("loyalty_transactions")
-      .select("points")
-      .eq("transaction_type", "redeem"),
-    admin
-      .from("community_redemptions")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "pending"),
-    admin
-      .from("community_rewards")
-      .select("id", { count: "exact", head: true })
-      .eq("is_active", true),
-    admin
-      .from("profiles")
-      .select("id", { count: "exact", head: true })
-      .eq("role", "customer"),
-    admin
-      .from("loyalty_accounts")
-      .select("user_id", { count: "exact", head: true })
-      .gte("updated_at", recentCutoffIso),
-    admin.from("loyalty_accounts").select("points_balance"),
-    admin
-      .from("community_redemptions")
-      .select("id", { count: "exact", head: true })
-      .in("status", ["approved", "used"]),
-    getInvitationStatusCounts(admin),
-    admin
-      .from("advertising_campaigns")
-      .select("id", { count: "exact", head: true })
-      .eq("is_active", true),
-  ]);
-
-  const pointsIssued = (earnTx ?? []).reduce((sum, row) => sum + row.points, 0);
-  const pointsRedeemed = Math.abs(
-    (redeemTx ?? []).reduce((sum, row) => sum + row.points, 0),
-  );
-  const pointsInCirculation = (loyaltyBalances ?? []).reduce(
-    (sum, row) => sum + (row.points_balance ?? 0),
-    0,
-  );
-
-  return {
-    activeMembers: activeMembers ?? 0,
-    newMembersThisMonth: newMembersThisMonth ?? 0,
+    activeMembers,
+    newMembersThisMonth,
     pointsIssued,
     pointsRedeemed,
-    pendingRedemptions: pendingRedemptions ?? 0,
-    activeRewards: activeRewards ?? 0,
-    totalRegisteredUsers: totalRegisteredUsers ?? 0,
-    recentActiveUsers: recentActiveUsers ?? 0,
+    pendingRedemptions,
+    activeRewards,
+    totalRegisteredUsers,
+    recentActiveUsers,
     pointsInCirculation,
-    completedRedemptions: completedRedemptions ?? 0,
+    completedRedemptions,
+    invitationCounts,
+    activeAdvertisingCampaigns,
+  ] = await Promise.all([
+    safeAdminCount("adminActiveMembers", (signal) =>
+      admin
+        .from("loyalty_accounts")
+        .select("user_id", { count: "exact", head: true })
+        .gt("lifetime_points", 0)
+        .abortSignal(signal),
+    ),
+    safeAdminCount("adminNewMembersThisMonth", (signal) =>
+      admin
+        .from("loyalty_accounts")
+        .select("user_id", { count: "exact", head: true })
+        .gte("updated_at", monthStartIso)
+        .abortSignal(signal),
+    ),
+    sumLoyaltyTransactionPoints(admin, "earn"),
+    sumLoyaltyTransactionPoints(admin, "redeem"),
+    safeAdminCount("adminPendingRedemptions", (signal) =>
+      admin
+        .from("community_redemptions")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "pending")
+        .abortSignal(signal),
+    ),
+    safeAdminCount("adminActiveRewards", (signal) =>
+      admin
+        .from("community_rewards")
+        .select("id", { count: "exact", head: true })
+        .eq("is_active", true)
+        .abortSignal(signal),
+    ),
+    safeAdminCount("adminRegisteredCustomers", (signal) =>
+      admin
+        .from("profiles")
+        .select("id", { count: "exact", head: true })
+        .eq("role", "customer")
+        .abortSignal(signal),
+    ),
+    safeAdminCount("adminRecentActiveUsers", (signal) =>
+      admin
+        .from("loyalty_accounts")
+        .select("user_id", { count: "exact", head: true })
+        .gte("updated_at", recentCutoffIso)
+        .abortSignal(signal),
+    ),
+    sumLoyaltyPointsInCirculation(admin),
+    safeAdminCount("adminCompletedRedemptions", (signal) =>
+      admin
+        .from("community_redemptions")
+        .select("id", { count: "exact", head: true })
+        .in("status", ["approved", "used"])
+        .abortSignal(signal),
+    ),
+    getInvitationStatusCounts(admin),
+    safeAdminCount("adminActiveAdvertising", (signal) =>
+      admin
+        .from("advertising_campaigns")
+        .select("id", { count: "exact", head: true })
+        .eq("is_active", true)
+        .abortSignal(signal),
+    ),
+  ]);
+
+  return {
+    activeMembers,
+    newMembersThisMonth,
+    pointsIssued,
+    pointsRedeemed,
+    pendingRedemptions,
+    activeRewards,
+    totalRegisteredUsers,
+    recentActiveUsers,
+    pointsInCirculation,
+    completedRedemptions,
     invitationsSent: invitationCounts.total,
     invitationsOpened: invitationCounts.opened,
     invitationsPending: invitationCounts.pending,
     invitationsAccepted: invitationCounts.accepted,
     invitationsUsed: invitationCounts.used,
     invitationsExpired: invitationCounts.expired,
-    activeAdvertisingCampaigns: activeAdvertisingCampaigns ?? 0,
+    activeAdvertisingCampaigns,
   };
 }
 

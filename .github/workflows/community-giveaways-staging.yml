@@ -143,21 +143,34 @@ jobs:
             echo "La rama Preview no alcanzó estado saludable a tiempo"
             exit 1
           else
-            for i in $(seq 1 40); do
-              STATUS=$(supabase projects get "$STAGING_REF" -o json | node -e "const p=require('fs').readFileSync(0,'utf8'); const j=JSON.parse(p); process.stdout.write(j.status||'unknown')")
-              echo "Estado proyecto ($i/40): $STATUS"
+            for i in $(seq 1 60); do
+              STATUS=$(supabase projects list -o json | node -e "
+                const list=JSON.parse(require('fs').readFileSync(0,'utf8'));
+                const rows=Array.isArray(list)?list:(list.projects||[]);
+                const hit=rows.find(p=>(p.id||p.ref)==='$STAGING_REF');
+                process.stdout.write(hit?.status||'unknown');
+              ")
+              echo "Estado proyecto ($i/60): $STATUS"
               if [ "$STATUS" = "ACTIVE_HEALTHY" ]; then
                 exit 0
               fi
-              sleep 15
+              sleep 20
             done
             echo "El proyecto staging no alcanzó estado saludable a tiempo"
             exit 1
           fi
 
-      - name: Vincular rama staging
+      - name: Vincular entorno staging
         run: |
-          supabase link --project-ref "${{ steps.branch.outputs.branch_ref }}" --password "$SUPABASE_DB_PASSWORD" --yes
+          for i in $(seq 1 10); do
+            if supabase link --project-ref "${{ steps.branch.outputs.branch_ref }}" --password "$SUPABASE_DB_PASSWORD" --yes; then
+              exit 0
+            fi
+            echo "Reintentando link ($i/10)…"
+            sleep 20
+          done
+          echo "No se pudo vincular staging"
+          exit 1
 
       - name: Listar migraciones pendientes
         run: |

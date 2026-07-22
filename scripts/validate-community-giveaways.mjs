@@ -714,7 +714,7 @@ async function testAutomaticTicketHook() {
   if (secondError) throw secondError;
   if (secondId !== firstId) throw new Error("reproceso ticket duplicó entry");
 
-  state.ineligibleTicketGiveawayId = await insertAutomaticGiveaway("ticket-ineligible", "points");
+  state.ineligibleTicketGiveawayId = await insertAutomaticGiveaway("ticket-ineligible", "free");
   const { data: ineligibleId } = await admin.rpc("create_automatic_giveaway_entry", {
     p_giveaway_id: state.ineligibleTicketGiveawayId,
     p_user_id: state.userId,

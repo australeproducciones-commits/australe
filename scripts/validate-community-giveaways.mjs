@@ -146,6 +146,8 @@ const state = {
   userClient2: null,
   giveawayId: null,
   giveawaySlug: null,
+  parallelGiveawayId: null,
+  secondGiveawayId: null,
   entryId: null,
   requestId: randomUUID(),
   cancelGiveawayId: null,
@@ -153,7 +155,12 @@ const state = {
 
 async function cleanup() {
   if (!admin) return;
-  const giveawayIds = [state.giveawayId, state.cancelGiveawayId].filter(Boolean);
+  const giveawayIds = [
+    state.giveawayId,
+    state.cancelGiveawayId,
+    state.parallelGiveawayId,
+    state.secondGiveawayId,
+  ].filter(Boolean);
   for (const gid of giveawayIds) {
     await admin.from("community_giveaway_winners").delete().eq("giveaway_id", gid);
     await admin.from("community_giveaway_entries").delete().eq("giveaway_id", gid);
@@ -345,6 +352,13 @@ async function testUserLimit() {
 }
 
 async function testDrawAndConcurrency() {
+  await admin.rpc("enter_community_giveaway", {
+    p_giveaway_id: state.giveawayId,
+    p_user_id: state.userId2,
+    p_requested_quantity: 1,
+    p_request_id: randomUUID(),
+  });
+
   const { data: draw1, error: drawErr1 } = await admin.rpc("draw_community_giveaway", {
     p_giveaway_id: state.giveawayId,
     p_admin_id: state.userId,
@@ -358,6 +372,123 @@ async function testDrawAndConcurrency() {
   if (drawErr2) throw drawErr2;
   if (!draw2.already_drawn) throw new Error("segunda ejecución debía indicar already_drawn");
   pass("ejecución única del sorteo", `winners=${draw1.winners}`);
+
+  const { data: winnerRows } = await admin
+    .from("community_giveaway_winners")
+    .select("winner_type")
+    .eq("giveaway_id", state.giveawayId);
+
+  const alternates = (winnerRows ?? []).filter((w) => w.winner_type === "alternate");
+  if (alternates.length < 1) {
+    throw new Error("debía seleccionar al menos un suplente");
+  }
+  pass("suplentes seleccionados", `count=${alternates.length}`);
+}
+
+async function testParallelDrawConcurrency() {
+  const slug = `${RUN_ID}-parallel`;
+  const { data: g } = await admin
+    .from("community_giveaways")
+    .insert({
+      name: "Parallel Draw Test",
+      slug,
+      prize_description: "Premio",
+      status: "active",
+      entry_type: "free",
+      allow_multiple_entries: false,
+      winner_count: 1,
+      alternate_count: 0,
+      is_public: true,
+      starts_at: new Date(Date.now() - 3600000).toISOString(),
+      closes_at: new Date(Date.now() + 86400000).toISOString(),
+    })
+    .select("id")
+    .single();
+
+  state.parallelGiveawayId = g.id;
+
+  await admin.rpc("enter_community_giveaway", {
+    p_giveaway_id: g.id,
+    p_user_id: state.userId,
+    p_requested_quantity: 1,
+    p_request_id: randomUUID(),
+  });
+  await admin.rpc("enter_community_giveaway", {
+    p_giveaway_id: g.id,
+    p_user_id: state.userId2,
+    p_requested_quantity: 1,
+    p_request_id: randomUUID(),
+  });
+
+  const drawArgs = {
+    p_giveaway_id: g.id,
+    p_admin_id: state.userId,
+  };
+  const [r1, r2] = await Promise.all([
+    admin.rpc("draw_community_giveaway", drawArgs),
+    admin.rpc("draw_community_giveaway", drawArgs),
+  ]);
+
+  const outcomes = [r1, r2].map((r) => {
+    if (r.error) return "error";
+    if (r.data?.already_drawn) return "already_drawn";
+    if (r.data?.success) return "success";
+    return "other";
+  });
+
+  const freshSuccesses = outcomes.filter((o) => o === "success").length;
+  if (freshSuccesses !== 1) {
+    throw new Error(`concurrencia paralela inválida: ${outcomes.join(",")}`);
+  }
+
+  const { count } = await admin
+    .from("community_giveaway_winners")
+    .select("id", { count: "exact", head: true })
+    .eq("giveaway_id", g.id)
+    .eq("winner_type", "winner");
+
+  if ((count ?? 0) !== 1) {
+    throw new Error("concurrencia produjo cantidad incorrecta de ganadores");
+  }
+  pass("concurrencia paralela del sorteo");
+}
+
+async function testSecondGiveawayDraw() {
+  const slug = `${RUN_ID}-second`;
+  const { data: g } = await admin
+    .from("community_giveaways")
+    .insert({
+      name: "Second Draw Test",
+      slug,
+      prize_description: "Premio",
+      status: "active",
+      entry_type: "free",
+      allow_multiple_entries: false,
+      winner_count: 1,
+      alternate_count: 0,
+      is_public: true,
+      starts_at: new Date(Date.now() - 3600000).toISOString(),
+      closes_at: new Date(Date.now() + 86400000).toISOString(),
+    })
+    .select("id")
+    .single();
+
+  state.secondGiveawayId = g.id;
+
+  await admin.rpc("enter_community_giveaway", {
+    p_giveaway_id: g.id,
+    p_user_id: state.userId2,
+    p_requested_quantity: 1,
+    p_request_id: randomUUID(),
+  });
+
+  const { data, error } = await admin.rpc("draw_community_giveaway", {
+    p_giveaway_id: g.id,
+    p_admin_id: state.userId,
+  });
+  if (error) throw error;
+  if (!data?.success) throw new Error("segundo sorteo independiente falló");
+  pass("segundo sorteo independiente");
 }
 
 async function testCancelRefund() {
@@ -507,6 +638,8 @@ async function main() {
     await testInsufficientPoints();
     await testUserLimit();
     await testDrawAndConcurrency();
+    await testParallelDrawConcurrency();
+    await testSecondGiveawayDraw();
     await testCancelRefund();
     await testDisqualifiedEntry();
     await testSecurityGrants();

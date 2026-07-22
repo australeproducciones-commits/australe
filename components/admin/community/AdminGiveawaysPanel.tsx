@@ -8,7 +8,7 @@ import {
   updateGiveawayStatusAction,
 } from "@/lib/community/giveaways/admin-actions";
 import type { CommunityGiveaway } from "@/lib/community/giveaways/types";
-import { statusLabel } from "@/lib/community/giveaways/utils";
+import { statusLabel, entryTypeLabel } from "@/lib/community/giveaways/utils";
 import { ROUTES } from "@/lib/constants/routes";
 
 type AdminGiveawaysPanelProps = {
@@ -63,7 +63,7 @@ export function AdminGiveawaysPanel({ giveaways }: AdminGiveawaysPanelProps) {
                   </Link>
                 </td>
                 <td className="px-4 py-3">{statusLabel(g.status)}</td>
-                <td className="px-4 py-3">{g.entry_type}</td>
+                <td className="px-4 py-3">{entryTypeLabel(g.entry_type)}</td>
                 <td className="px-4 py-3">
                   {g.closes_at
                     ? new Date(g.closes_at).toLocaleString("es-AR")

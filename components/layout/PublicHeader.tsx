@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { PublicUserMenu } from "@/components/layout/PublicUserMenu";
-import { BRAND_LOGO_ON_LIGHT } from "@/lib/constants/branding";
+import { BRAND_LOGO_ON_DARK, BRAND_LOGO_ON_LIGHT } from "@/lib/constants/branding";
 import { PUBLIC_HEADER_LINKS, ROUTES } from "@/lib/constants/routes";
 import { cn } from "@/lib/utils/cn";
 
@@ -52,7 +52,15 @@ export function PublicHeader() {
               width={240}
               height={80}
               priority
-              className="h-auto w-[120px] object-contain sm:w-[150px] lg:w-[160px]"
+              className="public-header-logo public-header-logo--light h-auto w-[120px] object-contain sm:w-[150px] lg:w-[160px]"
+            />
+            <Image
+              src={BRAND_LOGO_ON_DARK}
+              alt=""
+              width={240}
+              height={80}
+              aria-hidden
+              className="public-header-logo public-header-logo--dark h-auto w-[120px] object-contain sm:w-[150px] lg:w-[160px]"
             />
           </Link>
 

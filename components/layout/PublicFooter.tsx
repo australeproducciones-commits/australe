@@ -6,7 +6,7 @@ import { PUBLIC_NAV_LINKS } from "@/lib/constants/routes";
 import {
   buildWhatsappUrl,
   FOOTER_PARTNERSHIP_WHATSAPP_MESSAGE,
-} from "@/lib/site/queries";
+} from "@/lib/site/contact";
 import type { SiteSettings } from "@/lib/site/types";
 
 type PublicFooterProps = {
@@ -125,7 +125,7 @@ export function PublicFooter({ settings }: PublicFooterProps) {
 
         <section
           aria-labelledby="footer-partnership-cta"
-          className="mt-10 rounded-2xl border bg-gradient-to-br from-purple-50/90 via-white/95 to-[var(--public-footer-bg)] p-5 shadow-[0_4px_24px_rgba(155,126,222,0.08)] sm:p-6"
+          className="public-footer-partnership mt-10 rounded-2xl border p-5 sm:p-6"
           style={{ borderColor: "var(--public-border)" }}
         >
           <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between md:gap-8">

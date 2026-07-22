@@ -9,6 +9,7 @@ import {
   getActivePartners,
   getSiteSettings,
 } from "@/lib/site/queries";
+import { buildWhatsappUrl, FOOTER_PARTNERSHIP_WHATSAPP_MESSAGE } from "@/lib/site/contact";
 
 type PublicThemeShellProps = {
   children: React.ReactNode;
@@ -20,6 +21,10 @@ export async function PublicThemeShell({ children }: PublicThemeShellProps) {
     getActivePartners().catch(() => []),
   ]);
 
+  const partnershipWhatsappUrl = settings.contact_whatsapp
+    ? buildWhatsappUrl(settings.contact_whatsapp, FOOTER_PARTNERSHIP_WHATSAPP_MESSAGE)
+    : "";
+
   return (
     <div className="public-theme flex min-h-screen flex-col">
       <PublicAnalyticsTracker />
@@ -27,7 +32,10 @@ export async function PublicThemeShell({ children }: PublicThemeShellProps) {
       <StoreShell>
         <div className="flex-1">{children}</div>
       </StoreShell>
-      <PartnersSection partners={partners} />
+      <PartnersSection
+        partners={partners}
+        partnershipWhatsappUrl={partnershipWhatsappUrl}
+      />
       <PublicFooter settings={settings} />
       <PostLoginAdModal />
     </div>

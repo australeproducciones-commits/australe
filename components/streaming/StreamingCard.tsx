@@ -27,7 +27,7 @@ export function StreamingCard({ stream, className }: StreamingCardProps) {
   return (
     <article
       className={cn(
-        "public-card overflow-hidden rounded-3xl border border-purple-100/80 bg-white shadow-sm",
+        "public-card overflow-hidden rounded-3xl border border-[var(--public-border)] bg-[var(--public-card)] shadow-[var(--public-shadow)]",
         className,
       )}
     >
@@ -57,14 +57,14 @@ export function StreamingCard({ stream, className }: StreamingCardProps) {
       />
 
       <div className="space-y-4 p-5 sm:p-6">
-        <div className="flex flex-wrap items-center justify-between gap-3 text-sm public-text-muted">
+        <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-[var(--public-text-secondary)]">
           <p>{formatStreamDateTime(stream.starts_at)}</p>
           {stream.event.location_name ? <p>{stream.event.location_name}</p> : null}
         </div>
 
         {shouldShowCountdown(stream.status) && stream.starts_at ? (
           <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-purple-700">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--public-primary)]">
               Comienza en
             </p>
             <StreamingCountdown targetIso={stream.starts_at} />

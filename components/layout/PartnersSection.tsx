@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef } from "react";
+import { WhatsAppIcon } from "@/components/icons/WhatsAppIcon";
 import { RemoteImage } from "@/components/ui/RemoteImage";
 import {
   recordPartnerClickAction,
@@ -13,9 +14,13 @@ import { cn } from "@/lib/utils/cn";
 
 type PartnersSectionProps = {
   partners: Partner[];
+  partnershipWhatsappUrl?: string;
 };
 
-export function PartnersSection({ partners }: PartnersSectionProps) {
+export function PartnersSection({
+  partners,
+  partnershipWhatsappUrl = "",
+}: PartnersSectionProps) {
   const sectionRef = useRef<HTMLElement | null>(null);
   const trackedIds = useRef(new Set<string>());
 
@@ -96,7 +101,7 @@ export function PartnersSection({ partners }: PartnersSectionProps) {
   return (
     <section
       ref={sectionRef}
-      className="overflow-hidden border-t py-10 sm:py-14"
+      className="home-partners-section overflow-hidden border-t py-12 sm:py-16"
       style={{
         borderColor: "var(--public-border)",
         backgroundColor: "var(--public-bg-section)",
@@ -104,15 +109,42 @@ export function PartnersSection({ partners }: PartnersSectionProps) {
     >
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <SectionHeading
-          title="Empresas que nos acompañan"
-          subtitle="Marcas, empresas y emprendimientos que hacen posible cada experiencia de Australe."
+          title="Empresas que hacen posible cada experiencia"
+          subtitle="Marcas, emprendimientos y aliados que comparten nuestra forma de crear encuentros."
         />
 
-        <ul className={gridClassName} aria-label="Empresas que nos acompañan">
+        <ul
+          className={gridClassName}
+          aria-label="Empresas que hacen posible cada experiencia"
+        >
           {partners.map((partner) => (
             <PartnerCard key={partner.id} partner={partner} />
           ))}
         </ul>
+
+        <div className="home-partners-cta mt-12 rounded-3xl border border-[var(--public-border)] p-6 sm:p-8">
+          <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between md:gap-8">
+            <div className="min-w-0 flex-1 text-center md:text-left">
+              <h2 className="text-lg font-bold sm:text-xl">¿Querés ser parte de Australe?</h2>
+              <p className="mx-auto mt-2 max-w-2xl text-sm leading-relaxed text-[var(--public-text-secondary)] md:mx-0">
+                Sumate a las empresas y emprendimientos que nos acompañan. Trabajemos
+                juntos para crear nuevas experiencias, eventos y oportunidades.
+              </p>
+            </div>
+
+            {partnershipWhatsappUrl ? (
+              <a
+                href={partnershipWhatsappUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="public-btn-primary inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-2xl px-6 py-3.5 text-sm font-semibold sm:w-auto sm:min-w-[11rem]"
+              >
+                <WhatsAppIcon className="h-5 w-5" />
+                Quiero ser parte
+              </a>
+            ) : null}
+          </div>
+        </div>
       </div>
     </section>
   );
@@ -120,7 +152,7 @@ export function PartnersSection({ partners }: PartnersSectionProps) {
 
 function PartnerCard({ partner }: { partner: Partner }) {
   const content = (
-    <div className="flex h-20 w-full items-center justify-center sm:h-24">
+    <div className="flex h-20 w-full items-center justify-center p-2 sm:h-24">
       <RemoteImage
         src={partner.image_url}
         alt={partner.name}
@@ -130,10 +162,10 @@ function PartnerCard({ partner }: { partner: Partner }) {
   );
 
   const cardClassName = cn(
-    "flex h-full min-h-[7.5rem] items-center justify-center rounded-2xl border bg-transparent p-4 transition",
-    "border-[var(--public-border)]/60",
+    "home-partner-card flex h-full min-h-[7.5rem] items-center justify-center rounded-2xl border p-4 transition motion-safe:duration-300",
+    "border-[var(--public-border)] bg-[var(--public-card)]/50",
     partner.destination_url
-      ? "hover:border-[var(--public-border)] hover:shadow-[0_4px_24px_rgba(155,126,222,0.08)] hover:opacity-95"
+      ? "hover:border-[rgba(167,139,219,0.25)] hover:shadow-[0_12px_32px_rgba(0,0,0,0.35)] motion-safe:hover:-translate-y-0.5"
       : "cursor-default",
   );
 

@@ -28,15 +28,9 @@ export default async function AdminComunidadPublicidadEditarPage({
   }
 
   return (
-    <AdminCommunityShell
-      title="Comunidad"
-      description="Editar campaña publicitaria."
-    >
+    <AdminCommunityShell>
       <div className="admin-ad-scada-page">
-        <Link
-          href={ROUTES.adminComunidadPublicidad}
-          className="admin-ad-scada-back"
-        >
+        <Link href={ROUTES.adminComunidadPublicidad} className="admin-ad-scada-back">
           ← Volver a publicidad
         </Link>
         <AdminAdvertisingCampaignForm campaign={campaign} />

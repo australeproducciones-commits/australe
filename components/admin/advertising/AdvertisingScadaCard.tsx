@@ -12,9 +12,12 @@ import type { AdvertisingCampaign } from "@/lib/site/types";
 import {
   ADVERTISING_PLACEMENT_LABEL,
   formatAdvertisingCtr,
+  formatAdvertisingDateTime,
   formatAdvertisingNumber,
-  formatDestinationLabel,
+  formatDestinationDomain,
   getAdvertisingAlerts,
+  getDestinationTypeLabel,
+  truncateDestinationUrl,
   type AdvertisingDisplayStatus,
 } from "@/lib/site/advertising-display";
 
@@ -51,8 +54,9 @@ export function AdvertisingScadaCard({
   const menuRef = useRef<HTMLDivElement>(null);
   const alerts = getAdvertisingAlerts(campaign, display);
   const destination = campaign.destination_url?.trim() ?? "";
-  const destinationLabel = formatDestinationLabel(campaign.destination_url);
-  const hasMetrics = campaign.view_count > 0 || campaign.click_count > 0;
+  const destinationType = getDestinationTypeLabel(destination);
+  const destinationDomain = formatDestinationDomain(destination);
+  const destinationPreview = truncateDestinationUrl(destination);
   const title = campaign.title?.trim() || campaign.internal_name;
   const editHref = `${ROUTES.adminComunidadPublicidad}/${campaign.id}/editar`;
 
@@ -136,7 +140,9 @@ export function AdvertisingScadaCard({
           <div className="min-w-0 flex-1">
             <p className="admin-ad-scada-card__kicker">{campaign.internal_name}</p>
             <h3 className="admin-ad-scada-card__title">{title}</h3>
-            <p className="admin-ad-scada-card__placement">{ADVERTISING_PLACEMENT_LABEL}</p>
+            <p className="admin-ad-scada-card__placement">
+              {ADVERTISING_PLACEMENT_LABEL} · {destinationType}
+            </p>
           </div>
           <div className="relative" ref={menuRef}>
             <button
@@ -217,47 +223,69 @@ export function AdvertisingScadaCard({
             <p className="admin-ad-scada-meta__label">Ubicación</p>
             <p className="admin-ad-scada-meta__value">{ADVERTISING_PLACEMENT_LABEL}</p>
           </div>
+          <div className="admin-ad-scada-meta__block">
+            <p className="admin-ad-scada-meta__label">Inicio</p>
+            <p className="admin-ad-scada-meta__value">
+              {campaign.starts_at
+                ? formatAdvertisingDateTime(campaign.starts_at)
+                : "Sin definir"}
+            </p>
+          </div>
+          <div className="admin-ad-scada-meta__block">
+            <p className="admin-ad-scada-meta__label">Finalización</p>
+            <p className="admin-ad-scada-meta__value">
+              {campaign.ends_at
+                ? formatAdvertisingDateTime(campaign.ends_at)
+                : "Sin fecha definida"}
+            </p>
+          </div>
           {destination ? (
             <div className="admin-ad-scada-meta__block">
-              <p className="admin-ad-scada-meta__label">Destino</p>
-              <a
-                href={destination}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="admin-ad-scada-meta__link"
-                title={destination}
-              >
-                {destinationLabel}
-              </a>
+              <p className="admin-ad-scada-meta__label">Destino de la campaña</p>
+              <p className="admin-ad-scada-meta__value">{destinationType}</p>
+              <p className="admin-ad-scada-destination__url" title={destination}>
+                {destinationDomain} · {destinationPreview}
+              </p>
+              <div className="admin-ad-scada-destination">
+                <a
+                  href={destination}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="admin-ad-scada-btn admin-ad-scada-btn--ghost"
+                >
+                  Abrir enlace
+                </a>
+                <button
+                  type="button"
+                  className="admin-ad-scada-btn admin-ad-scada-btn--ghost"
+                  onClick={() => void navigator.clipboard.writeText(destination)}
+                >
+                  Copiar URL
+                </button>
+              </div>
             </div>
           ) : null}
         </div>
 
-        <div className="admin-ad-scada-metrics" aria-label="Métricas">
-          {hasMetrics ? (
-            <>
-              <div>
-                <p className="admin-ad-scada-metrics__label">Vistas</p>
-                <p className="admin-ad-scada-metrics__value">
-                  {formatAdvertisingNumber(campaign.view_count)}
-                </p>
-              </div>
-              <div>
-                <p className="admin-ad-scada-metrics__label">Clics</p>
-                <p className="admin-ad-scada-metrics__value">
-                  {formatAdvertisingNumber(campaign.click_count)}
-                </p>
-              </div>
-              <div>
-                <p className="admin-ad-scada-metrics__label">CTR</p>
-                <p className="admin-ad-scada-metrics__value">
-                  {formatAdvertisingCtr(campaign.view_count, campaign.click_count)}
-                </p>
-              </div>
-            </>
-          ) : (
-            <p className="admin-ad-scada-metrics__empty">Sin métricas registradas</p>
-          )}
+        <div className="admin-ad-scada-metrics" aria-label="Métricas de la campaña">
+          <div>
+            <p className="admin-ad-scada-metrics__label">Vistas</p>
+            <p className="admin-ad-scada-metrics__value">
+              {formatAdvertisingNumber(campaign.view_count)}
+            </p>
+          </div>
+          <div>
+            <p className="admin-ad-scada-metrics__label">Clics</p>
+            <p className="admin-ad-scada-metrics__value">
+              {formatAdvertisingNumber(campaign.click_count)}
+            </p>
+          </div>
+          <div>
+            <p className="admin-ad-scada-metrics__label">CTR</p>
+            <p className="admin-ad-scada-metrics__value">
+              {formatAdvertisingCtr(campaign.view_count, campaign.click_count)}
+            </p>
+          </div>
         </div>
 
         {alerts.length > 0 ? (

@@ -13,15 +13,9 @@ export default async function AdminComunidadPublicidadNuevaPage() {
   await requireAdminPage();
 
   return (
-    <AdminCommunityShell
-      title="Comunidad"
-      description="Crear una nueva campaña publicitaria."
-    >
+    <AdminCommunityShell>
       <div className="admin-ad-scada-page">
-        <Link
-          href={ROUTES.adminComunidadPublicidad}
-          className="admin-ad-scada-back"
-        >
+        <Link href={ROUTES.adminComunidadPublicidad} className="admin-ad-scada-back">
           ← Volver a publicidad
         </Link>
         <AdminAdvertisingCampaignForm />

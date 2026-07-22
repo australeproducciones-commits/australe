@@ -122,10 +122,10 @@ export function AdvertisingSummaryPanel({ summary }: AdvertisingSummaryPanelProp
     >
       <div className="admin-ad-scada-summary__row">
         <SummaryModule
-          label="Total"
+          label="Total de campañas"
           value={formatAdvertisingNumber(summary.total)}
           icon={<IconGrid />}
-          detail="campañas"
+          detail="Registradas en Comunidad"
         />
         <SummaryModule
           label="Activas"
@@ -153,19 +153,19 @@ export function AdvertisingSummaryPanel({ summary }: AdvertisingSummaryPanelProp
           label="Vistas"
           value={formatAdvertisingNumber(summary.totalViews)}
           icon={<IconEye />}
-          detail="acumuladas"
+          detail="Impresiones registradas"
         />
         <SummaryModule
           label="Clics"
           value={formatAdvertisingNumber(summary.totalClicks)}
           icon={<IconClick />}
-          detail="acumulados"
+          detail="Interacciones con campañas"
         />
         <SummaryModule
-          label="CTR"
+          label="CTR promedio"
           value={formatAdvertisingCtr(summary.totalViews, summary.totalClicks)}
           icon={<IconPercent />}
-          detail="general"
+          detail="Clics ÷ Vistas × 100"
         />
       </div>
     </section>

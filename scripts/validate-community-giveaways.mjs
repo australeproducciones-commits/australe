@@ -231,7 +231,10 @@ async function createTestUser(label) {
   });
   if (loyaltyError) throw loyaltyError;
 
-  const { data: session, error: signInError } = await admin.auth.signInWithPassword({ email, password });
+  const { data: session, error: signInError } = await createSupabaseClient(anonKey).auth.signInWithPassword({
+    email,
+    password,
+  });
   if (signInError) throw signInError;
   if (!session?.session?.access_token) {
     throw new Error("signInWithPassword no devolvió sesión");

@@ -172,6 +172,30 @@ jobs:
           echo "No se pudo vincular staging"
           exit 1
 
+      - name: Aplicar baseline schema-v1 en proyecto vacío
+        if: steps.branch.outputs.staging_mode == 'dedicated_project'
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client > /dev/null
+          DB_URL="postgresql://postgres:${SUPABASE_DB_PASSWORD}@db.${{ steps.branch.outputs.branch_ref }}.supabase.co:5432/postgres"
+          HAS_PROFILES=$(psql "$DB_URL" -tAc "SELECT to_regclass('public.profiles') IS NOT NULL" || echo "false")
+          if [ "$HAS_PROFILES" != "t" ]; then
+            echo "Aplicando baseline oficial schema-v1…"
+            for f in \
+              schema-v1.sql \
+              schema-v1-profile-functions.sql \
+              schema-v1-policies.sql \
+              schema-v1-ticket-reservations.sql \
+              schema-v1-ticket-cancellations.sql \
+              schema-v1-ticket-user-link.sql
+            do
+              echo "→ supabase/$f"
+              psql "$DB_URL" -v ON_ERROR_STOP=1 -f "supabase/$f"
+            done
+          else
+            echo "Baseline schema-v1 ya presente"
+          fi
+
       - name: Listar migraciones pendientes
         run: |
           echo "=== Migraciones locales de sorteos ==="

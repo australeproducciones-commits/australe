@@ -176,18 +176,24 @@ jobs:
         if: steps.branch.outputs.staging_mode == 'dedicated_project'
         run: |
           set -euo pipefail
-          db_bool() {
-            supabase db query --linked "$1" | { grep -E '^\s*[tf]\s*$' || true; } | tr -d '[:space:]' | head -1
+          table_count() {
+            supabase db query --linked "SELECT count(*)::int FROM information_schema.tables WHERE table_schema = 'public' AND table_name = '$1';" \
+              | grep -oE '[0-9]+' | head -1
           }
-          HAS_EVENTS=$(db_bool "SELECT to_regclass('public.events') IS NOT NULL;")
-          if [ "$HAS_EVENTS" != "t" ]; then
-            HAS_PROFILES=$(db_bool "SELECT to_regclass('public.profiles') IS NOT NULL;")
+          HAS_EVENTS=$(table_count events)
+          if [ "${HAS_EVENTS:-0}" -lt 1 ]; then
+            HAS_PROFILES=$(table_count profiles)
             echo "Aplicando baseline schema-v1 (events ausente)…"
-            if [ "$HAS_PROFILES" != "t" ]; then
+            if [ "${HAS_PROFILES:-0}" -lt 1 ]; then
               echo "→ supabase/schema-v1.sql"
               supabase db query --linked -f supabase/schema-v1.sql
             else
-              echo "Omitiendo schema-v1.sql (profiles ya existe en proyecto Supabase)"
+              echo "→ schema-v1 parcial (profiles preexistente en Supabase)"
+              {
+                sed -n '1,30p' supabase/schema-v1.sql
+                sed -n '47,$p' supabase/schema-v1.sql
+              } > /tmp/schema-v1-no-profiles.sql
+              supabase db query --linked -f /tmp/schema-v1-no-profiles.sql
             fi
             for f in \
               schema-v1-profile-functions.sql \

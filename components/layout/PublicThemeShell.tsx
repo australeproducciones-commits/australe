@@ -1,42 +1,28 @@
+import { Suspense } from "react";
 import { PostLoginAdModal } from "@/components/advertising/PostLoginAdModal";
-import { PublicFooter } from "@/components/layout/PublicFooter";
+import { PublicAuthProvider } from "@/components/layout/PublicAuthProvider";
 import { PublicHeader } from "@/components/layout/PublicHeader";
-import { PartnersSection } from "@/components/layout/PartnersSection";
+import { PublicPartnersFooter } from "@/components/layout/PublicPartnersFooter";
 import { PublicAnalyticsTracker } from "@/components/analytics/PublicAnalyticsTracker";
 import { StoreShell } from "@/components/store/StoreShell";
-import {
-  EMPTY_SITE_SETTINGS,
-  getActivePartners,
-  getSiteSettings,
-} from "@/lib/site/queries";
-import { buildWhatsappUrl, FOOTER_PARTNERSHIP_WHATSAPP_MESSAGE } from "@/lib/site/contact";
 
 type PublicThemeShellProps = {
   children: React.ReactNode;
 };
 
-export async function PublicThemeShell({ children }: PublicThemeShellProps) {
-  const [settings, partners] = await Promise.all([
-    getSiteSettings().catch(() => EMPTY_SITE_SETTINGS),
-    getActivePartners().catch(() => []),
-  ]);
-
-  const partnershipWhatsappUrl = settings.contact_whatsapp
-    ? buildWhatsappUrl(settings.contact_whatsapp, FOOTER_PARTNERSHIP_WHATSAPP_MESSAGE)
-    : "";
-
+export function PublicThemeShell({ children }: PublicThemeShellProps) {
   return (
     <div className="public-theme flex min-h-screen flex-col">
       <PublicAnalyticsTracker />
-      <PublicHeader />
+      <PublicAuthProvider>
+        <PublicHeader />
+      </PublicAuthProvider>
       <StoreShell>
         <main className="public-main flex flex-1 flex-col">{children}</main>
       </StoreShell>
-      <PartnersSection
-        partners={partners}
-        partnershipWhatsappUrl={partnershipWhatsappUrl}
-      />
-      <PublicFooter settings={settings} />
+      <Suspense fallback={null}>
+        <PublicPartnersFooter />
+      </Suspense>
       <PostLoginAdModal />
     </div>
   );

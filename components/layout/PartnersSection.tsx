@@ -109,10 +109,11 @@ export function PartnersSection({
     };
   }, [partners]);
 
-  if (partners.length === 0) {
+  if (partners.length === 0 && !partnershipWhatsappUrl) {
     return null;
   }
 
+  const showPartnerGrid = partners.length > 0;
   const gridClassName = cn(
     "mt-8 grid min-w-0 gap-4 sm:gap-5",
     partners.length === 1
@@ -140,16 +141,23 @@ export function PartnersSection({
           subtitle="Marcas, emprendimientos y aliados que comparten nuestra forma de crear encuentros."
         />
 
-        <ul
-          className={gridClassName}
-          aria-label="Empresas que hacen posible cada experiencia"
-        >
-          {partners.map((partner) => (
-            <PartnerCard key={partner.id} partner={partner} />
-          ))}
-        </ul>
+        {showPartnerGrid ? (
+          <ul
+            className={gridClassName}
+            aria-label="Empresas que hacen posible cada experiencia"
+          >
+            {partners.map((partner) => (
+              <PartnerCard key={partner.id} partner={partner} />
+            ))}
+          </ul>
+        ) : null}
 
-        <div className="home-partners-cta mt-12 rounded-3xl border border-[var(--public-border)] p-6 sm:p-8">
+        <div
+          className={cn(
+            "home-partners-cta rounded-3xl border border-[var(--public-border)] p-6 sm:p-8",
+            showPartnerGrid ? "mt-12" : "mt-8",
+          )}
+        >
           <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between md:gap-8">
             <div className="min-w-0 flex-1 text-center md:text-left">
               <h2 className="text-lg font-bold sm:text-xl">¿Querés ser parte de Australe?</h2>

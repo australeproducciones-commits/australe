@@ -1,12 +1,14 @@
 import { HomeReveal } from "@/components/home/HomeReveal";
 import { StreamingCard } from "@/components/streaming/StreamingCard";
 import { SectionHeading } from "@/components/ui/public/SectionHeading";
-import { getFeaturedHomeStream } from "@/lib/streaming/queries";
+import type { EventStreamWithEvent } from "@/lib/streaming/types";
 
-export async function HomeStreamingSection() {
-  const stream = await getFeaturedHomeStream();
+type HomeStreamingSectionProps = {
+  featuredStream: EventStreamWithEvent | null;
+};
 
-  if (!stream) {
+export function HomeStreamingSection({ featuredStream }: HomeStreamingSectionProps) {
+  if (!featuredStream) {
     return null;
   }
 
@@ -25,7 +27,7 @@ export async function HomeStreamingSection() {
 
       <HomeReveal className="mt-10" delayMs={80}>
         <div className="home-streaming-card">
-          <StreamingCard stream={stream} />
+          <StreamingCard stream={featuredStream} />
         </div>
       </HomeReveal>
     </section>

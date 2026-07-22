@@ -1194,13 +1194,40 @@ body {
   display: flex;
   flex: 1;
   flex-direction: column;
-  min-height: var(--public-main-min-height);
+  min-height: 0;
 }
 
-.public-theme .public-main:has(.store-theme) {
-  --public-main-min-height: calc(
-    100dvh - var(--public-header-height) - var(--public-store-subnav-height)
+.public-theme .public-route-loading {
+  min-height: 4rem;
+  padding: 1.5rem 1rem 2rem;
+}
+
+.public-theme .public-route-loading::before {
+  content: "";
+  display: block;
+  height: 2px;
+  width: min(12rem, 40%);
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    var(--public-primary) 0%,
+    var(--public-primary-hover) 100%
   );
+  opacity: 0.75;
+  animation: public-route-loading-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes public-route-loading-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scaleX(0.92);
+  }
+
+  50% {
+    opacity: 0.9;
+    transform: scaleX(1);
+  }
 }
 
 .public-theme .public-page-shell {

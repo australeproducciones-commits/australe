@@ -51,6 +51,38 @@ function mapProductRow(row: StoreProduct, variants: StoreProductVariant[] = []):
   };
 }
 
+type StoreClient = Awaited<ReturnType<typeof createClient>>;
+
+async function getActiveVariantsByProductIds(
+  supabase: StoreClient,
+  productIds: string[],
+): Promise<Map<string, StoreProductVariant[]>> {
+  if (productIds.length === 0) {
+    return new Map();
+  }
+
+  const { data, error } = await supabase
+    .from("store_product_variants")
+    .select("*")
+    .in("product_id", productIds)
+    .eq("is_active", true)
+    .order("sort_order");
+
+  if (error) {
+    throw error;
+  }
+
+  const variantsByProductId = new Map<string, StoreProductVariant[]>();
+
+  for (const variant of (data ?? []) as StoreProductVariant[]) {
+    const current = variantsByProductId.get(variant.product_id) ?? [];
+    current.push(variant);
+    variantsByProductId.set(variant.product_id, current);
+  }
+
+  return variantsByProductId;
+}
+
 export async function getPublicStoreProducts(options?: {
   category?: string | null;
   featured?: boolean;
@@ -101,21 +133,36 @@ export async function getPublicStoreProducts(options?: {
     }
 
     const products: PublicStoreProduct[] = [];
+    const activeEventProducts = (eventProductsResult.data ?? []).filter((row) =>
+      isEventStoreAssociationActive(row as EventStoreProduct),
+    ) as EventStoreProduct[];
 
-    for (const row of eventProductsResult.data ?? []) {
-      const eventProduct = row as EventStoreProduct;
+    if (activeEventProducts.length === 0) {
+      return products;
+    }
 
-      if (!isEventStoreAssociationActive(eventProduct)) {
-        continue;
-      }
+    const productIds = [
+      ...new Set(activeEventProducts.map((eventProduct) => eventProduct.product_id)),
+    ];
 
-      const { data: productData } = await supabase
-        .from("store_products")
-        .select("*")
-        .eq("id", eventProduct.product_id)
-        .maybeSingle();
+    const [storeProductsResult, variantsByProductId] = await Promise.all([
+      supabase.from("store_products").select("*").in("id", productIds),
+      getActiveVariantsByProductIds(supabase, productIds),
+    ]);
 
-      const product = productData as StoreProduct | null;
+    if (storeProductsResult.error) {
+      throw storeProductsResult.error;
+    }
+
+    const productsById = new Map(
+      ((storeProductsResult.data ?? []) as StoreProduct[]).map((product) => [
+        product.id,
+        product,
+      ]),
+    );
+
+    for (const eventProduct of activeEventProducts) {
+      const product = productsById.get(eventProduct.product_id) ?? null;
       if (!product || !isStoreProductPubliclyAvailable(product)) {
         continue;
       }
@@ -124,14 +171,8 @@ export async function getPublicStoreProducts(options?: {
         continue;
       }
 
-      const { data: variants } = await supabase
-        .from("store_product_variants")
-        .select("*")
-        .eq("product_id", product.id)
-        .eq("is_active", true)
-        .order("sort_order");
-
-      const mapped = mapProductRow(product, (variants ?? []) as StoreProductVariant[]);
+      const variants = variantsByProductId.get(product.id) ?? [];
+      const mapped = mapProductRow(product, variants);
       mapped.display_price = resolveStoreUnitPrice(product, null, eventProduct);
       mapped.display_community_price =
         eventProduct.event_community_price_override ??
@@ -196,23 +237,20 @@ export async function getPublicStoreProducts(options?: {
     throw error;
   }
 
+  const visibleProducts = ((data ?? []) as StoreProduct[]).filter((product) =>
+    isStoreProductVisibleInGeneralCatalog(product, isCommunityMember),
+  );
+
+  const variantsByProductId = await getActiveVariantsByProductIds(
+    supabase,
+    visibleProducts.map((product) => product.id),
+  );
+
   const result: PublicStoreProduct[] = [];
 
-  for (const product of (data ?? []) as StoreProduct[]) {
-    if (
-      !isStoreProductVisibleInGeneralCatalog(product, isCommunityMember)
-    ) {
-      continue;
-    }
-
-    const { data: variants } = await supabase
-      .from("store_product_variants")
-      .select("*")
-      .eq("product_id", product.id)
-      .eq("is_active", true)
-      .order("sort_order");
-
-    const mapped = mapProductRow(product, (variants ?? []) as StoreProductVariant[]);
+  for (const product of visibleProducts) {
+    const variants = variantsByProductId.get(product.id) ?? [];
+    const mapped = mapProductRow(product, variants);
 
     if (mapped.track_stock && mapped.available_qty <= 0) {
       continue;

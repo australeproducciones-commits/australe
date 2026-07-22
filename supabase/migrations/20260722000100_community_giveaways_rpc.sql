@@ -231,12 +231,12 @@ BEGIN
   WHERE idempotency_key = v_idempotency_key;
 
   IF FOUND THEN
-  SELECT COALESCE(SUM(entry_quantity), 0)::integer,
-         COALESCE(SUM(CASE WHEN status = 'active' THEN entry_quantity ELSE 0 END), 0)::integer
+  SELECT COALESCE(SUM(e.entry_quantity), 0)::integer,
+         COALESCE(SUM(CASE WHEN e.status = 'active' THEN e.entry_quantity ELSE 0 END), 0)::integer
     INTO v_user_entries, v_user_chances
-    FROM public.community_giveaway_entries
-    WHERE giveaway_id = p_giveaway_id
-      AND user_id = p_user_id;
+    FROM public.community_giveaway_entries e
+    WHERE e.giveaway_id = p_giveaway_id
+      AND e.user_id = p_user_id;
 
     SELECT points_balance INTO v_new_balance
     FROM public.loyalty_accounts
@@ -298,13 +298,13 @@ BEGIN
     RAISE EXCEPTION 'solo se permite una participación';
   END IF;
 
-  SELECT COALESCE(SUM(entry_quantity), 0)::integer,
-         COALESCE(SUM(CASE WHEN status = 'active' THEN entry_quantity ELSE 0 END), 0)::integer
+  SELECT COALESCE(SUM(e.entry_quantity), 0)::integer,
+         COALESCE(SUM(CASE WHEN e.status = 'active' THEN e.entry_quantity ELSE 0 END), 0)::integer
     INTO v_user_entries, v_user_chances
-    FROM public.community_giveaway_entries
-    WHERE giveaway_id = p_giveaway_id
-      AND user_id = p_user_id
-      AND status = 'active';
+    FROM public.community_giveaway_entries e
+    WHERE e.giveaway_id = p_giveaway_id
+      AND e.user_id = p_user_id
+      AND e.status = 'active';
 
   SELECT current_level_id INTO v_level_id
   FROM public.loyalty_accounts

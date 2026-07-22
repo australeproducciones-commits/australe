@@ -170,6 +170,9 @@ const state = {
   entryId: null,
   requestId: randomUUID(),
   cancelGiveawayId: null,
+  ticketGiveawayId: null,
+  storeGiveawayId: null,
+  ineligibleTicketGiveawayId: null,
 };
 
 async function cleanup() {
@@ -179,6 +182,9 @@ async function cleanup() {
     state.cancelGiveawayId,
     state.parallelGiveawayId,
     state.secondGiveawayId,
+    state.ticketGiveawayId,
+    state.storeGiveawayId,
+    state.ineligibleTicketGiveawayId,
   ].filter(Boolean);
   for (const gid of giveawayIds) {
     await admin.from("community_giveaway_winners").delete().eq("giveaway_id", gid);
@@ -649,6 +655,168 @@ async function testPublicRpc() {
   pass("RPC pública sanitizada");
 }
 
+async function insertAutomaticGiveaway(slugSuffix, entryType) {
+  const { data, error } = await admin
+    .from("community_giveaways")
+    .insert({
+      name: `Auto ${slugSuffix}`,
+      slug: `${RUN_ID}-${slugSuffix}`,
+      prize_description: "Premio automático",
+      status: "active",
+      entry_type: entryType,
+      allow_multiple_entries: false,
+      winner_count: 1,
+      alternate_count: 0,
+      is_public: true,
+      starts_at: new Date(Date.now() - 3600000).toISOString(),
+      closes_at: new Date(Date.now() + 86400000).toISOString(),
+    })
+    .select("id")
+    .single();
+
+  if (error) throw error;
+  return data.id;
+}
+
+async function testAutomaticTicketHook() {
+  state.ticketGiveawayId = await insertAutomaticGiveaway("ticket-hook", "ticket");
+  const ticketId = randomUUID();
+  const args = {
+    p_giveaway_id: state.ticketGiveawayId,
+    p_user_id: state.userId,
+    p_source_type: "ticket",
+    p_source_reference_id: ticketId,
+    p_entry_quantity: 1,
+  };
+
+  const { data: firstId, error: firstError } = await admin.rpc(
+    "create_automatic_giveaway_entry",
+    args,
+  );
+  if (firstError) throw firstError;
+  if (!firstId) throw new Error("entry automática ticket no creada");
+
+  const expectedKey = `giveaway:${state.ticketGiveawayId}:ticket:${ticketId}`;
+  const { data: row, error: rowError } = await admin
+    .from("community_giveaway_entries")
+    .select("idempotency_key")
+    .eq("id", firstId)
+    .single();
+  if (rowError) throw rowError;
+  if (row.idempotency_key !== expectedKey) {
+    throw new Error(`idempotency_key ticket incorrecta: ${row.idempotency_key}`);
+  }
+
+  const { data: secondId, error: secondError } = await admin.rpc(
+    "create_automatic_giveaway_entry",
+    args,
+  );
+  if (secondError) throw secondError;
+  if (secondId !== firstId) throw new Error("reproceso ticket duplicó entry");
+
+  state.ineligibleTicketGiveawayId = await insertAutomaticGiveaway("ticket-ineligible", "points");
+  const { data: ineligibleId } = await admin.rpc("create_automatic_giveaway_entry", {
+    p_giveaway_id: state.ineligibleTicketGiveawayId,
+    p_user_id: state.userId,
+    p_source_type: "ticket",
+    p_source_reference_id: randomUUID(),
+    p_entry_quantity: 1,
+  });
+  if (ineligibleId) {
+    throw new Error("sorteo no elegible generó entry ticket");
+  }
+
+  const anon = createSupabaseClient(anonKey);
+  const { error: anonError } = await anon.rpc("create_automatic_giveaway_entry", args);
+  if (!anonError) throw new Error("anon no debería crear entry automática");
+
+  pass("hook ticket: entry automática e idempotencia");
+}
+
+async function testAutomaticStoreHook() {
+  state.storeGiveawayId = await insertAutomaticGiveaway("store-hook", "store_purchase");
+  const orderId = randomUUID();
+  const args = {
+    p_giveaway_id: state.storeGiveawayId,
+    p_user_id: state.userId,
+    p_source_type: "store_purchase",
+    p_source_reference_id: orderId,
+    p_entry_quantity: 1,
+  };
+
+  const { data: firstId, error: firstError } = await admin.rpc(
+    "create_automatic_giveaway_entry",
+    args,
+  );
+  if (firstError) throw firstError;
+  if (!firstId) throw new Error("entry automática tienda no creada");
+
+  const expectedKey = `giveaway:${state.storeGiveawayId}:store_purchase:${orderId}`;
+  const { data: row, error: rowError } = await admin
+    .from("community_giveaway_entries")
+    .select("idempotency_key")
+    .eq("id", firstId)
+    .single();
+  if (rowError) throw rowError;
+  if (row.idempotency_key !== expectedKey) {
+    throw new Error(`idempotency_key tienda incorrecta: ${row.idempotency_key}`);
+  }
+
+  const { data: secondId, error: secondError } = await admin.rpc(
+    "create_automatic_giveaway_entry",
+    args,
+  );
+  if (secondError) throw secondError;
+  if (secondId !== firstId) throw new Error("reproceso tienda duplicó entry");
+
+  pass("hook tienda: entry automática e idempotencia");
+}
+
+async function testMaintainCronRpc() {
+  const slug = `${RUN_ID}-scheduled`;
+  const { data: scheduled, error } = await admin
+    .from("community_giveaways")
+    .insert({
+      name: "Scheduled cron test",
+      slug,
+      prize_description: "Premio",
+      status: "scheduled",
+      entry_type: "free",
+      allow_multiple_entries: false,
+      winner_count: 1,
+      alternate_count: 0,
+      is_public: true,
+      starts_at: new Date(Date.now() - 60000).toISOString(),
+      closes_at: new Date(Date.now() + 86400000).toISOString(),
+    })
+    .select("id, status")
+    .single();
+  if (error) throw error;
+
+  const { data: firstRun, error: maintainError } = await admin.rpc("maintain_community_giveaways");
+  if (maintainError) throw maintainError;
+  if (!firstRun || Number(firstRun.activated ?? 0) < 1) {
+    throw new Error("maintain no activó sorteo programado");
+  }
+
+  const { data: after } = await admin
+    .from("community_giveaways")
+    .select("status")
+    .eq("id", scheduled.id)
+    .single();
+  if (after?.status !== "active") {
+    throw new Error(`sorteo programado quedó en ${after?.status ?? "null"}`);
+  }
+
+  const { data: secondRun } = await admin.rpc("maintain_community_giveaways");
+  if (Number(secondRun?.activated ?? 0) > 0) {
+    throw new Error("segunda ejecución maintain duplicó activación");
+  }
+
+  await admin.from("community_giveaways").delete().eq("id", scheduled.id);
+  pass("cron maintain: activación programada idempotente");
+}
+
 async function main() {
   try {
     assertSafeEnvironment();
@@ -668,6 +836,9 @@ async function main() {
     await testSecurityGrants();
     await testWinnerPrivacy();
     await testPublicRpc();
+    await testAutomaticTicketHook();
+    await testAutomaticStoreHook();
+    await testMaintainCronRpc();
   } catch (error) {
     fail("suite sorteos", formatError(error));
   } finally {

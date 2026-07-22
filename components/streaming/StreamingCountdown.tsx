@@ -65,7 +65,7 @@ export function StreamingCountdown({
   if (!parts) {
     return (
       <p
-        className={cn("text-sm font-medium text-purple-700", className)}
+        className={cn("text-sm font-medium text-[var(--public-primary)]", className)}
         aria-hidden="true"
       >
         Calculando…
@@ -75,7 +75,7 @@ export function StreamingCountdown({
 
   if (parts.expired) {
     return (
-      <p className={cn("text-sm font-medium text-purple-700", className)}>
+      <p className={cn("text-sm font-medium text-[var(--public-primary)]", className)}>
         Comienza pronto
       </p>
     );
@@ -100,9 +100,9 @@ export function StreamingCountdown({
 
 function CountdownUnit({ label, value }: { label: string; value: string }) {
   return (
-    <div className="min-w-[3.25rem] rounded-xl border border-purple-100 bg-white/90 px-2 py-2 text-center shadow-sm">
-      <div className="text-lg font-black tabular-nums text-purple-900">{value}</div>
-      <div className="text-[10px] font-semibold uppercase tracking-wide text-purple-500">
+    <div className="min-w-[3.25rem] rounded-xl border border-[var(--public-border)] bg-[var(--public-card-tint)] px-2 py-2 text-center">
+      <div className="text-lg font-black tabular-nums public-heading">{value}</div>
+      <div className="text-[10px] font-semibold uppercase tracking-wide public-text-soft">
         {label}
       </div>
     </div>

@@ -28,7 +28,7 @@ export function StreamingBannerImage({
   const alt = getStreamBannerAlt(stream, event.name);
 
   return (
-    <div className={cn("relative overflow-hidden rounded-2xl bg-purple-50", className)}>
+    <div className={cn("relative overflow-hidden rounded-2xl bg-[var(--public-card)]", className)}>
       <picture>
         <source media="(max-width: 767px)" srcSet={mobileSrc} />
         <Image

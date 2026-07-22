@@ -1,6 +1,5 @@
 import { EventImage } from "@/components/events/EventImage";
-import { Button } from "@/components/ui/Button";
-import { ROUTES } from "@/lib/constants/routes";
+import { PublicButton } from "@/components/ui/public/PublicButton";import { ROUTES } from "@/lib/constants/routes";
 import { formatPublicEventDate } from "@/lib/events/formatPublicEventDate";
 import type { Event } from "@/lib/events/types";
 
@@ -19,7 +18,7 @@ export function GalleryEventCard({ event }: GalleryEventCardProps) {
     : "";
 
   return (
-    <article className="public-card group overflow-hidden rounded-3xl border transition motion-safe:hover:-translate-y-0.5 motion-safe:hover:shadow-[0_16px_40px_rgba(75,55,110,0.12)]">
+    <article className="public-card group overflow-hidden rounded-3xl border transition motion-safe:hover:-translate-y-0.5 motion-safe:hover:shadow-[0_16px_40px_rgba(0,0,0,0.35)]">
       <EventImage
         event={event}
         alt={`Galería de ${event.name}`}
@@ -30,7 +29,7 @@ export function GalleryEventCard({ event }: GalleryEventCardProps) {
       />
       <div className="space-y-4 p-5 text-center sm:p-6">
         <div className="flex justify-center">
-          <span className="inline-flex rounded-full border border-[rgba(127,168,196,0.24)] bg-[rgba(232,244,252,0.95)] px-3 py-1 text-xs font-medium text-[#3f6278]">
+          <span className="inline-flex rounded-full border border-[rgba(96,165,250,0.3)] bg-[rgba(96,165,250,0.1)] px-3 py-1 text-xs font-medium text-[#93c5fd]">
             Galería disponible
           </span>
         </div>
@@ -46,10 +45,9 @@ export function GalleryEventCard({ event }: GalleryEventCardProps) {
           {event.location_name ? (
             <p className="mt-1 text-sm public-text-soft">{event.location_name}</p>
           ) : null}
-        <Button href={ROUTES.galeria(event.slug)} variant="secondary" size="sm" className="mx-auto">
+        <PublicButton href={ROUTES.galeria(event.slug)} variant="outline" size="sm" className="mx-auto">
           Ver galería
-        </Button>
-      </div>
+        </PublicButton>      </div>
     </article>
   );
 }

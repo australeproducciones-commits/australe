@@ -23,13 +23,13 @@ export function EventStreamingSection({ stream }: EventStreamingSectionProps) {
   const isScheduled = stream.status === STREAM_STATUS.SCHEDULED;
 
   return (
-    <PublicCard className="mt-8 border border-purple-100 bg-gradient-to-br from-purple-50/80 to-white p-5 sm:p-6">
+    <PublicCard className="mt-8 border border-[var(--public-border)] bg-[var(--public-card)] p-5 sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-purple-700">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--public-primary)]">
             {isScheduled ? "Próxima transmisión" : "Streaming"}
           </p>
-          <h2 className="mt-2 text-xl font-black text-purple-950 sm:text-2xl">{title}</h2>
+          <h2 className="mt-2 text-xl font-black public-heading sm:text-2xl">{title}</h2>
           {stream.subtitle ? (
             <p className="mt-2 text-sm public-text-muted">{stream.subtitle}</p>
           ) : null}
@@ -44,7 +44,7 @@ export function EventStreamingSection({ stream }: EventStreamingSectionProps) {
 
         {isScheduled && stream.starts_at ? (
           <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-purple-700">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--public-primary)]">
               Comienza en
             </p>
             <StreamingCountdown targetIso={stream.starts_at} />

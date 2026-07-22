@@ -23,7 +23,7 @@ export function StreamingPlayer({
     return (
       <div
         className={cn(
-          "flex aspect-video w-full items-center justify-center rounded-2xl border border-dashed border-purple-200 bg-purple-50/60 p-6 text-center text-sm text-purple-800",
+          "flex aspect-video w-full items-center justify-center rounded-2xl border border-dashed border-[var(--public-border)] bg-[var(--public-card-tint)] p-6 text-center text-sm public-text-muted",
           className,
         )}
       >
@@ -36,18 +36,18 @@ export function StreamingPlayer({
     return (
       <div
         className={cn(
-          "flex aspect-video w-full flex-col items-center justify-center gap-4 rounded-2xl border border-purple-100 bg-purple-50/80 p-8 text-center",
+          "flex aspect-video w-full flex-col items-center justify-center gap-4 rounded-2xl border border-[var(--public-border)] bg-[var(--public-card)] p-8 text-center",
           className,
         )}
       >
-        <p className="text-sm text-purple-800">
+        <p className="text-sm public-text-muted">
           Esta transmisión se abre en una plataforma externa segura.
         </p>
         <a
           href={embed.href}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex min-h-11 items-center justify-center rounded-full bg-purple-700 px-6 py-3 text-sm font-semibold text-white transition hover:bg-purple-800"
+          className="public-btn-primary inline-flex min-h-11 items-center justify-center rounded-full px-6 py-3 text-sm font-semibold"
         >
           {embed.label}
         </a>
@@ -57,7 +57,7 @@ export function StreamingPlayer({
 
   if (embed.kind === "hls") {
     return (
-      <div className={cn("overflow-hidden rounded-2xl border border-purple-100 bg-black", className)}>
+      <div className={cn("overflow-hidden rounded-2xl border border-[var(--public-border)] bg-black", className)}>
         <video
           className="aspect-video w-full bg-black"
           controls
@@ -77,7 +77,7 @@ export function StreamingPlayer({
           </a>
           .
         </video>
-        <p className="border-t border-purple-100 bg-purple-50 px-4 py-2 text-xs text-purple-700">
+        <p className="border-t border-[var(--public-border)] bg-[var(--public-card-tint)] px-4 py-2 text-xs public-text-soft">
           HLS: en Safari suele funcionar nativamente. En otros navegadores puede requerir un reproductor dedicado (etapa futura).
         </p>
       </div>
@@ -85,7 +85,7 @@ export function StreamingPlayer({
   }
 
   return (
-    <div className={cn("overflow-hidden rounded-2xl border border-purple-100 bg-black shadow-sm", className)}>
+    <div className={cn("overflow-hidden rounded-2xl border border-[var(--public-border)] bg-black shadow-sm", className)}>
       <iframe
         src={embed.src}
         title={embed.title}

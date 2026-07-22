@@ -8,15 +8,15 @@ type StreamingBadgeProps = {
 };
 
 const variantToneClass: Record<string, string> = {
-  live: "border-[rgba(214,96,96,0.28)] bg-[rgba(255,232,232,0.95)] text-[#9a3f3f]",
+  live: "border-[rgba(248,113,113,0.4)] bg-[rgba(248,113,113,0.12)] text-[#fecaca]",
   scheduled:
-    "border-[rgba(155,126,222,0.28)] bg-[rgba(243,236,255,0.95)] text-[#6b4f9a]",
+    "border-[rgba(167,139,219,0.35)] bg-[rgba(167,139,219,0.15)] text-[var(--public-primary-hover)]",
   paused:
-    "border-[rgba(214,168,72,0.28)] bg-[rgba(255,244,214,0.95)] text-[#7a5a18]",
+    "border-[rgba(232,196,104,0.35)] bg-[rgba(232,196,104,0.12)] text-[var(--australe-warning-foreground)]",
   ended:
-    "border-[rgba(120,113,140,0.2)] bg-[rgba(241,239,245,0.95)] text-[#5f5a6d]",
+    "border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.05)] text-[var(--public-text-soft)]",
   draft:
-    "border-[rgba(120,113,140,0.18)] bg-[rgba(248,246,252,0.95)] text-[var(--public-text-secondary)]",
+    "border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.04)] text-[var(--public-text-secondary)]",
 };
 
 export function StreamingBadge({ status, className }: StreamingBadgeProps) {

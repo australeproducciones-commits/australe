@@ -16,6 +16,15 @@ import { resolve } from "node:path";
 
 const PREFIX = "giveaway_e2e_";
 
+const supabaseClientOptions = {
+  auth: { persistSession: false, autoRefreshToken: false },
+  realtime: { enabled: false },
+};
+
+function createSupabaseClient(key, extraOptions = {}) {
+  return createClient(url, key, { ...supabaseClientOptions, ...extraOptions });
+}
+
 function loadEnvFile(path) {
   if (!existsSync(path)) return {};
   const out = {};
@@ -213,8 +222,7 @@ async function createTestUser(label) {
   });
 
   const { data: session } = await admin.auth.signInWithPassword({ email, password });
-  const client = createClient(url, anonKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
+  const client = createSupabaseClient(anonKey, {
     global: { headers: { Authorization: `Bearer ${session.session.access_token}` } },
   });
 
@@ -558,7 +566,7 @@ async function testDisqualifiedEntry() {
 }
 
 async function testSecurityGrants() {
-  const anon = createClient(url, anonKey);
+  const anon = createSupabaseClient(anonKey);
   const { error: drawError } = await anon.rpc("draw_community_giveaway", {
     p_giveaway_id: state.giveawayId,
     p_admin_id: state.userId,
@@ -592,7 +600,7 @@ async function testWinnerPrivacy() {
   }
   pass("customer no lee ganador ajeno");
 
-  const anon = createClient(url, anonKey);
+  const anon = createSupabaseClient(anonKey);
   const { data: anonRows, error: anonError } = await anon
     .from("community_giveaway_winners")
     .select("user_id")
@@ -605,7 +613,7 @@ async function testWinnerPrivacy() {
 }
 
 async function testPublicRpc() {
-  const anon = createClient(url, anonKey);
+  const anon = createSupabaseClient(anonKey);
   const { data, error } = await anon.rpc("get_public_community_giveaway_results", {
     p_giveaway_slug: state.giveawaySlug,
   });
@@ -627,9 +635,7 @@ async function testPublicRpc() {
 async function main() {
   try {
     assertSafeEnvironment();
-    admin = createClient(url, serviceKey, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
+    admin = createSupabaseClient(serviceKey);
     await assertSchema(admin);
     await setup();
     await testFreeEntry();

@@ -13,6 +13,27 @@ export async function awardLoyaltyPointsForStoreOrder(
     return null;
   }
 
+  try {
+    const { data: order } = await admin
+      .from("store_orders")
+      .select("user_id")
+      .eq("id", orderId)
+      .maybeSingle();
+
+    if (order?.user_id) {
+      const { processAutomaticGiveawayEntries } = await import(
+        "@/lib/community/giveaways/service"
+      );
+      await processAutomaticGiveawayEntries({
+        userId: order.user_id,
+        sourceType: "store_purchase",
+        sourceReferenceId: orderId,
+      });
+    }
+  } catch (giveawayError) {
+    console.error("awardLoyaltyPointsForStoreOrder giveaways:", giveawayError);
+  }
+
   return (data as string | null) ?? null;
 }
 

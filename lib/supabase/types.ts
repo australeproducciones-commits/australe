@@ -231,6 +231,89 @@ export type CommunityRedemptionRow = {
   updated_at: string;
 };
 
+export type CommunityGiveawayRow = {
+  id: string;
+  name: string;
+  slug: string;
+  short_description: string | null;
+  description: string | null;
+  prize_description: string;
+  image_url: string | null;
+  terms_and_conditions: string | null;
+  status: string;
+  entry_type: string;
+  points_cost: number;
+  max_entries_per_user: number | null;
+  allow_multiple_entries: boolean;
+  winner_count: number;
+  alternate_count: number;
+  starts_at: string | null;
+  closes_at: string | null;
+  draw_at: string | null;
+  claim_deadline: string | null;
+  related_event_id: string | null;
+  requires_valid_ticket: boolean;
+  requires_used_ticket: boolean;
+  minimum_purchase_amount: number | null;
+  minimum_community_level: string | null;
+  level_bonus_config: Json;
+  is_public: boolean;
+  allow_duplicate_winners: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  drawn_at: string | null;
+  cancelled_at: string | null;
+};
+
+export type CommunityGiveawayEntryRow = {
+  id: string;
+  giveaway_id: string;
+  user_id: string;
+  community_member_id: string | null;
+  entry_quantity: number;
+  source_type: string;
+  source_reference_id: string | null;
+  points_transaction_id: string | null;
+  status: string;
+  idempotency_key: string;
+  metadata: Json;
+  created_at: string;
+  cancelled_at: string | null;
+  disqualified_at: string | null;
+  refunded_at: string | null;
+};
+
+export type CommunityGiveawayWinnerRow = {
+  id: string;
+  giveaway_id: string;
+  user_id: string;
+  entry_id: string | null;
+  position: number;
+  winner_type: string;
+  status: string;
+  selected_at: string;
+  notified_at: string | null;
+  claimed_at: string | null;
+  expired_at: string | null;
+  replaced_by_winner_id: string | null;
+  verification_code: string;
+  metadata: Json;
+};
+
+export type CommunityGiveawayAuditLogRow = {
+  id: string;
+  giveaway_id: string;
+  actor_user_id: string | null;
+  action: string;
+  entity_type: string | null;
+  entity_id: string | null;
+  previous_data: Json | null;
+  new_data: Json | null;
+  metadata: Json;
+  created_at: string;
+};
+
 export type CommunityEventInvitationRow = {
   id: string;
   user_id: string;
@@ -501,7 +584,13 @@ export type StoreOrderRow = {
   status: string;
   payment_status: string;
   payment_provider: string | null;
+  payment_channel: string | null;
+  payment_method: string | null;
   payment_reference: string | null;
+  payment_amount_received: number | null;
+  payment_confirmed_by: string | null;
+  payment_notes: string | null;
+  payment_review_reason: string | null;
   subtotal: number;
   discount_total: number;
   points_discount: number;
@@ -875,6 +964,43 @@ export type Database = {
           updated_at?: string;
         };
         Update: Partial<CommunityRedemptionRow>;
+        Relationships: [];
+      };
+      community_giveaways: {
+        Row: CommunityGiveawayRow;
+        Insert: Omit<CommunityGiveawayRow, "id" | "created_at" | "updated_at"> & {
+          id?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<CommunityGiveawayRow>;
+        Relationships: [];
+      };
+      community_giveaway_entries: {
+        Row: CommunityGiveawayEntryRow;
+        Insert: Omit<CommunityGiveawayEntryRow, "id" | "created_at"> & {
+          id?: string;
+          created_at?: string;
+        };
+        Update: Partial<CommunityGiveawayEntryRow>;
+        Relationships: [];
+      };
+      community_giveaway_winners: {
+        Row: CommunityGiveawayWinnerRow;
+        Insert: Omit<CommunityGiveawayWinnerRow, "id" | "selected_at"> & {
+          id?: string;
+          selected_at?: string;
+        };
+        Update: Partial<CommunityGiveawayWinnerRow>;
+        Relationships: [];
+      };
+      community_giveaway_audit_logs: {
+        Row: CommunityGiveawayAuditLogRow;
+        Insert: Omit<CommunityGiveawayAuditLogRow, "id" | "created_at"> & {
+          id?: string;
+          created_at?: string;
+        };
+        Update: Partial<CommunityGiveawayAuditLogRow>;
         Relationships: [];
       };
       community_event_invitations: {
@@ -1500,13 +1626,25 @@ export type Database = {
           p_event_id: string | null;
           p_items: Json;
           p_apply_community_price: boolean;
+          p_payment_channel?: string | null;
         };
         Returns: {
           order_id: string;
           order_number: string;
           total_amount: number;
           pickup_code: string;
+          reserved_until: string;
         }[];
+      };
+      confirm_store_manual_payment: {
+        Args: {
+          p_order_id: string;
+          p_payment_method: string;
+          p_amount_received: number;
+          p_payment_reference?: string | null;
+          p_notes?: string | null;
+        };
+        Returns: Json;
       };
       mark_store_order_paid: {
         Args: {
@@ -1588,6 +1726,73 @@ export type Database = {
           p_status_detail?: string | null;
           p_payer_email?: string | null;
         };
+        Returns: Json;
+      };
+      enter_community_giveaway: {
+        Args: {
+          p_giveaway_id: string;
+          p_user_id: string;
+          p_requested_quantity?: number;
+          p_request_id: string;
+        };
+        Returns: {
+          entry_id: string;
+          entry_quantity: number;
+          points_spent: number;
+          points_balance_after: number;
+          total_user_entries: number;
+          total_user_chances: number;
+        }[];
+      };
+      create_automatic_giveaway_entry: {
+        Args: {
+          p_giveaway_id: string;
+          p_user_id: string;
+          p_source_type: string;
+          p_source_reference_id: string;
+          p_entry_quantity?: number;
+        };
+        Returns: string | null;
+      };
+      cancel_community_giveaway: {
+        Args: {
+          p_giveaway_id: string;
+          p_admin_id: string;
+          p_reason?: string | null;
+        };
+        Returns: Json;
+      };
+      disqualify_community_giveaway_entry: {
+        Args: {
+          p_entry_id: string;
+          p_admin_id: string;
+          p_reason: string;
+        };
+        Returns: void;
+      };
+      draw_community_giveaway: {
+        Args: {
+          p_giveaway_id: string;
+          p_admin_id: string;
+        };
+        Returns: Json;
+      };
+      activate_community_giveaway_alternate: {
+        Args: {
+          p_giveaway_id: string;
+          p_admin_id: string;
+        };
+        Returns: string;
+      };
+      claim_community_giveaway_prize: {
+        Args: {
+          p_winner_id: string;
+          p_user_id: string;
+        };
+        Returns: void;
+      };
+      maintain_community_giveaways: {
+        Args: Record<string, never>;
         Returns: Json;
       };
     };

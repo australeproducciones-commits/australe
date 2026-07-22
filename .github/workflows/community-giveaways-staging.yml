@@ -22,6 +22,7 @@ on:
       - "supabase/migrations/20260722000000_community_giveaways_foundation.sql"
       - "supabase/migrations/20260722000100_community_giveaways_rpc.sql"
       - "supabase/migrations/20260722000200_community_giveaways_security_hardening.sql"
+      - "supabase/migrations/20260722000300_community_giveaways_helper_grants.sql"
       - "scripts/validate-community-giveaways.mjs"
       - "scripts/validate-community-giveaways-security.sql"
       - ".github/workflows/community-giveaways-staging.yml"

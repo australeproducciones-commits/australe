@@ -37,7 +37,7 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public._giveaway_format_public_name(text, uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public._giveaway_format_public_name(text, uuid) FROM PUBLIC, anon, authenticated;
 
 -- -----------------------------------------------------------------------------
 -- 2. RPC pública sanitizada de resultados

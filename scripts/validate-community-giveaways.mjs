@@ -457,7 +457,7 @@ async function testParallelDrawConcurrency() {
   const outcomes = [r1, r2].map((r) => {
     if (r.error) return "error";
     if (r.data?.already_drawn) return "already_drawn";
-    if (r.data?.success) return "success";
+    if (r.data?.drawn) return "success";
     return "other";
   });
 
@@ -512,7 +512,7 @@ async function testSecondGiveawayDraw() {
     p_admin_id: state.userId,
   });
   if (error) throw error;
-  if (!data?.success) throw new Error("segundo sorteo independiente falló");
+  if (!data?.drawn) throw new Error("segundo sorteo independiente falló");
   pass("segundo sorteo independiente");
 }
 

@@ -1,14 +1,16 @@
 import { HomePremiumHeroClient } from "@/components/home/HomePremiumHeroClient";
 import type { Event } from "@/lib/events/types";
-import { getFeaturedHomeStream } from "@/lib/streaming/queries";
+import type { EventStreamWithEvent } from "@/lib/streaming/types";
 
 type HomePremiumHeroProps = {
   featuredEvents: Event[];
+  featuredStream: EventStreamWithEvent | null;
 };
 
-export async function HomePremiumHero({ featuredEvents }: HomePremiumHeroProps) {
-  const featuredStream = await getFeaturedHomeStream();
-
+export function HomePremiumHero({
+  featuredEvents,
+  featuredStream,
+}: HomePremiumHeroProps) {
   return (
     <HomePremiumHeroClient
       featuredEvents={featuredEvents}

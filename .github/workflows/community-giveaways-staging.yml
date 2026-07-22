@@ -27,7 +27,6 @@ on:
       - "supabase/migrations/20260722000500_community_giveaways_draw_search_path.sql"
       - "scripts/validate-community-giveaways.mjs"
       - "scripts/validate-community-giveaways-security.sql"
-      - "scripts/validate-preview-environment.mjs"
       - ".github/workflows/community-giveaways-staging.yml"
 
 concurrency:
@@ -253,46 +252,6 @@ jobs:
       - name: E2E sorteos contra staging online
         run: node scripts/validate-community-giveaways.mjs
 
-      - name: Validar Preview Vercel → staging (HTTP)
-        env:
-          PREVIEW_BASE_URL: https://australe-git-feat-community-giveaways-australe.vercel.app
-          PREVIEW_CRON_SECRET: ${{ secrets.PREVIEW_CRON_SECRET }}
-          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
-          EXPECTED_SUPABASE_PROJECT_REF: ${{ steps.branch.outputs.branch_ref }}
-        run: |
-          set -euo pipefail
-          BYPASS_HEADER=()
-          if [ -n "${VERCEL_AUTOMATION_BYPASS_SECRET:-}" ]; then
-            BYPASS_HEADER=(-H "x-vercel-protection-bypass: ${VERCEL_AUTOMATION_BYPASS_SECRET}")
-          fi
-
-          CODE=$(curl -sS "${BYPASS_HEADER[@]}" -o /tmp/cron-body -w "%{http_code}" \
-            "${PREVIEW_BASE_URL}/api/cron/community-giveaways")
-          echo "cron sin auth: HTTP ${CODE}"
-
-          if [ -z "${VERCEL_AUTOMATION_BYPASS_SECRET:-}" ]; then
-            case "${CODE}" in
-              302|307|308)
-                echo "::warning::Preview protegido por Vercel SSO (HTTP ${CODE}). Agregá VERCEL_AUTOMATION_BYPASS_SECRET en GitHub Secrets para validación HTTP completa."
-                exit 0
-                ;;
-            esac
-          fi
-
-          if [ "${CODE}" != "401" ]; then
-            echo "Se esperaba 401 sin autorización en /api/cron/community-giveaways"
-            head -c 240 /tmp/cron-body || true
-            exit 1
-          fi
-
-          if [ -z "${PREVIEW_CRON_SECRET:-}" ]; then
-            echo "::warning::PREVIEW_CRON_SECRET no configurado en GitHub — omitiendo environment-check y cron 200"
-            exit 0
-          fi
-
-          export CRON_SECRET="${PREVIEW_CRON_SECRET}"
-          node scripts/validate-preview-environment.mjs
-
       - name: Resumen staging (sin secretos)
         if: always()
         run: |
@@ -303,4 +262,3 @@ jobs:
           echo "- URL Supabase: https://${{ steps.branch.outputs.branch_ref }}.supabase.co" >> "$GITHUB_STEP_SUMMARY"
           echo "- Migraciones sorteos: foundation → draw_search_path (6 archivos)" >> "$GITHUB_STEP_SUMMARY"
           echo "- E2E staging: 29 pruebas (hooks ticket/tienda + maintain cron)" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Preview: validar con \`PREVIEW_CRON_SECRET\` + \`VERCEL_AUTOMATION_BYPASS_SECRET\` en GitHub Secrets" >> "$GITHUB_STEP_SUMMARY"

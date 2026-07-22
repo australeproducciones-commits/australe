@@ -21,6 +21,7 @@ import {
   getCommunityDashboard,
   getCommunitySettings,
 } from "@/lib/community/loyalty/queries";
+import type { CommunitySettings } from "@/lib/community/loyalty/types";
 import { isActiveCommunityMember } from "@/lib/community/membership";
 import { ROUTES } from "@/lib/constants/routes";
 import { getCommunityPublishedEvents } from "@/lib/events/queries";
@@ -32,48 +33,121 @@ export const metadata: Metadata = {
   title: "Comunidad",
 };
 
+const DEFAULT_COMMUNITY_SETTINGS: CommunitySettings = {
+  id: 1,
+  community_enabled: true,
+  ticket_points_enabled: true,
+  consumption_points_enabled: false,
+  amount_per_point: 1000,
+  welcome_points: 0,
+  public_title: "Comunidad Australe",
+  public_description:
+    "Sumá puntos con tus compras y canjeá beneficios exclusivos.",
+};
+
 export default async function ComunidadPage() {
+  try {
+    return await ComunidadPageContent();
+  } catch (error) {
+    console.error("ComunidadPage:", error);
+    return (
+      <PageContainer>
+        <PublicQueryError
+          title="No pudimos cargar Comunidad"
+          message={
+            isSupabaseQueryError(error)
+              ? error.userMessage
+              : "Ocurrió un error al cargar la página. Intentá de nuevo en unos segundos."
+          }
+        />
+      </PageContainer>
+    );
+  }
+}
+
+async function ComunidadPageContent() {
   const supabase = await createClient();
   const profile = await getProfile(supabase);
-  const settings =
-    (await getCommunitySettings()) ?? {
-      id: 1,
-      community_enabled: true,
-      ticket_points_enabled: true,
-      consumption_points_enabled: false,
-      amount_per_point: 1000,
-      welcome_points: 0,
-      public_title: "Comunidad Australe",
-      public_description:
-        "Sumá puntos con tus compras y canjeá beneficios exclusivos.",
-    };
 
-  const isMember = await isActiveCommunityMember(profile?.id);
-  let communityEvents: Event[] = [];
-  let loadError: string | null = null;
+  if (profile?.id) {
+    const [dashboard, isMember] = await Promise.all([
+      getCommunityDashboard(profile.id),
+      isActiveCommunityMember(profile.id),
+    ]);
 
-  if (isMember) {
-    try {
-      communityEvents = await getCommunityPublishedEvents();
-    } catch (error) {
-      if (isSupabaseQueryError(error)) {
-        loadError = error.userMessage;
-      } else {
-        throw error;
+    let communityEvents: Event[] = [];
+    let communityEventsError: string | null = null;
+
+    if (isMember) {
+      try {
+        communityEvents = await getCommunityPublishedEvents();
+      } catch (error) {
+        if (isSupabaseQueryError(error)) {
+          communityEventsError = error.userMessage;
+        } else {
+          throw error;
+        }
       }
     }
+
+    const settings = dashboard?.settings ?? (await getCommunitySettings()) ?? DEFAULT_COMMUNITY_SETTINGS;
+    const publicRewards = dashboard?.rewards ?? [];
+
+    return (
+      <ComunidadPageView
+        settings={settings}
+        profileId={profile.id}
+        dashboard={dashboard}
+        publicRewards={publicRewards}
+        levels={[]}
+        isMember={isMember}
+        communityEvents={communityEvents}
+        communityEventsError={communityEventsError}
+      />
+    );
   }
 
-  const dashboard = profile?.id
-    ? await getCommunityDashboard(profile.id)
-    : null;
+  const [settings, levels, publicRewards] = await Promise.all([
+    getCommunitySettings(),
+    getActiveCommunityLevels(),
+    getAvailableCommunityRewards(),
+  ]);
 
-  const publicRewards = profile?.id
-    ? (dashboard?.rewards ?? [])
-    : await getAvailableCommunityRewards();
+  return (
+    <ComunidadPageView
+      settings={settings ?? DEFAULT_COMMUNITY_SETTINGS}
+      profileId={null}
+      dashboard={null}
+      publicRewards={publicRewards}
+      levels={levels}
+      isMember={false}
+      communityEvents={[]}
+      communityEventsError={null}
+    />
+  );
+}
 
-  const levels = await getActiveCommunityLevels();
+type ComunidadPageViewProps = {
+  settings: CommunitySettings;
+  profileId: string | null;
+  dashboard: Awaited<ReturnType<typeof getCommunityDashboard>>;
+  publicRewards: Awaited<ReturnType<typeof getAvailableCommunityRewards>>;
+  levels: Awaited<ReturnType<typeof getActiveCommunityLevels>>;
+  isMember: boolean;
+  communityEvents: Event[];
+  communityEventsError: string | null;
+};
 
+function ComunidadPageView({
+  settings,
+  profileId,
+  dashboard,
+  publicRewards,
+  levels,
+  isMember,
+  communityEvents,
+  communityEventsError,
+}: ComunidadPageViewProps) {
   return (
     <PageContainer>
       <SectionHeading
@@ -82,7 +156,7 @@ export default async function ComunidadPage() {
         subtitle={settings.public_description}
       />
 
-      <CommunityHero settings={settings} isAuthenticated={Boolean(profile?.id)} />
+      <CommunityHero settings={settings} isAuthenticated={Boolean(profileId)} />
 
       <section className="mt-8">
         <PublicCard padding="md" className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -101,7 +175,7 @@ export default async function ComunidadPage() {
         </PublicCard>
       </section>
 
-      {profile?.id && dashboard ? (
+      {profileId && dashboard ? (
         <>
           <div className="mt-8 grid gap-4 sm:grid-cols-2">
             <CommunityPointsCard
@@ -155,6 +229,13 @@ export default async function ComunidadPage() {
             </div>
           </section>
         </>
+      ) : profileId ? (
+        <PublicCard padding="md" className="mt-8">
+          <p className="text-sm public-text-muted">
+            Tu cuenta está activa, pero no pudimos cargar el panel de puntos en este momento.
+            Intentá recargar la página en unos segundos.
+          </p>
+        </PublicCard>
       ) : (
         <section className="mt-10">
           <h2 className="public-heading text-xl font-bold">Recompensas destacadas</h2>
@@ -201,10 +282,10 @@ export default async function ComunidadPage() {
       {isMember ? (
         <section className="mt-12">
           <h2 className="public-heading text-2xl font-bold">Eventos de la comunidad</h2>
-          {loadError ? (
+          {communityEventsError ? (
             <PublicQueryError
               title="No pudimos cargar los eventos de la comunidad"
-              message={loadError}
+              message={communityEventsError}
             />
           ) : communityEvents.length === 0 ? (
             <p className="mt-4 text-sm public-text-soft">
@@ -218,7 +299,7 @@ export default async function ComunidadPage() {
             </div>
           )}
         </section>
-      ) : profile?.id ? null : (
+      ) : profileId ? null : (
         <p className="mt-8 text-sm public-text-soft">
           Los eventos exclusivos solo se muestran a miembros con membresía activa.{" "}
           <Link href={ROUTES.login} className="public-link font-semibold">

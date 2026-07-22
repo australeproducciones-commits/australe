@@ -51,30 +51,25 @@ export function PublicNavigationProgress() {
 
   const [active, setActive] = useState(false);
   const [progress, setProgress] = useState(0);
-  const completeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const creepTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const safetyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isFirstRouteRef = useRef(true);
 
   const clearTimers = useCallback(() => {
-    if (completeTimerRef.current) {
-      clearTimeout(completeTimerRef.current);
-      completeTimerRef.current = null;
+    if (creepTimerRef.current) {
+      clearTimeout(creepTimerRef.current);
+      creepTimerRef.current = null;
+    }
+    if (safetyTimerRef.current) {
+      clearTimeout(safetyTimerRef.current);
+      safetyTimerRef.current = null;
     }
     if (hideTimerRef.current) {
       clearTimeout(hideTimerRef.current);
       hideTimerRef.current = null;
     }
   }, []);
-
-  const startProgress = useCallback(() => {
-    clearTimers();
-    setActive(true);
-    setProgress(0);
-
-    requestAnimationFrame(() => {
-      setProgress(72);
-    });
-  }, [clearTimers]);
 
   const finishProgress = useCallback(() => {
     clearTimers();
@@ -85,6 +80,24 @@ export function PublicNavigationProgress() {
       setProgress(0);
     }, 180);
   }, [clearTimers]);
+
+  const startProgress = useCallback(() => {
+    clearTimers();
+    setActive(true);
+    setProgress(12);
+
+    requestAnimationFrame(() => {
+      setProgress(68);
+    });
+
+    creepTimerRef.current = setTimeout(() => {
+      setProgress((current) => (current < 92 ? 92 : current));
+    }, 2500);
+
+    safetyTimerRef.current = setTimeout(() => {
+      finishProgress();
+    }, 12000);
+  }, [clearTimers, finishProgress]);
 
   useEffect(() => {
     if (isFirstRouteRef.current) {

@@ -1,6 +1,10 @@
 import { getCustomerTickets } from "@/lib/ticket-sales/queries";
 import { TICKET_PAYMENT_STATUS, TICKET_STATUS } from "@/lib/ticket-sales/types";
+import { CACHE_TAGS } from "@/lib/supabase/cacheTags";
+import { createPublicClient } from "@/lib/supabase/public";
+import { withQueryTimeout } from "@/lib/supabase/queryTimeout";
 import { createClient } from "@/lib/supabase/server";
+import { unstable_cache } from "next/cache";
 import { ensureCommunityMember } from "@/lib/community/loyalty/service";
 import type {
   CommunityDashboard,
@@ -14,12 +18,19 @@ import type {
 } from "@/lib/community/loyalty/types";
 
 export async function getCommunitySettings(): Promise<CommunitySettings | null> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("community_settings")
-    .select("*")
-    .eq("id", 1)
-    .maybeSingle();
+  return getCommunitySettingsCached();
+}
+
+async function fetchCommunitySettingsUncached(): Promise<CommunitySettings | null> {
+  const supabase = createPublicClient();
+  const { data, error } = await withQueryTimeout("getCommunitySettings", (signal) =>
+    supabase
+      .from("community_settings")
+      .select("*")
+      .eq("id", 1)
+      .abortSignal(signal)
+      .maybeSingle(),
+  );
 
   if (error) {
     console.error("getCommunitySettings:", error.message);
@@ -29,15 +40,28 @@ export async function getCommunitySettings(): Promise<CommunitySettings | null> 
   return data as CommunitySettings | null;
 }
 
+const getCommunitySettingsCached = unstable_cache(
+  fetchCommunitySettingsUncached,
+  ["public-community-settings"],
+  { revalidate: 120, tags: [CACHE_TAGS.communitySettings] },
+);
+
 export async function getActiveCommunityLevels(): Promise<CommunityLevel[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("community_levels")
-    .select(
-      "id, name, minimum_lifetime_points, description, benefits, sort_order, is_active",
-    )
-    .eq("is_active", true)
-    .order("sort_order", { ascending: true });
+  return getActiveCommunityLevelsCached();
+}
+
+async function fetchActiveCommunityLevelsUncached(): Promise<CommunityLevel[]> {
+  const supabase = createPublicClient();
+  const { data, error } = await withQueryTimeout("getActiveCommunityLevels", (signal) =>
+    supabase
+      .from("community_levels")
+      .select(
+        "id, name, minimum_lifetime_points, description, benefits, sort_order, is_active",
+      )
+      .eq("is_active", true)
+      .order("sort_order", { ascending: true })
+      .abortSignal(signal),
+  );
 
   if (error) {
     console.error("getActiveCommunityLevels:", error.message);
@@ -46,6 +70,12 @@ export async function getActiveCommunityLevels(): Promise<CommunityLevel[]> {
 
   return (data ?? []) as CommunityLevel[];
 }
+
+const getActiveCommunityLevelsCached = unstable_cache(
+  fetchActiveCommunityLevelsUncached,
+  ["public-community-levels"],
+  { revalidate: 300, tags: [CACHE_TAGS.communityLevels] },
+);
 
 export async function getLoyaltyAccountForUser(
   userId: string,
@@ -221,12 +251,6 @@ export async function getCommunityDashboard(
     return null;
   }
 
-  try {
-    await ensureCommunityMember(userId);
-  } catch (error) {
-    console.error("getCommunityDashboard ensure:", error);
-  }
-
   const [account, levels, transactions, rewards, redemptions, upcomingEvents] =
     await Promise.all([
       getLoyaltyAccountForUser(userId),
@@ -236,6 +260,14 @@ export async function getCommunityDashboard(
       getUserCommunityRedemptions(userId),
       getUpcomingEventsForUser(),
     ]);
+
+  if (!account) {
+    try {
+      await ensureCommunityMember(userId);
+    } catch (error) {
+      console.error("getCommunityDashboard ensure:", error);
+    }
+  }
 
   const lifetime = account?.lifetime_points ?? 0;
   const { level, nextLevel } = resolveLevel(

@@ -10,15 +10,21 @@ import {
   getPublishedEvents,
 } from "@/lib/events/queries";
 import { isSupabaseQueryError } from "@/lib/supabase/queryError";
+import { getFeaturedHomeStream } from "@/lib/streaming/queries";
 import type { Event } from "@/lib/events/types";
 
 export default async function Home() {
   let featuredEvents: Event[] = [];
   let carteleraItems: Awaited<ReturnType<typeof buildCarteleraEvents>> = [];
+  let featuredStream: Awaited<ReturnType<typeof getFeaturedHomeStream>> = null;
   let loadError: string | null = null;
 
   try {
-    const publishedEvents = await getPublishedEvents();
+    const [publishedEvents, stream] = await Promise.all([
+      getPublishedEvents(),
+      getFeaturedHomeStream(),
+    ]);
+    featuredStream = stream;
     featuredEvents = await getFeaturedEventsForHome(publishedEvents);
     carteleraItems = await buildCarteleraEvents(
       filterCarteleraEvents(publishedEvents),
@@ -40,7 +46,10 @@ export default async function Home() {
         </div>
       ) : (
         <>
-          <HomePremiumHero featuredEvents={featuredEvents} />
+          <HomePremiumHero
+            featuredEvents={featuredEvents}
+            featuredStream={featuredStream}
+          />
           <HomeEventsSection items={carteleraItems} />
           <HomeStoreSection />
           <HomeStreamingSection />

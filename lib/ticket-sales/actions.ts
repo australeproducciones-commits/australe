@@ -388,6 +388,17 @@ export async function confirmTicketPaymentAction(
       "@/lib/community/loyalty/service"
     );
     await awardLoyaltyPointsForTicket(ticketId);
+
+    if (ticket.user_id) {
+      const { processAutomaticGiveawayEntries } = await import(
+        "@/lib/community/giveaways/service"
+      );
+      await processAutomaticGiveawayEntries({
+        userId: ticket.user_id,
+        sourceType: "ticket",
+        sourceReferenceId: ticketId,
+      });
+    }
   } catch (loyaltyError) {
     console.error("confirmTicketPaymentAction loyalty:", loyaltyError);
   }

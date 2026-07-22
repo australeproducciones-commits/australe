@@ -9,7 +9,9 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "node scripts/validate-mercadopago-unit.mjs && node scripts/validate-mercadopago-payments.mjs && node scripts/validate-store-module.mjs && node scripts/validate-store-product-image-urls.mjs && node scripts/validate-store-duplicate-product.mjs && node scripts/validate-store-hero-settings.mjs"
+    "validate:community-giveaways": "node scripts/validate-community-giveaways-cron.mjs && node scripts/validate-community-giveaways-image-url.mjs && node scripts/validate-community-giveaways.mjs",
+    "validate:community-giveaways:cron": "node scripts/validate-community-giveaways-cron.mjs",
+    "test": "node scripts/validate-mercadopago-unit.mjs && node scripts/validate-mercadopago-payments.mjs && node scripts/validate-store-module.mjs && node scripts/validate-store-product-image-urls.mjs && node scripts/validate-store-duplicate-product.mjs && node scripts/validate-store-hero-settings.mjs && node scripts/validate-community-giveaways-cron.mjs"
   },
   "engines": {
     "node": ">=20.0.0"

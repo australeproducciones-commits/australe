@@ -84,11 +84,11 @@ export function entryTypeLabel(entryType: string): string {
   const labels: Record<string, string> = {
     free: "Participación gratuita",
     points: "Canje de puntos",
-    ticket: "Entrada al evento",
+    ticket: "Entrada válida",
     attendance: "Asistencia confirmada",
     store_purchase: "Compra en tienda",
-    automatic: "Automática",
-    mixed: "Mixta",
+    automatic: "Participación automática",
+    mixed: "Modalidad combinada",
   };
   return labels[entryType] ?? entryType;
 }

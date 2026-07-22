@@ -51,13 +51,18 @@ export function validateGiveawayForm(input: GiveawayFormInput): string | null {
     return "Los sorteos por puntos requieren un costo mayor a cero.";
   }
   if (input.starts_at && input.closes_at) {
-    if (new Date(input.starts_at) > new Date(input.closes_at)) {
+    if (new Date(input.starts_at) >= new Date(input.closes_at)) {
       return "La fecha de inicio debe ser anterior al cierre.";
     }
   }
   if (input.closes_at && input.draw_at) {
-    if (new Date(input.closes_at) > new Date(input.draw_at)) {
+    if (new Date(input.closes_at) >= new Date(input.draw_at)) {
       return "El sorteo debe programarse después del cierre.";
+    }
+  }
+  if (input.draw_at && input.claim_deadline) {
+    if (new Date(input.draw_at) >= new Date(input.claim_deadline)) {
+      return "El límite de reclamo debe ser posterior al sorteo.";
     }
   }
 

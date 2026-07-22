@@ -53,7 +53,7 @@ RETURNS TABLE (
   total_chances integer,
   display_name text,
   winner_type text,
-  position integer,
+  "position" integer,
   status_public text,
   selected_at timestamptz,
   claimed_at timestamptz,

@@ -1,6 +1,5 @@
 import { HomeEventsSection } from "@/components/home/HomeEventsSection";
 import { HomePremiumHero } from "@/components/home/HomePremiumHero";
-import { HomePremiumTheme } from "@/components/home/HomePremiumTheme";
 import { HomeStoreSection } from "@/components/home/HomeStoreSection";
 import { HomeStreamingSection } from "@/components/home/HomeStreamingSection";
 import { PublicQueryError } from "@/components/ui/PublicQueryError";
@@ -34,21 +33,19 @@ export default async function Home() {
   }
 
   return (
-    <HomePremiumTheme>
-      <main className="home-premium">
-        {loadError ? (
-          <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-            <PublicQueryError message={loadError} />
-          </div>
-        ) : (
-          <>
-            <HomePremiumHero featuredEvents={featuredEvents} />
-            <HomeEventsSection items={carteleraItems} />
-            <HomeStoreSection />
-            <HomeStreamingSection />
-          </>
-        )}
-      </main>
-    </HomePremiumTheme>
+    <main className="home-premium">
+      {loadError ? (
+        <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+          <PublicQueryError message={loadError} />
+        </div>
+      ) : (
+        <>
+          <HomePremiumHero featuredEvents={featuredEvents} />
+          <HomeEventsSection items={carteleraItems} />
+          <HomeStoreSection />
+          <HomeStreamingSection />
+        </>
+      )}
+    </main>
   );
 }

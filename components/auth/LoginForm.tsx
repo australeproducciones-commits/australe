@@ -118,7 +118,7 @@ export function LoginForm() {
   }
 
   return (
-    <PublicCard padding="lg">
+    <PublicCard padding="lg" className="border-0 bg-transparent p-0 shadow-none">
       <SectionHeading
         label="Australe Producciones"
         title={mode === "login" ? "Iniciar sesión" : "Crear cuenta"}

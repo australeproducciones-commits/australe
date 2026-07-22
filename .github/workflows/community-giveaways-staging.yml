@@ -69,41 +69,91 @@ jobs:
       - name: Instalar dependencias
         run: npm ci
 
-      - name: Resolver rama Preview de Supabase
+      - name: Resolver entorno staging de Supabase
         id: branch
+        env:
+          STAGING_PROJECT_NAME: Australe Giveaways Staging
+          AUSTALE_ORG_ID: nzzmmjpjlyyizvcyxwcg
         run: |
           set -euo pipefail
-          if [ "${{ github.event.inputs.recreate_branch }}" = "true" ]; then
-            supabase branches delete "$BRANCH_NAME" --project-ref "$PARENT_PROJECT_REF" --yes || true
-          fi
-          if ! supabase branches get "$BRANCH_NAME" --project-ref "$PARENT_PROJECT_REF" -o json > branch.json 2>/dev/null; then
-            echo "Creando rama Preview $BRANCH_NAME…"
-            supabase branches create "$BRANCH_NAME" \
+          STAGING_REF=""
+          STAGING_MODE=""
+
+          if supabase branches get "$BRANCH_NAME" --project-ref "$PARENT_PROJECT_REF" -o json > branch.json 2>/dev/null; then
+            STAGING_REF=$(node -e "const b=require('./branch.json'); process.stdout.write(b.project_ref || b.id || '')")
+            STAGING_MODE="branching"
+          elif [ "${{ github.event.inputs.recreate_branch }}" != "true" ]; then
+            echo "Intentando crear rama Preview $BRANCH_NAME…"
+            if supabase branches create "$BRANCH_NAME" \
               --project-ref "$PARENT_PROJECT_REF" \
               --persistent \
               --git-branch "${{ github.head_ref || github.ref_name }}" \
-              --yes
-            supabase branches get "$BRANCH_NAME" --project-ref "$PARENT_PROJECT_REF" -o json > branch.json
+              --yes 2>branch.err; then
+              supabase branches get "$BRANCH_NAME" --project-ref "$PARENT_PROJECT_REF" -o json > branch.json
+              STAGING_REF=$(node -e "const b=require('./branch.json'); process.stdout.write(b.project_ref || b.id || '')")
+              STAGING_MODE="branching"
+            else
+              echo "Branching no disponible:"
+              cat branch.err || true
+            fi
           fi
-          BRANCH_REF=$(node -e "const b=require('./branch.json'); process.stdout.write(b.project_ref || b.id || '')")
-          test -n "$BRANCH_REF"
-          echo "branch_ref=$BRANCH_REF" >> "$GITHUB_OUTPUT"
-          echo "Rama staging ref sanitizado: ${BRANCH_REF:0:4}…${BRANCH_REF: -4}"
 
-      - name: Esperar rama activa
+          if [ -z "$STAGING_REF" ]; then
+            echo "Fallback: proyecto Supabase independiente ($STAGING_PROJECT_NAME)"
+            supabase projects list -o json > projects.json
+            STAGING_REF=$(node -e "
+              const fs=require('fs');
+              const projects=JSON.parse(fs.readFileSync('projects.json','utf8'));
+              const list=Array.isArray(projects)?projects:(projects.projects||[]);
+              const hit=list.find(p=>p.name==='$STAGING_PROJECT_NAME');
+              process.stdout.write(hit?.id||hit?.ref||'');
+            ")
+            if [ -z "$STAGING_REF" ]; then
+              echo "Creando proyecto staging dedicado…"
+              supabase projects create "$STAGING_PROJECT_NAME" \
+                --org-id "$AUSTALE_ORG_ID" \
+                --db-password "$SUPABASE_DB_PASSWORD" \
+                --region sa-east-1 \
+                --yes -o json > created.json
+              STAGING_REF=$(node -e "const p=require('./created.json'); process.stdout.write(p.id||p.ref||'')")
+            fi
+            STAGING_MODE="dedicated_project"
+          fi
+
+          test -n "$STAGING_REF"
+          echo "branch_ref=$STAGING_REF" >> "$GITHUB_OUTPUT"
+          echo "staging_mode=$STAGING_MODE" >> "$GITHUB_OUTPUT"
+          echo "Entorno staging: $STAGING_MODE"
+          echo "Ref sanitizado: ${STAGING_REF:0:4}…${STAGING_REF: -4}"
+
+      - name: Esperar entorno staging activo
         run: |
           set -euo pipefail
-          BRANCH_REF="${{ steps.branch.outputs.branch_ref }}"
-          for i in $(seq 1 40); do
-            STATUS=$(supabase branches get "$BRANCH_NAME" --project-ref "$PARENT_PROJECT_REF" -o json | node -e "const b=require('fs').readFileSync(0,'utf8'); const j=JSON.parse(b); process.stdout.write(j.status || j.health || 'unknown')")
-            echo "Estado rama ($i/40): $STATUS"
-            if [ "$STATUS" = "ACTIVE_HEALTHY" ] || [ "$STATUS" = "active" ]; then
-              exit 0
-            fi
-            sleep 15
-          done
-          echo "La rama Preview no alcanzó estado saludable a tiempo"
-          exit 1
+          STAGING_REF="${{ steps.branch.outputs.branch_ref }}"
+          MODE="${{ steps.branch.outputs.staging_mode }}"
+          if [ "$MODE" = "branching" ]; then
+            for i in $(seq 1 40); do
+              STATUS=$(supabase branches get "$BRANCH_NAME" --project-ref "$PARENT_PROJECT_REF" -o json | node -e "const b=require('fs').readFileSync(0,'utf8'); const j=JSON.parse(b); process.stdout.write(j.status || j.health || 'unknown')")
+              echo "Estado rama ($i/40): $STATUS"
+              if [ "$STATUS" = "ACTIVE_HEALTHY" ] || [ "$STATUS" = "active" ]; then
+                exit 0
+              fi
+              sleep 15
+            done
+            echo "La rama Preview no alcanzó estado saludable a tiempo"
+            exit 1
+          else
+            for i in $(seq 1 40); do
+              STATUS=$(supabase projects get "$STAGING_REF" -o json | node -e "const p=require('fs').readFileSync(0,'utf8'); const j=JSON.parse(p); process.stdout.write(j.status||'unknown')")
+              echo "Estado proyecto ($i/40): $STATUS"
+              if [ "$STATUS" = "ACTIVE_HEALTHY" ]; then
+                exit 0
+              fi
+              sleep 15
+            done
+            echo "El proyecto staging no alcanzó estado saludable a tiempo"
+            exit 1
+          fi
 
       - name: Vincular rama staging
         run: |
@@ -160,7 +210,7 @@ jobs:
         run: |
           echo "## Staging Community Giveaways" >> "$GITHUB_STEP_SUMMARY"
           echo "- Proyecto padre: vfmz…fman (Australe producción — solo como origen de branching)" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Rama Preview: $BRANCH_NAME" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Modo staging: ${{ steps.branch.outputs.staging_mode }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- Branch ref: ${{ steps.branch.outputs.branch_ref }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- URL Supabase: https://${{ steps.branch.outputs.branch_ref }}.supabase.co" >> "$GITHUB_STEP_SUMMARY"
           echo "- Migraciones sorteos: foundation, rpc, security_hardening" >> "$GITHUB_STEP_SUMMARY"

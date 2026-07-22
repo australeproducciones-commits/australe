@@ -84,6 +84,23 @@ export default async function ComunidadPage() {
 
       <CommunityHero settings={settings} isAuthenticated={Boolean(profile?.id)} />
 
+      <section className="mt-8">
+        <PublicCard padding="md" className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="public-heading text-lg font-bold">Sorteos de Comunidad</h2>
+            <p className="mt-1 text-sm public-text-muted">
+              Participá en sorteos exclusivos con puntos, entradas o beneficios de miembro.
+            </p>
+          </div>
+          <Link
+            href={ROUTES.comunidadSorteos}
+            className="inline-flex items-center justify-center rounded-xl bg-purple-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-purple-500"
+          >
+            Ver sorteos
+          </Link>
+        </PublicCard>
+      </section>
+
       {profile?.id && dashboard ? (
         <>
           <div className="mt-8 grid gap-4 sm:grid-cols-2">

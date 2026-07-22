@@ -19,6 +19,8 @@ export const ROUTES = {
   ventaEvento: (code: string) => `/venta/e/${code}`,
   invitacion: (token: string) => `/invitacion/${token}`,
   comunidad: "/comunidad",
+  comunidadSorteos: "/comunidad/sorteos",
+  comunidadSorteo: (slug: string) => `/comunidad/sorteos/${slug}`,
   tienda: "/tienda",
   tiendaProducto: (slug: string) => `/tienda/${slug}`,
   tiendaColeccion: (slug: string) => `/tienda/colecciones/${slug}`,
@@ -51,6 +53,15 @@ export const ROUTES = {
   adminComunidadInvitaciones: "/admin/comunidad/invitaciones",
   adminComunidadPublicidad: "/admin/comunidad/publicidad",
   adminComunidadConfiguracion: "/admin/comunidad/configuracion",
+  adminComunidadSorteos: "/admin/comunidad/sorteos",
+  adminComunidadSorteosNuevo: "/admin/comunidad/sorteos/nuevo",
+  adminComunidadSorteo: (id: string) => `/admin/comunidad/sorteos/${id}`,
+  adminComunidadSorteoParticipantes: (id: string) =>
+    `/admin/comunidad/sorteos/${id}/participantes`,
+  adminComunidadSorteoResultado: (id: string) =>
+    `/admin/comunidad/sorteos/${id}/resultado`,
+  adminComunidadSorteoAuditoria: (id: string) =>
+    `/admin/comunidad/sorteos/${id}/auditoria`,
   adminProductos: "/admin/productos",
   adminTienda: "/admin/tienda",
   adminTiendaProductos: "/admin/tienda/productos",

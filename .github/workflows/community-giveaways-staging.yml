@@ -1,0 +1,167 @@
+name: Community Giveaways Staging
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch_name:
+        description: Nombre de la rama Supabase Preview
+        required: true
+        default: community-giveaways-staging
+      recreate_branch:
+        description: Eliminar y recrear la rama si ya existe
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "supabase/migrations/20260722000000_community_giveaways_foundation.sql"
+      - "supabase/migrations/20260722000100_community_giveaways_rpc.sql"
+      - "supabase/migrations/20260722000200_community_giveaways_security_hardening.sql"
+      - "scripts/validate-community-giveaways.mjs"
+      - "scripts/validate-community-giveaways-security.sql"
+      - ".github/workflows/community-giveaways-staging.yml"
+
+concurrency:
+  group: community-giveaways-staging
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  staging-validate:
+    name: Staging Supabase + E2E sorteos
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      PARENT_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_ID }}
+      BRANCH_NAME: ${{ github.event.inputs.branch_name || 'community-giveaways-staging' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verificar secretos y proyecto Australe
+        run: |
+          test -n "$SUPABASE_ACCESS_TOKEN"
+          test -n "$SUPABASE_DB_PASSWORD"
+          test -n "$PARENT_PROJECT_REF"
+          test "$PARENT_PROJECT_REF" = "vfmzabiyqmsnlpesfman"
+          echo "Proyecto padre confirmado (ref sanitizado): ${PARENT_PROJECT_REF:0:4}…${PARENT_PROJECT_REF: -4}"
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Resolver rama Preview de Supabase
+        id: branch
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event.inputs.recreate_branch }}" = "true" ]; then
+            supabase branches delete "$BRANCH_NAME" --project-ref "$PARENT_PROJECT_REF" --yes || true
+          fi
+          if ! supabase branches get "$BRANCH_NAME" --project-ref "$PARENT_PROJECT_REF" -o json > branch.json 2>/dev/null; then
+            echo "Creando rama Preview $BRANCH_NAME…"
+            supabase branches create "$BRANCH_NAME" \
+              --project-ref "$PARENT_PROJECT_REF" \
+              --persistent \
+              --git-branch "${{ github.head_ref || github.ref_name }}" \
+              --yes
+            supabase branches get "$BRANCH_NAME" --project-ref "$PARENT_PROJECT_REF" -o json > branch.json
+          fi
+          BRANCH_REF=$(node -e "const b=require('./branch.json'); process.stdout.write(b.project_ref || b.id || '')")
+          test -n "$BRANCH_REF"
+          echo "branch_ref=$BRANCH_REF" >> "$GITHUB_OUTPUT"
+          echo "Rama staging ref sanitizado: ${BRANCH_REF:0:4}…${BRANCH_REF: -4}"
+
+      - name: Esperar rama activa
+        run: |
+          set -euo pipefail
+          BRANCH_REF="${{ steps.branch.outputs.branch_ref }}"
+          for i in $(seq 1 40); do
+            STATUS=$(supabase branches get "$BRANCH_NAME" --project-ref "$PARENT_PROJECT_REF" -o json | node -e "const b=require('fs').readFileSync(0,'utf8'); const j=JSON.parse(b); process.stdout.write(j.status || j.health || 'unknown')")
+            echo "Estado rama ($i/40): $STATUS"
+            if [ "$STATUS" = "ACTIVE_HEALTHY" ] || [ "$STATUS" = "active" ]; then
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "La rama Preview no alcanzó estado saludable a tiempo"
+          exit 1
+
+      - name: Vincular rama staging
+        run: |
+          supabase link --project-ref "${{ steps.branch.outputs.branch_ref }}" --password "$SUPABASE_DB_PASSWORD" --yes
+
+      - name: Listar migraciones pendientes
+        run: |
+          echo "=== Migraciones locales de sorteos ==="
+          ls -1 supabase/migrations/2026072200*.sql
+          echo "=== Estado remoto ==="
+          supabase migration list --linked
+
+      - name: Aplicar migraciones en staging (dry-run)
+        run: supabase db push --linked --dry-run
+
+      - name: Aplicar migraciones en staging
+        run: supabase db push --linked --yes
+
+      - name: Obtener claves de la rama staging
+        id: keys
+        run: |
+          set -euo pipefail
+          supabase projects api-keys --project-ref "${{ steps.branch.outputs.branch_ref }}" -o json > keys.json
+          ANON=$(node -e "const k=require('./keys.json'); const row=(Array.isArray(k)?k:k.api_keys||[]).find(x=>x.name==='anon'||x.id==='anon'); process.stdout.write(row?.api_key||row?.key||'')")
+          SERVICE=$(node -e "const k=require('./keys.json'); const row=(Array.isArray(k)?k:k.api_keys||[]).find(x=>x.name==='service_role'||x.id==='service_role'); process.stdout.write(row?.api_key||row?.key||'')")
+          test -n "$ANON"
+          test -n "$SERVICE"
+          echo "anon_configured=true" >> "$GITHUB_OUTPUT"
+          echo "NEXT_PUBLIC_SUPABASE_URL=https://${{ steps.branch.outputs.branch_ref }}.supabase.co" >> "$GITHUB_ENV"
+          echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$ANON" >> "$GITHUB_ENV"
+          echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE" >> "$GITHUB_ENV"
+          echo "EXPECTED_SUPABASE_PROJECT_REF=${{ steps.branch.outputs.branch_ref }}" >> "$GITHUB_ENV"
+          echo "ALLOW_GIVEAWAY_E2E=true" >> "$GITHUB_ENV"
+
+      - name: Auditoría SQL de seguridad
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client > /dev/null
+          DB_URL=$(supabase db url --linked 2>/dev/null || true)
+          if [ -z "$DB_URL" ]; then
+            DB_URL="postgresql://postgres:${SUPABASE_DB_PASSWORD}@db.${{ steps.branch.outputs.branch_ref }}.supabase.co:5432/postgres"
+          fi
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -f scripts/validate-community-giveaways-security.sql
+
+      - name: Pruebas unitarias cron e image_url
+        run: |
+          node scripts/validate-community-giveaways-cron.mjs
+          node scripts/validate-community-giveaways-image-url.mjs
+
+      - name: E2E sorteos contra staging online
+        run: node scripts/validate-community-giveaways.mjs
+
+      - name: Resumen staging (sin secretos)
+        if: always()
+        run: |
+          echo "## Staging Community Giveaways" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Proyecto padre: vfmz…fman (Australe producción — solo como origen de branching)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Rama Preview: $BRANCH_NAME" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Branch ref: ${{ steps.branch.outputs.branch_ref }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- URL Supabase: https://${{ steps.branch.outputs.branch_ref }}.supabase.co" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Migraciones sorteos: foundation, rpc, security_hardening" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Configure Vercel Preview con las claves de esta rama (no producción)." >> "$GITHUB_STEP_SUMMARY"

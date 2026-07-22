@@ -24,7 +24,7 @@ export default async function AdminLayout({
   const navLinks = getAdminNavLinksForRole(role);
 
   return (
-    <div className="flex min-h-screen bg-zinc-950">
+    <div className="operational-theme flex min-h-screen" style={{ backgroundColor: "var(--australe-background)" }}>
       <AdminSidebar
         pendingSalesCount={pendingSalesCount}
         navLinks={navLinks}

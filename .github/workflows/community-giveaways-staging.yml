@@ -176,11 +176,17 @@ jobs:
         if: steps.branch.outputs.staging_mode == 'dedicated_project'
         run: |
           set -euo pipefail
-          HAS_PROFILES=$(supabase db query --linked "SELECT to_regclass('public.profiles') IS NOT NULL;" | tail -n 1 | tr -d '[:space:]')
-          if [ "$HAS_PROFILES" != "t" ]; then
-            echo "Aplicando baseline oficial schema-v1 vía Management API…"
+          HAS_EVENTS=$(supabase db query --linked "SELECT to_regclass('public.events') IS NOT NULL;" | tail -n 1 | tr -d '[:space:]')
+          if [ "$HAS_EVENTS" != "t" ]; then
+            HAS_PROFILES=$(supabase db query --linked "SELECT to_regclass('public.profiles') IS NOT NULL;" | tail -n 1 | tr -d '[:space:]')
+            echo "Aplicando baseline schema-v1 (events ausente)…"
+            if [ "$HAS_PROFILES" != "t" ]; then
+              echo "→ supabase/schema-v1.sql"
+              supabase db query --linked -f supabase/schema-v1.sql
+            else
+              echo "Omitiendo schema-v1.sql (profiles ya existe en proyecto Supabase)"
+            fi
             for f in \
-              schema-v1.sql \
               schema-v1-profile-functions.sql \
               schema-v1-policies.sql \
               schema-v1-ticket-reservations.sql \
@@ -191,7 +197,7 @@ jobs:
               supabase db query --linked -f "supabase/$f"
             done
           else
-            echo "Baseline schema-v1 ya presente"
+            echo "Baseline schema-v1 ya presente (events existe)"
           fi
 
       - name: Listar migraciones pendientes
